@@ -124,6 +124,7 @@ def search_two_sequence_combinations(
     time_fn: Callable[[], float] = time.perf_counter,
     max_combinations: int | None = None,
     component_transforms: Sequence[ComponentTransform] | None = None,
+    snippet_len: int | None = None,
 ) -> list[CombinationMatch]:
     """
     Brute-force search for integer linear combinations of two sequences that equal the query prefix.
@@ -153,6 +154,8 @@ def search_two_sequence_combinations(
 
     shift_vals = range(-max_shift_back, max_shift + 1)
     transforms = list(component_transforms or [t for t in _default_component_transforms() if t.name == "id"])
+    if snippet_len is None:
+        snippet_len = len(query.terms)
 
     for rec1, rec2 in combinations(records, 2):
         for t1 in transforms:
@@ -192,6 +195,9 @@ def search_two_sequence_combinations(
                                 score = _combo_score(qlen, (a, b), (s1, s2), t_weights=t_weights, pop_bonus=pop_bonus)
                                 expr = _format_expr((rec1.id, rec2.id), (a, b), (s1, s2), (t1.name, t2.name))
                                 latex = _format_latex((rec1.id, rec2.id), (a, b), (s1, s2), (t1.name, t2.name))
+                                comp_terms = None if snippet_len is None else (slice1[:snippet_len], slice2[:snippet_len])
+                                combined_terms = query.terms[:snippet_len] if snippet_len is not None else None
+
                                 results.append(
                                     CombinationMatch(
                                         ids=(rec1.id, rec2.id),
@@ -203,6 +209,8 @@ def search_two_sequence_combinations(
                                         expression=expr,
                                         latex_expression=latex,
                                         component_transforms=(t1.name, t2.name),
+                                        component_terms=comp_terms,
+                                        combined_terms=combined_terms,
                                     )
                                 )
 
@@ -223,6 +231,7 @@ def search_three_sequence_combinations(
     time_fn: Callable[[], float] = time.perf_counter,
     max_combinations: int | None = None,
     component_transforms: Sequence[ComponentTransform] | None = None,
+    snippet_len: int | None = None,
 ) -> list[CombinationMatch]:
     """
     Brute-force search for integer linear combinations of three sequences equal to the query prefix.
@@ -251,6 +260,8 @@ def search_three_sequence_combinations(
 
     shift_vals = range(-max_shift_back, max_shift + 1)
     transforms = list(component_transforms or [t for t in _default_component_transforms() if t.name == "id"])
+    if snippet_len is None:
+        snippet_len = len(query.terms)
 
     for rec1, rec2, rec3 in combinations(records, 3):
         for t1 in transforms:
@@ -301,6 +312,13 @@ def search_three_sequence_combinations(
                                             score = _combo_score(qlen, coeff_tuple, shift_tuple, t_weights=t_weights, pop_bonus=pop_bonus)
                                             expr = _format_expr((rec1.id, rec2.id, rec3.id), coeff_tuple, shift_tuple, t_names)
                                             latex = _format_latex((rec1.id, rec2.id, rec3.id), coeff_tuple, shift_tuple, t_names)
+                                            comp_terms = None if snippet_len is None else (
+                                                slice1[:snippet_len],
+                                                slice2[:snippet_len],
+                                                slice3[:snippet_len],
+                                            )
+                                            combined_terms = query.terms[:snippet_len] if snippet_len is not None else None
+
                                             results.append(
                                                 CombinationMatch(
                                                     ids=(rec1.id, rec2.id, rec3.id),
@@ -312,6 +330,8 @@ def search_three_sequence_combinations(
                                                     expression=expr,
                                                     latex_expression=latex,
                                                     component_transforms=t_names,
+                                                    component_terms=comp_terms,
+                                                    combined_terms=combined_terms,
                                                 )
                                             )
 

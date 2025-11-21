@@ -58,6 +58,8 @@ class CombinationMatch:
     expression: str
     component_transforms: Optional[tuple[str, ...]] = None
     latex_expression: Optional[str] = None
+    component_terms: Optional[tuple[list[int], ...]] = None
+    combined_terms: Optional[list[int]] = None
 
 
 @dataclass

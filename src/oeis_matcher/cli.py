@@ -49,8 +49,8 @@ PRESETS = {
         "triple_max_time": 3.0,
     },
     "max": {
-        # “Find all the things”: wide transform search + combos/triples, generous caps and 10 min timeouts.
-        "max_depth": 3,
+        # “Find all the things”: wide transform search + combos/triples, generous caps and ~10 min timeouts.
+        "max_depth": 2,
         "limit": 25,
         "tlimit": 80,
         "scale_values": "-5,-4,-3,-2,-1,2,3,4,5",
@@ -81,6 +81,24 @@ def _apply_preset(args, preset_name: str):
         if hasattr(args, key):
             setattr(args, key, val)
     return args
+
+
+def _choose_snippet_len(query_terms: list[int | None], show_terms: int | None) -> int | None:
+    if show_terms is not None:
+        return show_terms
+    if not query_terms:
+        return None
+    return min(len(query_terms), 20)
+
+
+def _fmt_terms(terms: list[int] | None, limit: int = 20) -> str:
+    if not terms:
+        return ""
+    clipped = terms[:limit]
+    txt = ",".join(str(t) for t in clipped)
+    if len(terms) > limit:
+        txt += ",…"
+    return txt
 
 from .combination_search import search_two_sequence_combinations, search_three_sequence_combinations, resolve_component_transforms
 from .config import load_config
@@ -355,15 +373,19 @@ def main(argv=None):
             allow_digit_sum=extras["digitsum"],
         )
 
-        matches = search_transform_matches(
-            query,
-            Path(args.db),
-            max_depth=args.max_depth,
-            transforms=transforms,
-            limit=args.limit,
-            snippet_len=args.show_terms,
-            full_scan=args.preset == "deep",
-        )
+        snip = _choose_snippet_len(query.terms, args.show_terms)
+        if args.limit and args.limit > 0:
+            matches = search_transform_matches(
+                query,
+                Path(args.db),
+                max_depth=args.max_depth,
+                transforms=transforms,
+                limit=args.limit,
+                snippet_len=snip,
+                full_scan=args.preset == "deep",
+            )
+        else:
+            matches = []
 
         if args.as_json:
             out = [
@@ -390,6 +412,8 @@ def main(argv=None):
                 snippet = ""
                 if m.snippet is not None:
                     snippet = " terms=" + ",".join(str(t) for t in m.snippet)
+                if m.transformed_terms is not None:
+                    snippet += " transformed=" + ",".join(str(t) for t in m.transformed_terms)
                 expl = m.explanation or m.transform_desc or ""
                 tdesc = f" via {expl}" if expl else ""
                 print(f"{m.id} [{m.match_type} @ {m.offset}] len={m.length}{name}{tdesc}{snippet}")
@@ -415,6 +439,7 @@ def main(argv=None):
             skip_prefix_filter=args.combo_unfiltered,
         )
         comp_transforms = resolve_component_transforms(_parse_transform_names(args.component_transforms))
+        snip = _choose_snippet_len(query.terms, args.show_terms)
         combos = search_two_sequence_combinations(
             query,
             bucket.records,
@@ -427,6 +452,7 @@ def main(argv=None):
             max_time_s=args.max_time,
             max_combinations=args.max_combinations,
             component_transforms=comp_transforms,
+            snippet_len=snip,
         )
         triples = []
         if args.triples:
@@ -442,6 +468,7 @@ def main(argv=None):
                 max_time_s=args.triple_max_time,
                 max_combinations=args.triple_max_combinations,
                 component_transforms=comp_transforms,
+                snippet_len=snip,
             )
         if args.as_json:
             out = [
@@ -454,6 +481,8 @@ def main(argv=None):
                     "score": m.score,
                     "expression": m.expression,
                     **({"component_transforms": list(m.component_transforms)} if m.component_transforms else {}),
+                    **({"component_terms": [list(t) for t in m.component_terms]} if m.component_terms else {}),
+                    **({"combined_terms": m.combined_terms} if m.combined_terms else {}),
                 }
                 for m in combos
             ]
@@ -467,6 +496,8 @@ def main(argv=None):
                     "score": m.score,
                     "expression": m.expression,
                     **({"component_transforms": list(m.component_transforms)} if m.component_transforms else {}),
+                    **({"component_terms": [list(t) for t in m.component_terms]} if m.component_terms else {}),
+                    **({"combined_terms": m.combined_terms} if m.combined_terms else {}),
                 }
                 for m in triples
             ]
@@ -477,12 +508,24 @@ def main(argv=None):
             for m in combos:
                 n1 = f" - {m.names[0]}" if m.names[0] else ""
                 n2 = f" - {m.names[1]}" if m.names[1] else ""
-                print(f"{m.expression} len={m.length} score={m.score:.2f} [{m.ids[0]}{n1}; {m.ids[1]}{n2}]")
+                extra = ""
+                if m.component_terms:
+                    t1 = _fmt_terms(m.component_terms[0])
+                    t2 = _fmt_terms(m.component_terms[1])
+                    extra = f" terms1={t1} terms2={t2}"
+                if m.combined_terms:
+                    extra += f" result={_fmt_terms(m.combined_terms)}"
+                print(f"{m.expression} len={m.length} score={m.score:.2f} [{m.ids[0]}{n1}; {m.ids[1]}{n2}]{extra}")
             if triples:
                 print("\nTriple combinations:")
                 for m in triples:
                     name_parts = [f"{id_}{f' - {nm}' if nm else ''}" for id_, nm in zip(m.ids, m.names)]
-                    print(f"{m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]")
+                    extra = ""
+                    if m.component_terms:
+                        extra = " " + " ".join(f"terms{i+1}={_fmt_terms(ts)}" for i, ts in enumerate(m.component_terms))
+                    if m.combined_terms:
+                        extra += f" result={_fmt_terms(m.combined_terms)}"
+                    print(f"{m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}")
         return 0
 
     if args.cmd == "analyze":
@@ -541,15 +584,19 @@ def main(argv=None):
             allow_digit_sum=extras["digitsum"],
         )
 
-        t_matches = search_transform_matches(
-            query,
-            db_path,
-            max_depth=args.max_depth,
-            transforms=transforms,
-            limit=args.tlimit,
-            snippet_len=args.show_terms,
-            full_scan=args.preset == "deep",
-        )
+        combo_snip = _choose_snippet_len(query.terms, args.show_terms)
+        if args.tlimit and args.tlimit > 0:
+            t_matches = search_transform_matches(
+                query,
+                db_path,
+                max_depth=args.max_depth,
+                transforms=transforms,
+                limit=args.tlimit,
+                snippet_len=combo_snip,
+                full_scan=args.preset in ("deep", "max"),
+            )
+        else:
+            t_matches = []
         t1 = time.perf_counter()
         if args.timings:
             timings["transform_ms"] = 1000 * (t1 - t0) - timings.get("exact_ms", 0.0)
@@ -565,6 +612,7 @@ def main(argv=None):
             triple_candidates = args.triple_candidates or args.combo_candidates
             cap = max(args.combo_candidates, triple_candidates)
             comp_transforms = resolve_component_transforms(_parse_transform_names(args.combo_component_transforms))
+            combo_snip = _choose_snippet_len(query.terms, args.show_terms)
             bucket = get_candidate_bucket(
                 query,
                 db_path,
@@ -589,6 +637,7 @@ def main(argv=None):
                     max_time_s=args.combo_max_time,
                     max_combinations=args.combo_max_combinations,
                     component_transforms=comp_transforms,
+                    snippet_len=combo_snip,
                 )
                 combo_end = time.perf_counter()
             else:
@@ -608,6 +657,7 @@ def main(argv=None):
                     max_time_s=args.triple_max_time,
                     max_combinations=args.triple_max_combinations,
                     component_transforms=comp_transforms,
+                    snippet_len=combo_snip,
                 )
                 triple_end = time.perf_counter()
             else:
@@ -666,6 +716,8 @@ def main(argv=None):
                         "score": m.score,
                         "expression": m.expression,
                         **({"component_transforms": list(m.component_transforms)} if m.component_transforms else {}),
+                        **({"component_terms": [list(t) for t in m.component_terms]} if m.component_terms else {}),
+                        **({"combined_terms": m.combined_terms} if m.combined_terms else {}),
                     }
                     for m in combo_matches
                 ],
@@ -679,6 +731,8 @@ def main(argv=None):
                         "score": m.score,
                         "expression": m.expression,
                         **({"component_transforms": list(m.component_transforms)} if m.component_transforms else {}),
+                        **({"component_terms": [list(t) for t in m.component_terms]} if m.component_terms else {}),
+                        **({"combined_terms": m.combined_terms} if m.combined_terms else {}),
                     }
                     for m in triple_matches
                 ],
@@ -703,6 +757,8 @@ def main(argv=None):
             for m in t_matches:
                 name = f" - {m.name}" if m.name else ""
                 snippet = f" terms={','.join(str(t) for t in m.snippet)}" if m.snippet else ""
+                if m.transformed_terms:
+                    snippet += f" transformed={','.join(str(t) for t in m.transformed_terms)}"
                 expl = m.explanation or m.transform_desc or ""
                 tdesc = f" via {expl}" if expl else ""
                 score = f" score={m.score:.2f}" if m.score is not None else ""
@@ -719,14 +775,24 @@ def main(argv=None):
                 for m in combo_matches:
                     n1 = f" - {m.names[0]}" if m.names[0] else ""
                     n2 = f" - {m.names[1]}" if m.names[1] else ""
+                    extra = ""
+                    if m.component_terms:
+                        extra = f" terms1={_fmt_terms(m.component_terms[0])} terms2={_fmt_terms(m.component_terms[1])}"
+                    if m.combined_terms:
+                        extra += f" result={_fmt_terms(m.combined_terms)}"
                     print(
-                        f"  {m.expression} len={m.length} score={m.score:.2f} [{m.ids[0]}{n1}; {m.ids[1]}{n2}]"
+                        f"  {m.expression} len={m.length} score={m.score:.2f} [{m.ids[0]}{n1}; {m.ids[1]}{n2}]{extra}"
                     )
             if triple_matches:
                 print("\nTriple combination matches:")
                 for m in triple_matches:
                     name_parts = [f"{id_}{f' - {nm}' if nm else ''}" for id_, nm in zip(m.ids, m.names)]
-                    print(f"  {m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]")
+                    extra = ""
+                    if m.component_terms:
+                        extra = " " + " ".join(f"terms{i+1}={_fmt_terms(ts)}" for i, ts in enumerate(m.component_terms))
+                    if m.combined_terms:
+                        extra += f" result={_fmt_terms(m.combined_terms)}"
+                    print(f"  {m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}")
             if args.timings:
                 timings["total_ms"] = 1000 * (time.perf_counter() - t_start)
                 print("\nTimings (ms):")

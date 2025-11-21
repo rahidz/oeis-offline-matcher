@@ -118,6 +118,7 @@ def search_combinations(
     max_combinations: int | None = None,
     component_transforms: Iterable[str] | None = None,
     combo_unfiltered: bool = False,
+    snippet_len: int | None = None,
 ) -> list:
     cfg = load_config()
     db_path = Path(db_path or cfg["paths"]["db"])
@@ -142,6 +143,7 @@ def search_combinations(
         max_time_s=max_time,
         max_combinations=max_combinations,
         component_transforms=resolve_component_transforms(list(component_transforms) if component_transforms is not None else None),
+        snippet_len=snippet_len,
     )
 
 
@@ -159,6 +161,7 @@ def search_three_combinations(
     max_combinations: int | None = None,
     component_transforms: Iterable[str] | None = None,
     combo_unfiltered: bool = False,
+    snippet_len: int | None = None,
 ) -> list:
     cfg = load_config()
     db_path = Path(db_path or cfg["paths"]["db"])
@@ -183,6 +186,7 @@ def search_three_combinations(
         max_time_s=max_time,
         max_combinations=max_combinations,
         component_transforms=resolve_component_transforms(list(component_transforms) if component_transforms is not None else None),
+        snippet_len=snippet_len,
     )
 
 
@@ -252,17 +256,22 @@ def analyze_sequence(
 
     # Transforms
     t_args = transform_args or {}
-    t_matches = search_transforms(
-        query.terms,
-        db_path=db_path,
-        min_match_length=min_match_length,
-        allow_subsequence=allow_subsequence,
-        max_depth=transform_depth,
-        limit=transform_limit,
-        show_terms=show_terms,
-        full_scan=full_transform_scan,
-        **t_args,
-    )
+    snip_len = show_terms if show_terms is not None else (min(len(query.terms), 20) if query.terms else None)
+
+    if transform_limit and transform_limit > 0:
+        t_matches = search_transforms(
+            query.terms,
+            db_path=db_path,
+            min_match_length=min_match_length,
+            allow_subsequence=allow_subsequence,
+            max_depth=transform_depth,
+            limit=transform_limit,
+            show_terms=snip_len,
+            full_scan=full_transform_scan,
+            **t_args,
+        )
+    else:
+        t_matches = []
     if collect_timings:
         timings["transform_ms"] = 1000 * (time.perf_counter() - t1)
     t2 = time.perf_counter()
@@ -290,6 +299,7 @@ def analyze_sequence(
                 max_combinations=combo_max_combinations,
                 component_transforms=combo_component_transforms,
                 combo_unfiltered=combo_unfiltered,
+                snippet_len=snip_len,
             )
             combo_end = time.perf_counter()
         else:
@@ -309,6 +319,7 @@ def analyze_sequence(
                 max_combinations=triple_max_combinations,
                 component_transforms=combo_component_transforms,
                 combo_unfiltered=combo_unfiltered,
+                snippet_len=snip_len,
             )
             triple_end = time.perf_counter()
         else:

@@ -82,6 +82,9 @@ oeis tsearch "1,2,3,4,5" --json | jq '.matches[0].explanation'
 # LaTeX-ish transform renderings
 oeis tsearch "1,2,3,4,5" --json | jq '.matches[0].latex'
 
+# Show terms for matches (transforms include transformed terms; combos include component/result)
+oeis analyze "2,10,100,1004,9991" --combos 3 --combo-unfiltered --show-terms 10
+
 ## Architecture
 See `docs/architecture.md` for the current data flow, storage schema, and key structures.
 

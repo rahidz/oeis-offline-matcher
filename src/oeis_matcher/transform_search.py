@@ -34,6 +34,9 @@ def search_transform_matches(
     transforms = list(transforms or default_transforms())
     chains = enumerate_chains(transforms, max_depth)
 
+    if snippet_len is None:
+        snippet_len = len(query.terms) if query.terms else None
+
     results: List[Match] = []
     seen_keys = set()
     all_zero_query = all(v == 0 for v in query.terms)
