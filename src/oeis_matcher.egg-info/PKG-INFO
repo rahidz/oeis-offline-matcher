@@ -1,0 +1,46 @@
+Metadata-Version: 2.4
+Name: oeis-matcher
+Version: 0.0.1
+Summary: Offline OEIS matcher with transform search
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+License-File: LICENSE_OEIS.md
+Dynamic: license-file
+
+# OEIS Offline Matcher
+
+Python-based offline helper inspired by OEIS Superseeker. It downloads a local snapshot of OEIS data, builds lightweight indexes, and matches user-provided integer sequences against:
+- Direct OEIS entries (exact, prefix, subsequence).
+- (Planned) transformations of a single sequence (e.g., scale, shift, diff, partial sums).
+- (Planned) small linear combinations of a few sequences with simple transforms.
+
+## Status
+Early scaffolding. See `TODO.md` for the detailed roadmap.
+
+## Quick Start
+```bash
+python -m venv .venv
+. .venv/bin/activate
+pip install -e .
+
+# Download raw OEIS exports (once, cached in data/raw)
+scripts/fetch_oeis_data.sh
+
+# Build SQLite index in data/processed/oeis.db
+oeis build-index
+
+# Match a sequence (prefix by default)
+oeis match "0,1,1,2,3,5,8"
+
+# Allow subsequence search
+oeis match "2,3,5" --subsequence --limit 5
+```
+
+## Design Notes
+- Language: Python 3.11+
+- Data lives in `data/raw` (downloaded `stripped.gz`, `names.gz`) and `data/processed` (parsed/indexed artifacts).
+- Configuration (to come): `config.toml` for transform limits and coefficient ranges; environment variables can override paths and limits.
+- Storage: simple SQLite with basic invariants (prefix5 hash, min/max, gcd). Easy to evolve later.
+
+## License Notice
+OEIS data is licensed under CC BY-SA 4.0. Keep attribution and share-alike when redistributing data or outputs derived from OEIS content. See <https://oeis.org/LICENSE> and `LICENSE_OEIS.md`.

@@ -1,0 +1,8 @@
+[paths]
+stripped = "data/raw/stripped.gz"
+names = "data/raw/names.gz"
+db = "data/processed/oeis.db"
+
+[limits]
+max_terms = 128
+max_results = 10

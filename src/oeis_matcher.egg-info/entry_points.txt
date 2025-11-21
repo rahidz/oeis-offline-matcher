@@ -1,0 +1,2 @@
+[console_scripts]
+oeis = oeis_matcher.cli:main
