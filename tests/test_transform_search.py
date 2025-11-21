@@ -147,6 +147,44 @@ def test_zero_collapsing_chain_is_dropped(tmp_path: Path):
     assert matches == []
 
 
+def test_constant_collapsing_chain_is_dropped(tmp_path: Path):
+    stripped = tmp_path / "stripped.txt"
+    names = tmp_path / "names.txt"
+    stripped.write_text(
+        "\n".join(
+            [
+                "A900010 2,2,2,2,2",
+                "A900011 3,4,5,6,7",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    names.write_text(
+        "\n".join(
+            [
+                "A900010 Constant twos",
+                "A900011 Sample linear",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    db = tmp_path / "oeis.db"
+    build_index(stripped, names, None, db, max_terms=10)
+
+    query = parse_query("3,4,5,6")
+    transforms = [make_affine(0, 2)]
+
+    matches = search_transform_matches(
+        query,
+        db,
+        max_depth=1,
+        transforms=transforms,
+        limit=5,
+        full_scan=True,
+    )
+    assert matches == []
+
+
 def test_full_scan_prefers_best_scoring_match(tmp_path: Path):
     stripped = tmp_path / "stripped.txt"
     names = tmp_path / "names.txt"

@@ -46,8 +46,8 @@ def search_transform_matches(
         if len(transformed_terms) < query.min_match_length:
             continue
 
-        if not all_zero_query and transformed_terms and all(v == 0 for v in transformed_terms):
-            # Degenerate transform that collapses everything to zero; usually noise.
+        if transformed_terms and len(set(transformed_terms)) == 1:
+            # Degenerate transform that collapses to a constant sequence; usually noise.
             continue
 
         noisy_ops = {"popcount"}
