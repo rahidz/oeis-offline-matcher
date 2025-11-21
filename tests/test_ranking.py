@@ -34,7 +34,7 @@ def _make_sample_raw(tmp_path: Path):
 def test_rank_candidates(tmp_path: Path):
     stripped, names = _make_sample_raw(tmp_path)
     db = tmp_path / "oeis.db"
-    build_index(stripped, names, db, max_terms=10)
+    build_index(stripped, names, None, db, max_terms=10)
 
     query = parse_query("1,2,3,4,5")
     ranked = rank_candidates_for_query(query, db, top_k=3)

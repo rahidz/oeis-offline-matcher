@@ -6,6 +6,7 @@ Currently uses a simple SQLite file with one table:
             length INTEGER NOT NULL,
             terms TEXT NOT NULL,            -- comma-separated ints
             name TEXT,
+            keywords TEXT,                  -- comma-separated keywords (optional)
             prefix5 TEXT,                   -- first 5 terms comma-joined
             min_val TEXT,
             max_val TEXT,
@@ -28,6 +29,7 @@ from pathlib import Path
 from typing import Iterable, Iterator, Optional
 
 from .models import SequenceRecord
+from .similarity import growth_rate
 
 
 def _compute_gcd(values: list[int]) -> int:
@@ -99,6 +101,7 @@ def _record_to_row(rec: SequenceRecord) -> tuple:
         rec.length,
         terms_text,
         rec.name,
+        ",".join(rec.keywords) if rec.keywords else None,
         prefix5,
         min_val,
         max_val,
@@ -108,6 +111,7 @@ def _record_to_row(rec: SequenceRecord) -> tuple:
         sign_pat,
         nonzero_count,
         first_diff,
+        growth_rate(rec.terms),
     )
 
 
@@ -122,15 +126,17 @@ def init_db(db_path: Path) -> None:
                 length INTEGER NOT NULL,
                 terms TEXT NOT NULL,
                 name TEXT,
+                keywords TEXT,
                 prefix5 TEXT,
                 min_val TEXT,
                 max_val TEXT,
                 gcd_val TEXT,
                 is_nondecreasing INTEGER,
-            is_nonincreasing INTEGER,
-            sign_pattern TEXT,
-            nonzero_count INTEGER,
-            first_diff_sign TEXT
+                is_nonincreasing INTEGER,
+                sign_pattern TEXT,
+                nonzero_count INTEGER,
+                first_diff_sign TEXT,
+                growth_rate REAL
             )
             """
         )
@@ -140,6 +146,7 @@ def init_db(db_path: Path) -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_sign ON sequences(sign_pattern)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_first_diff ON sequences(first_diff_sign)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_nonzero ON sequences(nonzero_count)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_growth ON sequences(growth_rate)")
         conn.commit()
 
 
@@ -172,13 +179,14 @@ def write_records(records: Iterable[SequenceRecord], db_path: Path, *, batch_siz
 def _insert_batch(conn: sqlite3.Connection, rows: list[tuple]) -> None:
     conn.executemany(
         """
-        INSERT INTO sequences (id, length, terms, name, prefix5, min_val, max_val, gcd_val,
-                               is_nondecreasing, is_nonincreasing, sign_pattern, nonzero_count, first_diff_sign)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO sequences (id, length, terms, name, keywords, prefix5, min_val, max_val, gcd_val,
+                               is_nondecreasing, is_nonincreasing, sign_pattern, nonzero_count, first_diff_sign, growth_rate)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
             length=excluded.length,
             terms=excluded.terms,
             name=excluded.name,
+            keywords=excluded.keywords,
             prefix5=excluded.prefix5,
             min_val=excluded.min_val,
             max_val=excluded.max_val,
@@ -187,7 +195,8 @@ def _insert_batch(conn: sqlite3.Connection, rows: list[tuple]) -> None:
             is_nonincreasing=excluded.is_nonincreasing,
             sign_pattern=excluded.sign_pattern,
             nonzero_count=excluded.nonzero_count,
-            first_diff_sign=excluded.first_diff_sign
+            first_diff_sign=excluded.first_diff_sign,
+            growth_rate=excluded.growth_rate
         """,
         rows,
     )
@@ -199,13 +208,16 @@ def iter_sequences(db_path: Path) -> Iterator[SequenceRecord]:
     """
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
-        for row in conn.execute("SELECT id, terms, length, name FROM sequences"):
+        has_kw = _has_column(conn, "keywords")
+        select = "id, terms, length, name, keywords" if has_kw else "id, terms, length, name"
+        for row in conn.execute(f"SELECT {select} FROM sequences"):
             terms = [int(x) for x in row["terms"].split(",")] if row["terms"] else []
             yield SequenceRecord(
                 id=row["id"],
                 terms=terms,
                 length=row["length"],
                 name=row["name"],
+                keywords=row["keywords"].split(",") if has_kw and row["keywords"] else None,
             )
 
 
@@ -247,10 +259,12 @@ def iter_sequences_filtered(
     if clauses:
         where = "WHERE " + " AND ".join(clauses)
 
-    query = f"SELECT id, terms, length, name FROM sequences {where}"
-
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
+        has_kw = _has_column(conn, "keywords")
+        select = "id, terms, length, name, keywords" if has_kw else "id, terms, length, name"
+        query = f"SELECT {select} FROM sequences {where}"
+
         for row in conn.execute(query, params):
             terms = [int(x) for x in row["terms"].split(",")] if row["terms"] else []
             yield SequenceRecord(
@@ -258,6 +272,7 @@ def iter_sequences_filtered(
                 terms=terms,
                 length=row["length"],
                 name=row["name"],
+                keywords=row["keywords"].split(",") if has_kw and row["keywords"] else None,
             )
 
 
@@ -273,8 +288,10 @@ def iter_sequences_by_prefix(db_path: Path, prefix_terms: list[int]) -> Iterator
     prefix5 = ",".join(str(t) for t in prefix_terms[:5])
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
+        has_kw = _has_column(conn, "keywords")
+        select = "id, terms, length, name, keywords" if has_kw else "id, terms, length, name"
         for row in conn.execute(
-            "SELECT id, terms, length, name FROM sequences WHERE prefix5 = ?", (prefix5,)
+            f"SELECT {select} FROM sequences WHERE prefix5 = ?", (prefix5,)
         ):
             terms = [int(x) for x in row["terms"].split(",")] if row["terms"] else []
             yield SequenceRecord(
@@ -282,6 +299,7 @@ def iter_sequences_by_prefix(db_path: Path, prefix_terms: list[int]) -> Iterator
                 terms=terms,
                 length=row["length"],
                 name=row["name"],
+                keywords=row["keywords"].split(",") if has_kw and row["keywords"] else None,
             )
 
 
@@ -292,3 +310,8 @@ def db_stats(db_path: Path) -> Optional[dict]:
         cur = conn.execute("SELECT COUNT(*), MIN(length), MAX(length) FROM sequences")
         count, min_len, max_len = cur.fetchone()
         return {"count": count, "min_length": min_len, "max_length": max_len}
+
+
+def _has_column(conn: sqlite3.Connection, column: str) -> bool:
+    cur = conn.execute("PRAGMA table_info(sequences)")
+    return any(row[1] == column for row in cur.fetchall())

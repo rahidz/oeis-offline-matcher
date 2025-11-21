@@ -10,6 +10,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "paths": {
         "stripped": "data/raw/stripped.gz",
         "names": "data/raw/names.gz",
+        "keywords": "data/raw/keywords.txt",
         "db": "data/processed/oeis.db",
     },
     "limits": {

@@ -1,0 +1,5 @@
+A000045 Fibonacci numbers
+A000027 The natural numbers
+A000012 The all 1's sequence
+A000040 The prime numbers
+A000290 The squares

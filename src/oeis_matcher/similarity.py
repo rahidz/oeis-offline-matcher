@@ -52,3 +52,21 @@ def mse_after_scale_offset(query: List[int], target: List[int]) -> Tuple[float, 
         b = (sumy - a * sumx) / n
     mse = _mean([(a * xi + b - yi) ** 2 for xi, yi in zip(x, y)])
     return mse, a, b
+
+
+def growth_rate(values: List[int]) -> float:
+    """
+    Rough growth rate estimate: average of log(|a_n|+1)/(n+1) over available terms.
+    Returns 0 if no terms or all zeros.
+    """
+    acc = 0.0
+    count = 0
+    for idx, v in enumerate(values):
+        mag = abs(v)
+        if mag == 0:
+            continue
+        acc += math.log(mag + 1.0) / (idx + 1)
+        count += 1
+    if count == 0:
+        return 0.0
+    return acc / count

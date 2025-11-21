@@ -35,7 +35,7 @@ Build a local tool that
 - [x] Implement script `scripts/fetch_oeis_data.sh`:
   - [x] Download `https://oeis.org/stripped.gz`.
   - [x] Download `https://oeis.org/names.gz`.
-  - [ ] Optionally clone `https://github.com/oeis/oeisdata` for full metadata.
+  - [x] Optionally clone `https://github.com/oeis/oeisdata` for full metadata (flag `--clone-oeisdata`).
 - [x] Add README note about:
   - [x] How to fetch data.
   - [x] License and attribution requirements.
@@ -101,10 +101,10 @@ Build a local tool that
 - [ ] Implement optimized matcher:
   - [x] Use hash of first k terms as a key to find candidate sequences quickly (prefix5 index).
   - [x] Optionally use rolling hash/KMP to scan subsequences (implemented KMP).
-  - [ ] Early exit on mismatch to reduce comparisons (KMP handles subseq; prefix uses slicing).
+  - [x] Early exit on mismatch to reduce comparisons (prefix loop).
 - [ ] Expose API:
-  - [ ] `match_exact_prefix(query) -> list[Match]`.
-  - [ ] `match_subsequence(query) -> list[Match]`.
+  - [x] `match_exact_prefix(query) -> list[Match]`.
+  - [x] `match_subsequence(query) -> list[Match]`.
   - Note: unified `match_exact` covers both via flag; wrappers still to add if desired.
 - [x] Define `Match` structure:
   - [x] A-number,
@@ -171,6 +171,12 @@ Build a local tool that
 - [x] Basic heuristic score for transform matches (length / (1+complexity)).
 - [ ] Tune complexity weights; consider popularity/length bonuses.
 
+### 8.1 Unit tests
+
+- [x] Transform tests:
+  - [x] Verify output of `Diff`, `Sum`, `Shift`, etc. on known sequences.
+- [x] Matcher edge-case tests for negatives/short queries.
+
 ---
 
 ## Phase 4 – Candidate ranking & similarity filtering (for combos)
@@ -183,28 +189,29 @@ Build a local tool that
   - [x] First-diff sign pattern.
   - [x] Sign pattern of terms.
   - [x] Nonzero count.
-  - [ ] Approximate growth rate (future).
+  - [x] Approximate growth rate.
 - [x] Precompute and store these features during index build (in SQLite).
 
 ### 4.2 Similarity scoring
 
-- [ ] Implement a similarity metric between two finite sequences:
-  - [ ] E.g. normalized mean squared error after scaling and optional offset.
-  - [ ] Or correlation coefficient of `(q_n)` vs `(S_n)` up to k terms.
-- [ ] Implement function `rank_candidates_for_query(q)`:
-  - [x] Filter sequences quickly by simple invariants (sign pattern, first-diff sign, nonzero band).
-  - [ ] Compute similarity scores against the filtered subset.
-  - [ ] Return top-K candidate sequences with highest similarity.
+- [x] Implement a similarity metric between two finite sequences:
+  - [x] normalized mean squared error after scaling and offset.
+  - [x] correlation coefficient of `(q_n)` vs `(S_n)`.
+- [x] Implement function `rank_candidates_for_query(q)`:
+  - [x] Filter sequences quickly by invariants.
+  - [x] Compute similarity scores against the filtered subset.
+  - [x] Return top-K candidate sequences with highest similarity.
 
 ### 4.3 Integration with previous phases
 
-- [ ] After running:
-  - [ ] direct matches,
-  - [ ] transform-based matches,
-  - [ ] add similarity-ranked candidates:
-    - [ ] Ensure union of candidates ≤ some K (e.g., 100–200).
+- [x] After running:
+  - [x] direct matches,
+  - [x] transform-based matches,
+  - [x] add similarity-ranked candidates:
+    - [x] Ensure union of candidates ≤ some K (e.g., 100–200).
 - [ ] Expose API to get “candidate bucket” for multi-sequence search:
-  - [ ] `get_candidate_bucket(q, K) -> list[Candidate]`.
+  - [x] `get_candidate_bucket(q, K) -> list[Candidate]`.
+  - [x] Option to skip prefix index and relax nonzero filter for combos (handles mismatched prefixes; `--combo-unfiltered`).
 
 ---
 
@@ -212,71 +219,63 @@ Build a local tool that
 
 ### 5.1 Define search class
 
-- [ ] Decide on the class of expressions to search:
-  - [ ] Number of component sequences `m`:
-    - [ ] v2: `m ≤ 2`,
+- [x] Decide on the class of expressions to search:
+  - [x] Number of component sequences `m`:
+    - [x] v2: `m ≤ 2` (implemented, forward + optional backward shifts),
     - [ ] maybe optional extension: `m ≤ 3`.
-  - [ ] Coefficient constraints:
-    - [ ] small integers, e.g. |c_i| ≤ 5 or 10.
-  - [ ] Shift constraints:
-    - [ ] index shifts `s_i` in range, e.g., `-5 ≤ s_i ≤ 5`.
+  - [x] Coefficient constraints:
+    - [x] small integers, e.g. |c_i| ≤ 5 or 10 (configurable list).
+  - [x] Shift constraints:
+    - [x] index shifts `s_i` in range, e.g., `-k ≤ s_i ≤ max_shift` (backward shifts supported).
   - [ ] Optional per-component transforms:
-    - [ ] simple things like `Scale`, `Shift`, `Negate`, maybe `Diff`/`Sum`.
+    - [x] simple things like `Diff`/`PartialSum` (component-transforms).
 
 ### 5.2 Two-sequence combinations
 
-- [ ] API design:
-  - [ ] `find_linear_combos(q, candidates, options) -> list[Combination]`.
-- [ ] For each unordered pair of candidates `(S_i, S_j)` in the candidate bucket:
-  - [ ] Precompute truncated sequences with possible shifts.
-  - [ ] For each allowed pair of shifts `(s_i, s_j)`:
-    - [ ] Build vectors:
-      - [ ] `v_i(n) = T_i(S_i)(n + s_i)`,
-      - [ ] `v_j(n) = T_j(S_j)(n + s_j)`,
-      - [ ] where `T_i, T_j` are any per-component transforms allowed.
-    - [ ] Solve for `a, b` in:
-      \[
-      a v_i(n) + b v_j(n) = q_n
-      \]
-      over the first k terms.
-      - [ ] Use linear algebra over ℚ to find rational solution.
-      - [ ] Check if `(a, b)` are integers within allowed bounds.
-    - [ ] Verify equality on all k terms.
-    - [ ] If passed, record `Combination`:
-      - [ ] A-numbers, coefficients, shifts, component transforms.
+- [x] API design:
+  - [x] `search_two_sequence_combinations(q, candidates, options) -> list[CombinationMatch]` (brute-force small integer coefficients).
+- [x] For each unordered pair of candidates `(S_i, S_j)` in the candidate bucket:
+  - [x] Precompute truncated sequences with possible shifts.
+  - [x] For each allowed pair of shifts `(s_i, s_j)`:
+    - [x] Build vectors without per-component transforms (scope MVP).
+    - [x] Optionally add per-component transforms later.
+    - [ ] (Future) Use linear algebra over ℚ for wider coefficient ranges.
+    - [x] Verify equality on all k terms.
+    - [x] Record `Combination` with A-numbers, coefficients, shifts, expression string.
 
 ### 5.3 Optional: Three-sequence combinations
 
-- [ ] Extend above method:
-  - [ ] Use 3 columns in matrix, solve for `(a, b, c)`.
-  - [ ] Only run if:
-    - [ ] candidate bucket size is small, and/or
-    - [ ] user explicitly enables 3-term combinations.
-- [ ] Guard with strong limits on:
-  - [ ] number of pairs/triples,
-  - [ ] coefficient ranges,
-  - [ ] transform depth.
+- [x] Extend above method:
+  - [x] Use 3 columns in matrix, solve for `(a, b, c)`.
+  - [x] Only run if:
+    - [x] candidate bucket size is small, and/or
+    - [x] user explicitly enables 3-term combinations.
+- [x] Guard with strong limits on:
+  - [x] number of pairs/triples,
+  - [x] coefficient ranges,
+  - [x] transform depth.  (capped shifts/coeffs, bucket trimming, time/check limits)
 
 ### 5.4 Complexity safeguards
 
-- [ ] Hard-limit candidate bucket size (e.g. K ≤ 100).
-- [ ] Hard-limit total combinations checked per query.
+- [x] Hard-limit candidate bucket size (e.g. K ≤ 100).
+- [x] Hard-limit total combinations checked per query (max_checks guard).
+- [x] Add time caps to combo/triple search; “max” preset sets wide caps (~10m) for exhaustive runs.
 - [ ] Provide configuration:
-  - [ ] `max_combinations`,
-  - [ ] `max_time_per_query` (if implementing time budgets),
-  - [ ] `max_coeff_abs`,
-  - [ ] `max_shift_abs`.
+  - [x] `max_combinations`,
+  - [x] `max_time_per_query` (if implementing time budgets),
+  - [x] `max_coeff_abs` (via CLI coeff list),
+  - [x] `max_shift_abs` (via CLI `--max-shift`).
 
 ### 5.5 Scoring & ranking
 
-- [ ] Define complexity measure for a combination:
-  - [ ] number of component sequences,
-  - [ ] sum of |coefficients|,
-  - [ ] sum of |shifts|,
-  - [ ] transform chain lengths.
-- [ ] Sort results by:
-  - [ ] simplest explanation first (Occam’s razor),
-  - [ ] then by length of match (more terms matched),
+- [x] Define complexity measure for a combination:
+  - [x] number of component sequences (fixed 2),
+  - [x] sum of |coefficients|,
+  - [x] sum of |shifts|,
+  - [ ] transform chain lengths (still N/A).
+- [x] Sort results by:
+  - [x] simplest explanation first (lower complexity),
+  - [x] then by length of match,
   - [ ] then by sequence popularity/importance (optional heuristic).
 
 ---
@@ -287,22 +286,18 @@ Build a local tool that
 
 - [x] Single entrypoint `oeis analyze`:
   - [x] Runs exact + transform pipeline.
-  - [ ] Add combos when available.
-  - [ ] Common options: add max-candidates/combos later.
+  - [x] Add combos when available.
+  - [x] Common options: add max-candidates/combos.
 
 ### 6.2 Library API
 
-- [ ] Define high-level functions:
-  - [ ] `analyze_sequence(query_terms, config) -> AnalysisResult`.
-  - [ ] `match_exact(query)`.
-  - [ ] `search_transforms(query, config)`.
-  - [ ] `search_combinations(query, config)`.
-- [ ] Provide data structures:
-  - [ ] `AnalysisResult`:
-    - [ ] `exact_matches`,
-    - [ ] `transform_matches`,
-    - [ ] `combination_matches`,
-    - [ ] diagnostics (candidate counts, search limits hit, etc.).
+- [x] Define high-level functions:
+  - [x] `analyze_sequence(query_terms, config)` (dict payload).
+  - [x] `match_exact` wrapper.
+  - [x] `search_transforms`.
+  - [x] `search_combinations`.
+- [x] Provide data structures:
+  - [x] `AnalysisResult` dataclass with diagnostics (dict-compatible).
 
 ### 6.3 Output formatting + explanation
 
@@ -310,6 +305,8 @@ Build a local tool that
   - [ ] `a(n) = 2 * A013546(n+2) + A132950(n)`
   - [ ] `a(n) = Δ A000045(n)` (first differences of Fibonacci numbers).
 - [ ] Optional LaTeX-friendly output for use in papers/notes.
+
+Progress: Combination matches now emit `a(n) = c1*Axxxx(n+s1)+c2*Ayyyy(n+s2)` with LaTeX; transform matches include human + LaTeX-ish chain descriptions.
 
 ---
 
@@ -320,6 +317,10 @@ Build a local tool that
   - [ ] Exact matcher latency vs OEIS size.
   - [ ] Transform search cost per transform.
   - [ ] Combination search cost vs candidate bucket size.
+  - [x] Add quick timing harness (`scripts/bench.py`) to measure common cases.
+  - [x] Add profiling helper (`scripts/profile_matchers.py`) for stage timing.
+  - [x] Add build benchmark script (`scripts/bench_build.py`).
+- [x] Expose per-stage timings in CLI (`oeis analyze --timings`) and API (`collect_timings=True`).
 - [ ] Profile hotspots:
   - [ ] Identify slow parts (e.g. inner comparison loops, transform application).
 - [ ] Optimize:
@@ -327,8 +328,9 @@ Build a local tool that
   - [ ] Consider compiled extensions (C/Rust) for tight loops.
   - [ ] Cache intermediate results (e.g., transformed sequences).
 - [ ] Add configuration presets:
-  - [ ] “Fast” preset (small transform set, few candidates).
-  - [ ] “Deep” preset (more transforms, combos, but bounded).
+  - [x] “Fast” preset (small transform set, few candidates).
+  - [x] “Deep” preset (more transforms, combos, but bounded).
+  - [x] “Max” preset (exhaustive search: deeper transforms, combos/triples, generous limits/time caps).
 
 ---
 
@@ -339,11 +341,13 @@ Build a local tool that
 - [x] Parser tests:
   - [x] `parse_stripped` on sample lines.
   - [x] `parse_names` on sample lines.
-- [ ] Transform tests:
-  - [ ] Verify output of `Diff`, `Sum`, `Shift`, etc. on known sequences.
+- [x] Transform tests:
+  - [x] Verify output of `Diff`, `Sum`, `Shift`, etc. on known sequences.
 - [x] Matcher tests:
   - [x] Exact prefix/subsequence cases.
-  - [ ] Edge cases: too short, mismatched lengths, negative numbers.
+  - [x] Edge cases: too short, mismatched lengths, negative numbers.
+- [ ] Combination tests:
+  - [ ] Real OEIS-derived pairs to validate expressions beyond synthetic fixtures.
 
 ### 8.2 Integration tests
 
@@ -353,6 +357,7 @@ Build a local tool that
   - [ ] Use pairs like `(Fibonacci, first differences)`, `(square numbers, second differences constant)`, etc.
 - [ ] Test combination matches:
   - [ ] Construct synthetic sequences as `2*A + B` and verify tool finds that relationship.
+  - [ ] Add notebook-driven regression set for whole pipeline.
 
 ### 8.3 Regression tests
 
@@ -369,16 +374,16 @@ Build a local tool that
   - [x] Installation instructions.
   - [x] How to fetch and index OEIS data.
   - [x] Basic usage examples.
-- [ ] Write `docs/architecture.md`:
-  - [ ] Data flow diagram (query → transforms → matchers → combos).
-  - [ ] Description of internal data structures.
+- [x] Write `docs/architecture.md`:
+  - [x] Data flow diagram (query → transforms → matchers → combos) — textual for now.
+  - [x] Description of internal data structures and storage schema.
 - [ ] Provide example notebooks (if using Python):
-  - [ ] “Exploring a sequence”.
-  - [ ] “Using combination search to explain a sequence”.
+  - [x] “Exploring a sequence” (docs/notebook_template.ipynb stub).
+  - [x] “Using combination search to explain a sequence” (docs/notebook_combo.ipynb).
 - [ ] Add FAQ:
-  - [ ] Limitations (what the tool can’t realistically find).
-  - [ ] Performance tips.
-  - [ ] Licensing clarification.
+  - [x] Limitations (what the tool can’t realistically find).
+  - [x] Performance tips.
+  - [x] Licensing clarification.
 
 ---
 
