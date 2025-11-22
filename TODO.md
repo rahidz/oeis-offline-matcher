@@ -11,75 +11,34 @@ Build a local tool that
 
 ---
 
-## Phase 0 – Project framing & architecture
+## Phase 0 – Project framing & scope (CLI-first)
 
-- [x] Define scope for **v0**, **v1**, **v2** (keep as written; use to gate releases):
-  - [x] v0: offline OEIS + exact/prefix/subsequence matching.
-  - [x] v1: single-sequence transform search (Superseeker-lite).
-  - [x] v2: multi-sequence linear combination search (2–3 sequences, small coefficients, small shifts).
-- [x] Pick primary implementation language (e.g. Python, Rust, C++).
-- [x] Decide packaging:
-  - [x] Library + CLI (`oeis` entrypoint).
-  - [ ] Optional notebook/GUI wrapper (backlog).
-- [x] Define configuration strategy:
-  - [x] Config file (`config.toml`) for paths/limits (config module in place).
-  - [x] Environment-variable overrides for power users.
+- [x] CLI + library only; GUI/notebook out of scope for now.
+- [x] v0: offline OEIS + exact/prefix/subsequence matching.
+- [x] v1: single-sequence transform search (Superseeker-lite).
+- [x] v2: multi-sequence linear combination search (2–3 sequences, small integer/rational coeffs, shifts).
+- [x] Config via TOML + env overrides; defaults tuned for offline use.
 
 ---
 
-## Phase 1 – OEIS data acquisition & storage
+## Phase 1 – Data acquisition & indexing (accuracy-leaning)
 
 ### 1.1 Download + licensing
+- [x] Fetch stripped/names (plus optional oeisdata clone); document CC BY-SA duties.
 
-- [x] Read OEIS usage and license (CC BY-SA 4.0) and note obligations.
-- [x] Implement script `scripts/fetch_oeis_data.sh`:
-  - [x] Download `https://oeis.org/stripped.gz`.
-  - [x] Download `https://oeis.org/names.gz`.
-  - [x] Optionally clone `https://github.com/oeis/oeisdata` for full metadata (flag `--clone-oeisdata`).
-- [x] Add README note about:
-  - [x] How to fetch data.
-  - [x] License and attribution requirements.
+### 1.2 Parsing
+- [x] Parse stripped + names.
+- [x] Parse keywords (from oeisdata or keywords file).
+- [ ] Parse offsets/formula snippets for ranking penalties/bonuses.
 
-### 1.2 Parsing stripped/names
-
-- [x] Implement `oeis_data/parse_stripped`:
-  - [x] Parse A-number (e.g. `A000045`) and sequence terms.
-  - [x] Handle missing or truncated terms gracefully.
-  - [x] Decide max number of terms to store per sequence (e.g. 64 or 128).
-- [x] Implement `oeis_data/parse_names`:
-  - [x] Map A-number → title/name.
-  - [ ] Optionally parse keywords (if available separately) — **pending, requires extra source**.
-
-### 1.3 Storage format & indexing
-
-- [x] Define internal data model:
-  - [x] `SequenceRecord` with:
-    - [x] `id: string` (A-number),
-    - [x] `terms: int[]` (first N terms),
-    - [x] `length: int` (terms actually present),
-    - [x] `name: string`,
-    - [x] `metadata` (optional).
-- [x] Choose storage backend:
-  - [ ] Option A: Memory-mapped binary file (e.g. custom format).
-  - [x] Option B: SQLite DB with table `sequences(id, terms_blob, length, name, ...)`.
-  - [ ] Option C: Simple binary file + index file (offsets per A-number).
-- [x] Implement index structures:
-  - [x] Map `id` → `SequenceRecord` (in-memory or DB index).
-  - [x] Map `first_k_terms` → list of candidates (hash index via prefix5 text column).
-  - [x] Precomputed simple invariants for filtering:
-    - [x] gcd of terms,
-    - [x] min, max,
-    - [x] monotonic flags (nondecreasing/nonincreasing),
-    - [x] sign pattern (nonnegative, alternating, mixed, empty).
-
-- [x] Implement `oeis_data/build_index` command:
-  - [x] Reads raw files.
-  - [x] Builds DB/index (SQLite).
-  - [x] Writes summary (insert count printed).
+### 1.3 Storage/index
+- [x] SQLite primary store with invariants/prefix index.
+- [x] Add extended invariants: variance and diff variance for tighter filtering (banded).
+- [ ] (Optional, later) alt backend (mmap/custom) if perf becomes limiting.
 
 ---
 
-## Phase 2 – Core exact matcher (2a)
+## Phase 2 – Exact & similarity matching
 
 ### 2.1 Query handling
 
@@ -87,9 +46,9 @@ Build a local tool that
   - [x] `terms: int[]`,
   - [x] `min_match_length`,
   - [x] optional flags: exact prefix only, allow subsequence, allow scaling, etc.
-- [ ] Implement parser for simple text input:
+- [x] Parser enhancements:
   - [x] Accept comma- or space- separated integers.
-  - [ ] Handle `?` or `*` placeholders (optional feature) — **backlog**.
+  - [x] Handle `?` or `*` placeholders with strict controls (avoid overmatching).
   - [x] Normalize whitespace and plus/minus signs.
 
 ### 2.2 Exact prefix / subsequence matching
@@ -98,7 +57,7 @@ Build a local tool that
   - [x] For each OEIS sequence:
     - [x] Check if query is prefix.
     - [x] Check if query appears as contiguous subsequence.
-- [ ] Implement optimized matcher:
+- [ ] Optimized matcher polish:
   - [x] Use hash of first k terms as a key to find candidate sequences quickly (prefix5 index).
   - [x] Optionally use rolling hash/KMP to scan subsequences (implemented KMP).
   - [x] Early exit on mismatch to reduce comparisons (prefix loop).
@@ -130,20 +89,25 @@ Build a local tool that
 
 ---
 
-## Phase 3 – Single-sequence transform engine (2b, singular)
+## Phase 3 – Transform engine (accuracy first)
 
-### 3.1 Transform DSL design
+### 3.1 Transform vocabulary
+- [x] Current set: scale/affine, shift, diff/diff^2, partial_sum, abs, gcd_norm, decimate, reverse, even/odd, movsum(2+N), cumprod, popcount, digit sum, binomial (opt-in), Euler (opt-in).
+- [ ] Add vetted accuracy-focused transforms: running average/movsum(k>2) scoring tweaks, sign/digit-based with stricter complexity penalties.
 
-- [x] Define a small transform vocabulary applied to the **query** (initial set shipped):
-  - [x] Affine term transforms: `T(a_n) = α a_n + β` for small integer `α, β` (β optional via CLI flag).
-  - [x] Index shifts: forward drop by k.
-  - [x] First differences.
-  - [x] Partial sums.
-  - [x] Negation via scale(-1).
-  - [x] Absolute value.
-  - [x] Decimation (opt-in).
-  - [x] GCD normalization (opt-in).
-- [x] Represent transforms as composable operations (chains list).
+### 3.1b Transform backlog (enable all in `--preset max`)
+- [x] Promote **binomial** to on-by-default in `max` (keep opt-in elsewhere).
+- [x] Promote **Euler** to on-by-default in `max` (guard complexity).
+- [x] Include **affine(k,b)** with nonzero `b` in presets (currently only if user passes `--beta-values`).
+- [x] Add **backward/negative shifts** in chains (not just drop-first-k).
+- [x] Add **base-k digit sums** (k ≠ 10) and expose base selection.
+- [x] Add **modulus/bitwise** style transforms (e.g., seq mod m, xor with index) with strong penalties.
+- [x] Add **run-length encoding** (lengths) and **decode** (len,val pairs).
+- [x] Add **concatenate digits/blocks** transforms (concat index with a_n; base-param).
+- [x] Add **log/exp-like smoothing** (log bases 2/e/10 opt-in; exp opt-in, capped).
+- [x] Add **Möbius** transform (opt-in, enabled in `max`; Dirichlet variants still stretch).
+- [x] Improve **moving sums >3** support and scoring (currently only movsum2/3 presets).
+- [x] Update `max` preset config to enable the above once implemented; keep `fast`/`deep` conservative.
 
 ### 3.2 Implement transform engine
 
@@ -151,14 +115,10 @@ Build a local tool that
 - [x] Implement transform composition (chains with depth limit).
 - [x] Implement transform enumerator (all chains up to depth N; dedup basic).
 
-### 3.3 Transform-based search
-
-- [x] For a given input sequence `q`:
-  - [x] Generate all transformed queries `T_i(q)` for allowed transforms `T_i`.
-  - [x] Discard transforms that are too short.
-- [x] For each `T_i(q)`: run matcher, collect matches with transform description.
-- [x] Implement simple sorting: chain length, match type, match length (complexity penalty).
-- [ ] Add penalties for exotic ops and scoring beyond simple sort.
+### 3.3 Transform search quality
+- [x] Generate/score transform chains with complexity penalties; dedupe identical transformed outputs; time caps.
+- [ ] Tighten noise filters: reject low-variance/constant results unless query constant; enforce min variance per transform family.
+- [ ] Add rarity/length bonuses to scoring; expose `--min-score` / `--max-complexity` filters (CLI/API).
 
 ### 3.4 CLI for transform search
 
@@ -167,9 +127,8 @@ Build a local tool that
   - [x] Output: includes transform chain description.
 
 ### 3.5 Scoring
-
-- [x] Basic heuristic score for transform matches (length / (1+complexity)).
-- [ ] Tune complexity weights; consider popularity/length bonuses.
+- [x] Heuristic score length/(1+complexity).
+- [ ] Re-tune weights; include variance bonus and rarity of invariants; penalize degenerate chains.
 
 ### 8.1 Unit tests
 
@@ -179,7 +138,7 @@ Build a local tool that
 
 ---
 
-## Phase 4 – Candidate ranking & similarity filtering (for combos)
+## Phase 4 – Candidate ranking & similarity filtering
 
 ### 4.1 Numeric signatures / features
 
@@ -201,6 +160,7 @@ Build a local tool that
   - [x] Filter sequences quickly by invariants.
   - [x] Compute similarity scores against the filtered subset.
   - [x] Return top-K candidate sequences with highest similarity.
+- [x] Add thresholds (`--min-corr`, `--max-mse`) to reduce noisy suggestions.
 
 ### 4.3 Integration with previous phases
 
@@ -212,6 +172,7 @@ Build a local tool that
 - [ ] Expose API to get “candidate bucket” for multi-sequence search:
   - [x] `get_candidate_bucket(q, K) -> list[Candidate]`.
   - [x] Option to skip prefix index and relax nonzero filter for combos (handles mismatched prefixes; `--combo-unfiltered`).
+- [x] Use additional invariants (variance, growth buckets) to trim candidate sets further for transforms/combos.
 
 ---
 
@@ -230,16 +191,17 @@ Build a local tool that
   - [ ] Optional per-component transforms:
     - [x] simple things like `Diff`/`PartialSum` (component-transforms).
 
-### 5.2 Two-sequence combinations
+### 5.2 Two-sequence combinations (accuracy focus)
 
 - [x] API design:
   - [x] `search_two_sequence_combinations(q, candidates, options) -> list[CombinationMatch]` (brute-force small integer coefficients).
+- [x] (Future) Use linear algebra over ℚ for wider coefficient ranges. -> added rational solver for pair search.
 - [x] For each unordered pair of candidates `(S_i, S_j)` in the candidate bucket:
   - [x] Precompute truncated sequences with possible shifts.
   - [x] For each allowed pair of shifts `(s_i, s_j)`:
     - [x] Build vectors without per-component transforms (scope MVP).
     - [x] Optionally add per-component transforms later.
-    - [ ] (Future) Use linear algebra over ℚ for wider coefficient ranges.
+    - [x] Use linear algebra over ℚ for wider coefficient ranges (pairs + triples supported).
     - [x] Verify equality on all k terms.
     - [x] Record `Combination` with A-numbers, coefficients, shifts, expression string.
 
@@ -260,6 +222,7 @@ Build a local tool that
 - [x] Hard-limit candidate bucket size (e.g. K ≤ 100).
 - [x] Hard-limit total combinations checked per query (max_checks guard).
 - [x] Add time caps to combo/triple search; “max” preset sets wide caps (~10m) for exhaustive runs.
+- [x] Add coeff-norm caps/condition checks for rational solutions to cut false positives.
 - [ ] Provide configuration:
   - [x] `max_combinations`,
   - [x] `max_time_per_query` (if implementing time budgets),
@@ -310,7 +273,7 @@ Progress: Combination matches now emit `a(n) = c1*Axxxx(n+s1)+c2*Ayyyy(n+s2)` wi
 
 ---
 
-## Phase 7 – Performance, profiling, and optimization
+## Phase 7 – Performance, profiling, and optimization (keep fast + accurate)
 
 - [ ] Benchmark core operations:
   - [ ] Index build time and memory footprint.
@@ -320,9 +283,11 @@ Progress: Combination matches now emit `a(n) = c1*Axxxx(n+s1)+c2*Ayyyy(n+s2)` wi
   - [x] Add quick timing harness (`scripts/bench.py`) to measure common cases.
   - [x] Add profiling helper (`scripts/profile_matchers.py`) for stage timing.
   - [x] Add build benchmark script (`scripts/bench_build.py`).
+  - [x] Perf smoke test for analyze path (mini fixture, <200ms).
 - [x] Expose per-stage timings in CLI (`oeis analyze --timings`) and API (`collect_timings=True`).
+- [x] Add time caps to transform search to bound worst-case runs; dedupe repeated transformed queries.
 - [ ] Profile hotspots:
-  - [ ] Identify slow parts (e.g. inner comparison loops, transform application).
+  - [x] Identify slow parts (e.g. inner comparison loops, transform application) with `scripts/profile_matchers.py --profile ...`.
 - [ ] Optimize:
   - [ ] Use vectorized operations where possible.
   - [ ] Consider compiled extensions (C/Rust) for tight loops.
@@ -351,19 +316,20 @@ Progress: Combination matches now emit `a(n) = c1*Axxxx(n+s1)+c2*Ayyyy(n+s2)` wi
 
 ### 8.2 Integration tests
 
-- [ ] Use known OEIS sequences as fixtures:
-  - [ ] Feed them to the tool and ensure they map back to their A-numbers.
-- [ ] Test transform matches:
-  - [ ] Use pairs like `(Fibonacci, first differences)`, `(square numbers, second differences constant)`, etc.
-- [ ] Test combination matches:
-  - [ ] Construct synthetic sequences as `2*A + B` and verify tool finds that relationship.
-  - [ ] Add notebook-driven regression set for whole pipeline.
+- [x] Use known OEIS sequences as fixtures:
+  - [x] Feed them to the tool and ensure they map back to their A-numbers.
+- [x] Test transform matches:
+  - [x] Use pairs like `(Fibonacci, first differences)`, `(square numbers, second differences constant)`, etc.
+- [x] Test combination matches:
+  - [x] Construct synthetic sequences as `2*A + B` and verify tool finds that relationship.
+  - [x] Add real OEIS-derived combo case (Lucas from Fibonacci shifts).
+- [ ] Add notebook-driven regression set for whole pipeline.
 
 ### 8.3 Regression tests
 
-- [ ] Collect interesting real-world sequences and their OEIS IDs.
-- [ ] Run tool periodically and ensure output remains stable or improves.
-- [ ] Detect performance regressions (benchmark snapshots).
+- [x] Collect interesting real-world sequences and their OEIS IDs.
+- [x] Run tool periodically and ensure output remains stable or improves.
+- [x] Detect performance regressions (benchmark snapshots) — mini perf smoke test.
 
 ---
 

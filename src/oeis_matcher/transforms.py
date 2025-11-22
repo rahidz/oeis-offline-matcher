@@ -26,9 +26,17 @@ def make_affine(k: int, b: int) -> Transform:
 
 
 def make_shift(k: int) -> Transform:
-    # Shift forward: drop first k elements
+    # Shift forward: drop first k elements; for negative k, drop last |k| elements.
     def _shift(seq: List[int]) -> List[int]:
-        return seq[k:] if k >= 0 else seq
+        if k == 0:
+            return list(seq)
+        if k > 0:
+            return seq[k:]
+        # k < 0 → shift backwards by truncating the tail
+        trim = -k
+        if trim >= len(seq):
+            return []
+        return seq[: len(seq) - trim]
 
     sign = f"+{k}" if k >= 0 else str(k)
     return Transform(name=f"shift({sign})", func=_shift)
@@ -132,6 +140,175 @@ def popcount_transform() -> Transform:
     return Transform(name="popcount", func=_pc)
 
 
+def mod_transform(m: int) -> Transform:
+    def _mod(seq: List[int]) -> List[int]:
+        if m <= 0:
+            return []
+        return [x % m for x in seq]
+
+    return Transform(name=f"mod({m})", func=_mod)
+
+
+def xor_index_transform() -> Transform:
+    def _xor(seq: List[int]) -> List[int]:
+        return [x ^ i for i, x in enumerate(seq)]
+
+    return Transform(name="xor_index", func=_xor)
+
+
+def run_length_encode_transform() -> Transform:
+    def _rle(seq: List[int]) -> List[int]:
+        if not seq:
+            return []
+        lengths: List[int] = []
+        current = seq[0]
+        count = 1
+        for x in seq[1:]:
+            if x == current:
+                count += 1
+            else:
+                lengths.append(count)
+                current = x
+                count = 1
+        lengths.append(count)
+        return lengths
+
+    return Transform(name="rle_len", func=_rle)
+
+
+def run_length_decode_transform() -> Transform:
+    """
+    Decode sequence as length,value pairs: [l1,v1,l2,v2,...] -> v1 repeated l1 times, etc.
+    If input length is odd or lengths are negative, returns empty list.
+    """
+
+    def _rld(seq: List[int]) -> List[int]:
+        if len(seq) % 2 == 1:
+            return []
+        out: List[int] = []
+        for i in range(0, len(seq), 2):
+            l = seq[i]
+            v = seq[i + 1]
+            if l < 0:
+                return []
+            out.extend([v] * l)
+        return out
+
+    return Transform(name="rle_dec", func=_rld)
+
+def concat_index_value_transform(base: int = 10) -> Transform:
+    """
+    Concatenate the 1-based index n with a_n in the given base.
+    Example (base 10): a=[3,5,12] -> [13,25,312]
+    Negative values keep their sign on the concatenated magnitude.
+    """
+
+    def _concat(seq: List[int]) -> List[int]:
+        out: List[int] = []
+        for i, v in enumerate(seq, start=1):
+            sign = -1 if v < 0 else 1
+            mag = abs(v)
+            out.append(sign * int(f"{_to_base(i, base)}{_to_base(mag, base)}", base))
+        return out
+
+    return Transform(name=f"concat(n,a_n,base{base})", func=_concat)
+
+
+def _to_base(num: int, base: int) -> str:
+    if num == 0:
+        return "0"
+    digits = []
+    while num > 0:
+        digits.append(int(num % base))
+        num //= base
+    return "".join(str(d) for d in reversed(digits))
+
+
+def binomial_transform() -> Transform:
+    """
+    Classic binomial transform: b_n = sum_{k=0..n} C(n, k) * a_k
+    """
+    def _bt(seq: List[int]) -> List[int]:
+        out: List[int] = []
+        for n in range(len(seq)):
+            s = 0
+            for k in range(n + 1):
+                # simple iterative comb
+                comb = 1
+                for i in range(1, k + 1):
+                    comb = comb * (n - i + 1) // i
+                s += comb * seq[k]
+            out.append(s)
+        return out
+
+    return Transform(name="binomial", func=_bt)
+
+
+def euler_transform() -> Transform:
+    """
+    Euler transform for integer sequences (assuming a(0)=0 or not used). This simple version:
+    b_n = sum_{d|n} d * a_d
+    Note: limited to n >= 1 and requires len(seq) > n.
+    """
+    def _et(seq: List[int]) -> List[int]:
+        out: List[int] = []
+        for n in range(len(seq)):
+            if n == 0:
+                out.append(seq[0])
+                continue
+            s = 0
+            for d in range(1, n + 1):
+                if n % d == 0 and d < len(seq):
+                    s += d * seq[d]
+            out.append(s)
+        return out
+
+    return Transform(name="euler", func=_et)
+
+
+def mobius_transform() -> Transform:
+    """
+    Möbius transform (Dirichlet inverse of constant-1 under convolution):
+    b_n = sum_{d|n} mu(n/d) * a_d, with 1-based indexing on n.
+    For n=0 (index 0), returns a_0 unchanged.
+    """
+
+    def _mu(n: int) -> int:
+        # simple integer Möbius function
+        n_abs = abs(n)
+        if n_abs == 1:
+            return 1
+        p = 0
+        d = 2
+        while d * d <= n_abs:
+            if n_abs % d == 0:
+                n_abs //= d
+                if n_abs % d == 0:
+                    return 0
+                p += 1
+            d += 1
+        if n_abs > 1:
+            p += 1
+        return -1 if (p % 2) else 1
+
+    def _mob(seq: List[int]) -> List[int]:
+        if not seq:
+            return []
+        out: List[int] = []
+        # index i corresponds to n = i+1
+        out.append(seq[0])
+        for i in range(1, len(seq)):
+            n = i + 1
+            s = 0
+            for d in range(1, n + 1):
+                if n % d == 0 and d - 1 < len(seq):
+                    s += _mu(n // d) * seq[d - 1]
+            out.append(s)
+        return out
+
+    return Transform(name="mobius", func=_mob)
+
+
 def digit_sum_transform(base: int = 10) -> Transform:
     def _ds(seq: List[int]) -> List[int]:
         out = []
@@ -150,6 +327,49 @@ def digit_sum_transform(base: int = 10) -> Transform:
     return Transform(name=f"digitsum({base})", func=_ds)
 
 
+def log_transform(base: float) -> Transform:
+    """
+    Integer log with rounding to nearest int. Drops if any term <= 0 or base<=1.
+    """
+
+    def _log(seq: List[int]) -> List[int]:
+        if base <= 1:
+            return []
+        out: List[int] = []
+        for v in seq:
+            if v <= 0:
+                return []
+            val = math.log(v, base)
+            out.append(int(round(val)))
+        return out
+
+    label = "loge" if abs(base - math.e) < 1e-9 else f"log{int(base)}" if float(base).is_integer() else f"log{base:g}"
+    return Transform(name=label, func=_log)
+
+
+def exp_transform(base: float, *, max_mag: float = 1e12) -> Transform:
+    """
+    Exponentiate integers: base^{a_n} rounded to nearest int. Drops if overflow/too large.
+    """
+
+    def _exp(seq: List[int]) -> List[int]:
+        if base <= 1:
+            return []
+        out: List[int] = []
+        for v in seq:
+            try:
+                val = base ** v
+            except OverflowError:
+                return []
+            if not math.isfinite(val) or abs(val) > max_mag:
+                return []
+            out.append(int(round(val)))
+        return out
+
+    label = f"exp{int(base)}" if float(base).is_integer() else f"exp{base:g}"
+    return Transform(name=label, func=_exp)
+
+
 def default_transforms(
     scale_values: Iterable[int] = (-2, -1, 2, 3),
     beta_values: Iterable[int] = (),
@@ -166,6 +386,19 @@ def default_transforms(
     moving_sum_windows: Iterable[int] = (),
     allow_popcount: bool = False,
     allow_digit_sum: bool = False,
+    digit_sum_bases: Iterable[int] = (),
+    modulus_values: Iterable[int] = (),
+    allow_xor_index: bool = False,
+    allow_rle: bool = False,
+    allow_rle_decode: bool = False,
+    allow_concat: bool = False,
+    allow_log: bool = False,
+    log_bases: Iterable[float] = (),
+    allow_exp: bool = False,
+    exp_bases: Iterable[float] = (),
+    allow_mobius: bool = False,
+    allow_binomial: bool = False,
+    allow_euler: bool = False,
 ) -> List[Transform]:
     transforms: List[Transform] = []
     # Affine (k,b) including pure scale
@@ -205,7 +438,33 @@ def default_transforms(
     if allow_popcount:
         transforms.append(popcount_transform())
     if allow_digit_sum:
-        transforms.append(digit_sum_transform())
+        bases = list(digit_sum_bases) or [10]
+        for b in bases:
+            transforms.append(digit_sum_transform(b))
+    for m in modulus_values:
+        transforms.append(mod_transform(m))
+    if allow_xor_index:
+        transforms.append(xor_index_transform())
+    if allow_rle:
+        transforms.append(run_length_encode_transform())
+    if allow_rle_decode:
+        transforms.append(run_length_decode_transform())
+    if allow_concat:
+        transforms.append(concat_index_value_transform())
+    if allow_log:
+        bases = list(log_bases) or [2.0]
+        for b in bases:
+            transforms.append(log_transform(float(b)))
+    if allow_exp:
+        bases = list(exp_bases) or [2.0]
+        for b in bases:
+            transforms.append(exp_transform(float(b)))
+    if allow_mobius:
+        transforms.append(mobius_transform())
+    if allow_binomial:
+        transforms.append(binomial_transform())
+    if allow_euler:
+        transforms.append(euler_transform())
     return transforms
 
 
@@ -284,9 +543,33 @@ def describe_chain(chain: Sequence[Transform]) -> tuple[str, str]:
         elif name.startswith("digitsum"):
             human_parts.append("Digit sum")
             latex_parts.append("\\mathrm{digitsum}")
+        elif name.startswith("mod("):
+            human_parts.append(f"Mod {name[name.index('(')+1:-1]}")
+            latex_parts.append("\\bmod")
+        elif name == "xor_index":
+            human_parts.append("Bitwise XOR with index")
+            latex_parts.append("\\mathrm{xor\\_i}")
         elif name.startswith("decimate("):
             human_parts.append(f"Decimate {name[name.index('(')+1:-1]}")
             latex_parts.append("\\mathrm{decimate}")
+        elif name == "rle_len":
+            human_parts.append("Run-length encode (lengths)")
+            latex_parts.append("\\mathrm{rle}")
+        elif name == "rle_dec":
+            human_parts.append("Run-length decode (len,val pairs)")
+            latex_parts.append("\\mathrm{rldec}")
+        elif name == "mobius":
+            human_parts.append("Möbius transform")
+            latex_parts.append("\\mathrm{Mobius}")
+        elif name.startswith("concat("):
+            human_parts.append("Concatenate n with a_n")
+            latex_parts.append("\\mathrm{concat}(n,a_n)")
+        elif name.startswith("log"):
+            human_parts.append(f"Integer log base {name[3:]}")
+            latex_parts.append("\\log")
+        elif name.startswith("exp"):
+            human_parts.append(f"Exponentiate base {name[3:]}")
+            latex_parts.append("\\exp")
         else:
             human_parts.append(name)
             latex_parts.append(name)

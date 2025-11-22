@@ -4,6 +4,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+import math
 
 PRESETS = {
     "fast": {
@@ -33,9 +34,9 @@ PRESETS = {
         "tlimit": 60,
         "scale_values": "-4,-3,-2,-1,2,3,4",
         "shift_values": "1,2,3",
-        "beta_values": "-2,-1,1,2",
+        "beta_values": "-1,1",
         "decimate": "2,3:1",
-        "extra_transforms": "diff2,cumprod,reverse,evenodd,movsum2",
+        "extra_transforms": "diff2,cumprod,reverse,evenodd,movsum2,binomial,movsum3",
         "similar": 10,
         "combos": 10,
         "combo_candidates": 60,
@@ -54,10 +55,10 @@ PRESETS = {
         "limit": 25,
         "tlimit": 80,
         "scale_values": "-5,-4,-3,-2,-1,2,3,4,5",
-        "shift_values": "1,2,3,4",
+        "shift_values": "-1,1,2,3,4",
         "beta_values": "-3,-2,-1,1,2,3",
         "decimate": "2,3:1,4:1",
-        "extra_transforms": "diff2,cumprod,reverse,evenodd,movsum2",
+        "extra_transforms": "diff2,cumprod,reverse,evenodd,movsum2,movsum3,movsum4,binomial,euler,mobius,digitsum10,mod2,xorindex,rle,rledec,concat,log2,loge,exp2",
         "similar": 20,
         "combos": 20,
         "combo_candidates": 250,
@@ -81,6 +82,18 @@ def _apply_preset(args, preset_name: str):
         if hasattr(args, key):
             setattr(args, key, val)
     return args
+
+
+def _fmt_coeff_json(c) -> str:
+    try:
+        import fractions
+    except Exception:
+        fractions = None
+    if fractions and isinstance(c, fractions.Fraction) and c.denominator != 1:
+        return f"{c.numerator}/{c.denominator}"
+    if isinstance(c, (int, float)) and float(c).is_integer():
+        return str(int(c))
+    return str(c)
 
 
 def _choose_snippet_len(query_terms: list[int | None], show_terms: int | None) -> int | None:
@@ -155,6 +168,10 @@ def main(argv=None):
     p_match.add_argument("--json", action="store_true", dest="as_json", help="Output JSON")
     p_match.add_argument("--show-terms", type=int, metavar="N", help="Include first N terms of each hit in text/JSON output")
     p_match.add_argument("--similar", type=int, default=0, help="Also show top N similarity candidates (scale+offset).")
+    p_match.add_argument("--min-corr", type=float, default=None, help="Minimum correlation for similarity candidates")
+    p_match.add_argument("--max-mse", type=float, default=None, help="Maximum MSE for similarity candidates")
+    p_match.add_argument("--variance-band", type=float, default=None, help="Variance band for candidate filtering (overrides config)")
+    p_match.add_argument("--growth-band", type=float, default=None, help="Growth-rate band for candidate filtering")
     p_match.add_argument("--no-subsequence-fallback", action="store_true", help="Do not auto-try subsequence if no prefix hit")
 
     p_tsearch = sub.add_parser("tsearch", help="Transform-based search for sequence matches.")
@@ -172,10 +189,17 @@ def main(argv=None):
     p_tsearch.add_argument("--no-partial-sum", action="store_true", help="Disable partial sum transform")
     p_tsearch.add_argument("--no-abs", action="store_true", help="Disable abs transform")
     p_tsearch.add_argument("--no-gcd-norm", action="store_true", help="Disable gcd normalization transform")
-    p_tsearch.add_argument("--extra-transforms", default="", help="Comma list: diff2,cumprod,popcount,digitsum,reverse,evenodd,movsum2")
+    p_tsearch.add_argument(
+        "--extra-transforms",
+        default="",
+        help="Comma list: diff2,cumprod,popcount,digitsum,digitsum10,reverse,evenodd,movsum2,movsum3,mod2,xorindex,binomial,euler,mobius,rle,rledec,concat,log2,loge,exp2",
+    )
     p_tsearch.add_argument("--json", action="store_true", dest="as_json", help="Output JSON")
     p_tsearch.add_argument("--show-terms", type=int, metavar="N", help="Include first N terms of each hit")
     p_tsearch.add_argument("--preset", choices=list(PRESETS.keys()), help="Preset for search depth/limits (fast|deep)")
+    p_tsearch.add_argument("--max-time", type=float, default=None, help="Max wall time (seconds) for transform search")
+    p_tsearch.add_argument("--variance-band", type=float, default=None, help="Variance band for candidate filtering (overrides config)")
+    p_tsearch.add_argument("--growth-band", type=float, default=None, help="Growth-rate band for candidate filtering")
 
     p_combo = sub.add_parser("combo", help="Search integer linear combinations of two sequences.")
     p_combo.add_argument("sequence", help="Comma or space separated integers")
@@ -189,11 +213,17 @@ def main(argv=None):
     p_combo.add_argument("--max-checks", type=int, default=200_000, help="Max coefficient/shift combinations to evaluate")
     p_combo.add_argument("--max-time", type=float, default=None, help="Max wall time (seconds) for combo search")
     p_combo.add_argument("--max-combinations", type=int, default=None, help="Max combination evaluations to attempt (pairs)")
+    p_combo.add_argument("--min-score", type=float, default=None, help="Minimum score for combo matches")
+    p_combo.add_argument("--max-complexity", type=float, default=None, help="Maximum complexity for combo matches")
+    p_combo.add_argument("--rational", action="store_true", help="Solve coefficients over rationals instead of brute-forcing integers")
     p_combo.add_argument("--triples", type=int, default=0, help="Return up to N three-sequence combinations")
     p_combo.add_argument("--triple-candidates", type=int, default=25, help="Max candidates for triple search")
     p_combo.add_argument("--triple-max-checks", type=int, default=300_000, help="Max evaluations for triple search")
     p_combo.add_argument("--triple-max-time", type=float, default=None, help="Max wall time (seconds) for triple search")
     p_combo.add_argument("--triple-max-combinations", type=int, default=None, help="Max combination evaluations to attempt (triples)")
+    p_combo.add_argument("--triple-rational", action="store_true", help="Solve triple coefficients over rationals")
+    p_combo.add_argument("--triple-min-score", type=float, default=None, help="Minimum score for triple matches")
+    p_combo.add_argument("--triple-max-complexity", type=float, default=None, help="Maximum complexity for triple matches")
     p_combo.add_argument("--component-transforms", default="id", help="Comma-separated per-sequence transforms: id,diff,partial_sum")
     p_combo.add_argument("--json", action="store_true", dest="as_json", help="Output JSON")
     p_combo.add_argument("--combo-unfiltered", action="store_true", help="Skip prefix index when building combo candidate pool (use invariant/length filter instead)")
@@ -214,10 +244,18 @@ def main(argv=None):
     p_analyze.add_argument("--no-partial-sum", action="store_true", help="Disable partial sum transform")
     p_analyze.add_argument("--no-abs", action="store_true", help="Disable abs transform")
     p_analyze.add_argument("--no-gcd-norm", action="store_true", help="Disable gcd normalization transform")
-    p_analyze.add_argument("--extra-transforms", default="", help="Comma list: diff2,cumprod,popcount,digitsum,reverse,evenodd,movsum2")
+    p_analyze.add_argument(
+        "--extra-transforms",
+        default="",
+        help="Comma list: diff2,cumprod,popcount,digitsum,digitsum10,reverse,evenodd,movsum2,movsum3,mod2,xorindex,binomial,euler,mobius,rle,rledec,concat,log2,loge,exp2",
+    )
     p_analyze.add_argument("--json", action="store_true", dest="as_json", help="Output JSON")
     p_analyze.add_argument("--show-terms", type=int, metavar="N", help="Include first N terms of each hit")
     p_analyze.add_argument("--similar", type=int, default=0, help="Return top N similarity-ranked candidates (scale+offset).")
+    p_analyze.add_argument("--min-corr", type=float, default=None, help="Minimum correlation for similarity candidates")
+    p_analyze.add_argument("--max-mse", type=float, default=None, help="Maximum MSE for similarity candidates")
+    p_analyze.add_argument("--variance-band", type=float, default=None, help="Variance band for candidate filtering (overrides config)")
+    p_analyze.add_argument("--growth-band", type=float, default=None, help="Growth-rate band for candidate filtering")
     p_analyze.add_argument("--combos", type=int, default=0, help="Return up to N two-sequence combinations (experimental)")
     p_analyze.add_argument("--combo-candidates", type=int, default=40, help="Max candidate sequences to consider for combos")
     p_analyze.add_argument("--combo-coeffs", default="-3,-2,-1,1,2,3", help="Comma-separated integer coefficients to try in combos")
@@ -226,16 +264,25 @@ def main(argv=None):
     p_analyze.add_argument("--combo-max-checks", type=int, default=200_000, help="Max coefficient/shift combinations to evaluate for combos")
     p_analyze.add_argument("--combo-max-time", type=float, default=None, help="Max wall time (seconds) for combo search")
     p_analyze.add_argument("--combo-max-combinations", type=int, default=None, help="Max combination evaluations (pairs)")
+    p_analyze.add_argument("--combo-min-score", type=float, default=None, help="Minimum score for combo matches")
+    p_analyze.add_argument("--combo-max-complexity", type=float, default=None, help="Maximum complexity for combo matches")
+    p_analyze.add_argument("--combo-rational", action="store_true", help="Solve combo coefficients over rationals (pairs only)")
     p_analyze.add_argument("--combo-component-transforms", default="id", help="Per-sequence transforms for combos: id,diff,partial_sum")
     p_analyze.add_argument("--triples", type=int, default=0, help="Return up to N three-sequence combinations (experimental, slow)")
     p_analyze.add_argument("--triple-candidates", type=int, default=25, help="Max candidate sequences to consider for triple combos")
     p_analyze.add_argument("--triple-max-checks", type=int, default=300_000, help="Max evaluations for triple combos")
     p_analyze.add_argument("--triple-max-time", type=float, default=None, help="Max wall time (seconds) for triple combos")
     p_analyze.add_argument("--triple-max-combinations", type=int, default=None, help="Max combination evaluations (triples)")
+    p_analyze.add_argument("--triple-rational", action="store_true", help="Solve triple coefficients over rationals")
+    p_analyze.add_argument("--triple-min-score", type=float, default=None, help="Minimum score for triple combo matches")
+    p_analyze.add_argument("--triple-max-complexity", type=float, default=None, help="Maximum complexity for triple combo matches")
     p_analyze.add_argument("--combo-unfiltered", action="store_true", help="Skip prefix index when building combo candidate pool (use invariant/length filter instead)")
     p_analyze.add_argument("--no-subsequence-fallback", action="store_true", help="Do not auto-try subsequence if no prefix hit")
     p_analyze.add_argument("--preset", choices=list(PRESETS.keys()), help="Preset for search depth/limits (fast|deep)")
     p_analyze.add_argument("--timings", action="store_true", help="Include per-stage timing diagnostics")
+    p_analyze.add_argument("--transform-max-time", type=float, default=None, help="Max wall time (seconds) for transform search")
+    p_analyze.add_argument("--transform-min-score", type=float, default=None, help="Minimum score for transform matches")
+    p_analyze.add_argument("--transform-max-complexity", type=float, default=None, help="Maximum complexity for transform chains")
 
     args = parser.parse_args(argv)
 
@@ -273,25 +320,45 @@ def main(argv=None):
         return 0
 
     if args.cmd == "match":
-        query = parse_query(
-            args.sequence,
-            min_match_length=args.min_match_length,
-            allow_subsequence=args.subsequence,
-        )
+        try:
+            query = parse_query(
+                args.sequence,
+                min_match_length=args.min_match_length,
+                allow_subsequence=args.subsequence,
+            )
+        except QueryParseError as e:
+            print(f"Invalid query: {e}")
+            return 2
         db_path = Path(args.db)
-        seq_iter = candidate_sequences(db_path, query)
+        seq_iter = candidate_sequences(db_path, query, variance_band=args.variance_band, growth_band=args.growth_band)
         matches = match_exact(query, seq_iter, limit=args.limit, snippet_len=args.show_terms)
         fallback_used = False
         if not matches and not args.subsequence and not args.no_subsequence_fallback:
-            fq = parse_query(
-                args.sequence,
-                min_match_length=args.min_match_length,
-                allow_subsequence=True,
-            )
-            seq_iter = candidate_sequences(db_path, fq)
+            try:
+                fq = parse_query(
+                    args.sequence,
+                    min_match_length=args.min_match_length,
+                    allow_subsequence=True,
+                )
+            except QueryParseError as e:
+                print(f"Invalid query (fallback): {e}")
+                return 2
+            seq_iter = candidate_sequences(db_path, fq, variance_band=args.variance_band, growth_band=args.growth_band)
             matches = match_exact(fq, seq_iter, limit=args.limit, snippet_len=args.show_terms)
             fallback_used = True
-        sim_matches = rank_candidates_for_query(query, db_path, top_k=args.similar) if args.similar else []
+        sim_matches = (
+            rank_candidates_for_query(
+                query,
+                db_path,
+                top_k=args.similar,
+                min_corr=args.min_corr,
+                max_mse=args.max_mse,
+                variance_band=args.variance_band,
+                growth_band=args.growth_band,
+            )
+            if args.similar
+            else []
+        )
         if args.as_json:
             out = [
                 {
@@ -316,9 +383,10 @@ def main(argv=None):
                 }
                 for c in sim_matches
             ]
-            payload = {"query": query.terms, "matches": out, "similarity": sim}
+            diag = {"variance_band": args.variance_band, "growth_band": args.growth_band}
             if fallback_used:
-                payload["diagnostics"] = {"subsequence_fallback": True}
+                diag["subsequence_fallback"] = True
+            payload = {"query": query.terms, "matches": out, "similarity": sim, "diagnostics": diag}
             print(json.dumps(payload, indent=2))
         else:
             if not matches:
@@ -344,11 +412,15 @@ def main(argv=None):
         if args.preset:
             args = _apply_preset(args, args.preset)
 
-        query = parse_query(
-            args.sequence,
-            min_match_length=args.min_match_length,
-            allow_subsequence=args.subsequence,
-        )
+        try:
+            query = parse_query(
+                args.sequence,
+                min_match_length=args.min_match_length,
+                allow_subsequence=args.subsequence,
+            )
+        except QueryParseError as e:
+            print(f"Invalid query: {e}")
+            return 2
 
         scale_vals = _parse_int_list(args.scale_values)
         shift_vals = _parse_int_list(args.shift_values)
@@ -368,9 +440,22 @@ def main(argv=None):
             decimate_params=decimate_params,
             allow_reverse=extras["reverse"],
             allow_even_odd=extras["evenodd"],
-            moving_sum_windows=(2,) if extras["movsum2"] else (),
+            moving_sum_windows=tuple(sorted(set((2,) if extras["movsum2"] else ()) | set(extras["movsum_windows"]))),
             allow_popcount=extras["popcount"],
             allow_digit_sum=extras["digitsum"],
+            digit_sum_bases=extras["digit_bases"],
+            modulus_values=extras["mod_values"],
+            allow_xor_index=extras["xor_index"],
+            allow_rle=extras["rle"],
+            allow_rle_decode=extras["rle_dec"],
+            allow_concat=extras["concat"],
+            allow_binomial=extras["binomial"],
+            allow_euler=extras["euler"],
+            allow_mobius=extras["mobius"],
+            allow_log=bool(extras["log_bases"]),
+            log_bases=extras["log_bases"],
+            allow_exp=bool(extras["exp_bases"]),
+            exp_bases=extras["exp_bases"],
         )
 
         snip = _choose_snippet_len(query.terms, args.show_terms)
@@ -383,6 +468,11 @@ def main(argv=None):
                 limit=args.limit,
                 snippet_len=snip,
                 full_scan=args.preset == "deep",
+                max_time_s=args.max_time,
+                min_score=args.transform_min_score,
+                max_complexity=args.transform_max_complexity,
+                variance_band=args.variance_band,
+                growth_band=args.growth_band,
             )
         else:
             matches = []
@@ -437,6 +527,8 @@ def main(argv=None):
             max_records=cap,
             fill_unfiltered=True,
             skip_prefix_filter=args.combo_unfiltered,
+            variance_band=args.variance_band,
+            growth_band=args.growth_band,
         )
         comp_transforms = resolve_component_transforms(_parse_transform_names(args.component_transforms))
         snip = _choose_snippet_len(query.terms, args.show_terms)
@@ -453,6 +545,9 @@ def main(argv=None):
             max_combinations=args.max_combinations,
             component_transforms=comp_transforms,
             snippet_len=snip,
+            use_rational=args.rational,
+            min_score=args.min_score,
+            max_complexity=args.max_complexity,
         )
         triples = []
         if args.triples:
@@ -469,6 +564,9 @@ def main(argv=None):
                 max_combinations=args.triple_max_combinations,
                 component_transforms=comp_transforms,
                 snippet_len=snip,
+                min_score=args.triple_min_score,
+                max_complexity=args.triple_max_complexity,
+                use_rational=args.triple_rational,
             )
         if args.as_json:
             out = [
@@ -536,25 +634,33 @@ def main(argv=None):
         timings: dict[str, float] = {}
         t_start = time.perf_counter()
 
-        query = parse_query(
-            args.sequence,
-            min_match_length=args.min_match_length,
-            allow_subsequence=args.subsequence,
-        )
+        try:
+            query = parse_query(
+                args.sequence,
+                min_match_length=args.min_match_length,
+                allow_subsequence=args.subsequence,
+            )
+        except QueryParseError as e:
+            print(f"Invalid query: {e}")
+            return 2
         db_path = Path(args.db)
 
         # Exact matches (with optional fallback to subsequence)
         t0 = time.perf_counter()
-        exact_iter = candidate_sequences(db_path, query)
+        exact_iter = candidate_sequences(db_path, query, variance_band=args.variance_band)
         exact_matches = match_exact(query, exact_iter, limit=args.limit, snippet_len=args.show_terms)
         fallback_used = False
         if not exact_matches and not args.subsequence and not args.no_subsequence_fallback:
-            fb_query = parse_query(
-                args.sequence,
-                min_match_length=args.min_match_length,
-                allow_subsequence=True,
-            )
-            exact_iter = candidate_sequences(db_path, fb_query)
+            try:
+                fb_query = parse_query(
+                    args.sequence,
+                    min_match_length=args.min_match_length,
+                    allow_subsequence=True,
+                )
+            except QueryParseError as e:
+                print(f"Invalid query (fallback): {e}")
+                return 2
+            exact_iter = candidate_sequences(db_path, fb_query, variance_band=args.variance_band)
             exact_matches = match_exact(fb_query, exact_iter, limit=args.limit, snippet_len=args.show_terms)
             fallback_used = True
         if args.timings:
@@ -579,9 +685,22 @@ def main(argv=None):
             decimate_params=decimate_params,
             allow_reverse=extras["reverse"],
             allow_even_odd=extras["evenodd"],
-            moving_sum_windows=(2,) if extras["movsum2"] else (),
+            moving_sum_windows=tuple(sorted(set((2,) if extras["movsum2"] else ()) | set(extras["movsum_windows"]))),
             allow_popcount=extras["popcount"],
             allow_digit_sum=extras["digitsum"],
+            digit_sum_bases=extras["digit_bases"],
+            modulus_values=extras["mod_values"],
+            allow_xor_index=extras["xor_index"],
+            allow_rle=extras["rle"],
+            allow_rle_decode=extras["rle_dec"],
+            allow_concat=extras["concat"],
+            allow_binomial=extras["binomial"],
+            allow_euler=extras["euler"],
+            allow_mobius=extras["mobius"],
+            allow_log=bool(extras["log_bases"]),
+            log_bases=extras["log_bases"],
+            allow_exp=bool(extras["exp_bases"]),
+            exp_bases=extras["exp_bases"],
         )
 
         combo_snip = _choose_snippet_len(query.terms, args.show_terms)
@@ -594,6 +713,11 @@ def main(argv=None):
                 limit=args.tlimit,
                 snippet_len=combo_snip,
                 full_scan=args.preset in ("deep", "max"),
+                max_time_s=args.transform_max_time,
+                min_score=args.transform_min_score,
+                max_complexity=args.transform_max_complexity,
+                variance_band=args.variance_band,
+                growth_band=args.growth_band,
             )
         else:
             t_matches = []
@@ -601,7 +725,19 @@ def main(argv=None):
         if args.timings:
             timings["transform_ms"] = 1000 * (t1 - t0) - timings.get("exact_ms", 0.0)
 
-        sim_matches = rank_candidates_for_query(query, db_path, top_k=args.similar) if args.similar else []
+        sim_matches = (
+            rank_candidates_for_query(
+                query,
+                db_path,
+                top_k=args.similar,
+                min_corr=args.min_corr,
+                max_mse=args.max_mse,
+                variance_band=args.variance_band,
+                growth_band=args.growth_band,
+            )
+            if args.similar
+            else []
+        )
         t2 = time.perf_counter()
         if args.timings and args.similar:
             timings["similarity_ms"] = 1000 * (t2 - t1)
@@ -621,6 +757,8 @@ def main(argv=None):
                 max_records=cap,
                 fill_unfiltered=True,
                 skip_prefix_filter=args.combo_unfiltered,
+                variance_band=args.variance_band,
+                growth_band=args.growth_band,
             )
 
             if args.combos:
@@ -638,6 +776,9 @@ def main(argv=None):
                     max_combinations=args.combo_max_combinations,
                     component_transforms=comp_transforms,
                     snippet_len=combo_snip,
+                    min_score=args.combo_min_score,
+                    max_complexity=args.combo_max_complexity,
+                    use_rational=args.combo_rational,
                 )
                 combo_end = time.perf_counter()
             else:
@@ -658,9 +799,12 @@ def main(argv=None):
                     max_combinations=args.triple_max_combinations,
                     component_transforms=comp_transforms,
                     snippet_len=combo_snip,
+                    min_score=args.triple_min_score,
+                    use_rational=args.triple_rational,
                 )
                 triple_end = time.perf_counter()
             else:
+                triple_start = triple_end = None
                 triple_start = triple_end = None
 
             if args.timings:
@@ -710,7 +854,7 @@ def main(argv=None):
                     {
                         "ids": list(m.ids),
                         "names": list(m.names),
-                        "coeffs": list(m.coeffs),
+                        "coeffs": [_fmt_coeff_json(c) for c in m.coeffs],
                         "shifts": list(m.shifts),
                         "length": m.length,
                         "score": m.score,
@@ -725,7 +869,7 @@ def main(argv=None):
                     {
                         "ids": list(m.ids),
                         "names": list(m.names),
-                        "coeffs": list(m.coeffs),
+                        "coeffs": [_fmt_coeff_json(c) for c in m.coeffs],
                         "shifts": list(m.shifts),
                         "length": m.length,
                         "score": m.score,
@@ -739,7 +883,12 @@ def main(argv=None):
             }
             if args.timings:
                 timings["total_ms"] = 1000 * (time.perf_counter() - t_start)
-                payload["diagnostics"] = {"timings_ms": timings}
+            payload["diagnostics"] = {
+                **({"timings_ms": timings} if args.timings else {}),
+                "variance_band": args.variance_band,
+                "growth_band": args.growth_band,
+                **({"subsequence_fallback": True} if fallback_used else {}),
+            }
             print(json.dumps(payload, indent=2))
         else:
             print("Exact matches:")
@@ -780,8 +929,9 @@ def main(argv=None):
                         extra = f" terms1={_fmt_terms(m.component_terms[0])} terms2={_fmt_terms(m.component_terms[1])}"
                     if m.combined_terms:
                         extra += f" result={_fmt_terms(m.combined_terms)}"
+                    coeffs_disp = ",".join(_fmt_coeff_json(c) for c in m.coeffs)
                     print(
-                        f"  {m.expression} len={m.length} score={m.score:.2f} [{m.ids[0]}{n1}; {m.ids[1]}{n2}]{extra}"
+                        f"  {m.expression} len={m.length} coeffs={coeffs_disp} score={m.score:.2f} [{m.ids[0]}{n1}; {m.ids[1]}{n2}]{extra}"
                     )
             if triple_matches:
                 print("\nTriple combination matches:")
@@ -845,14 +995,62 @@ def _parse_transform_names(text: str) -> list[str]:
 
 def _parse_extra_transforms(text: str) -> dict:
     names = {s.strip().lower() for s in text.split(",") if s.strip()}
+    movsum_windows: list[int] = []
+    mod_values: list[int] = []
+    digit_bases: list[int] = []
+    for n in names:
+        if n.startswith("movsum") and n[6:].isdigit():
+            movsum_windows.append(int(n[6:]))
+        if n.startswith("mod") and n[3:].lstrip("+-").isdigit():
+            try:
+                mod_values.append(int(n[3:]))
+            except ValueError:
+                pass
+        if n.startswith("digitsum") and n[8:].isdigit():
+            try:
+                digit_bases.append(int(n[8:]))
+            except ValueError:
+                pass
+        if n in ("log2", "log10", "loge"):
+            pass
+        if n.startswith("exp") and n[3:].lstrip("+-").isdigit():
+            pass
     return {
         "diff2": "diff2" in names,
         "cumprod": "cumprod" in names,
         "popcount": "popcount" in names,
-        "digitsum": "digitsum" in names,
+        "digitsum": "digitsum" in names or any(n.startswith("digitsum") for n in names),
         "reverse": "reverse" in names,
         "evenodd": "evenodd" in names,
         "movsum2": "movsum2" in names,
+        "binomial": "binomial" in names,
+        "euler": "euler" in names,
+        "mobius": "mobius" in names,
+        "rle_dec": "rledec" in names or "rle_dec" in names,
+        "movsum_windows": tuple(sorted(set(movsum_windows))),
+        "mod_values": tuple(sorted(set(mod_values))),
+        "digit_bases": tuple(sorted(set(digit_bases))),
+        "xor_index": "xorindex" in names,
+        "rle": "rle" in names,
+        "concat": "concat" in names,
+        "log_bases": tuple(
+            sorted(
+                {
+                    2.0 if n == "log2" else 10.0 if n == "log10" else math.e
+                    for n in names
+                    if n in ("log2", "log10", "loge")
+                }
+            )
+        ),
+        "exp_bases": tuple(
+            sorted(
+                {
+                    float(n[3:])
+                    for n in names
+                    if n.startswith("exp") and n[3:].lstrip("+-").isdigit()
+                }
+            )
+        ),
     }
 
 
