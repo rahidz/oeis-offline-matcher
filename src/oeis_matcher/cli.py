@@ -18,6 +18,8 @@ PRESETS = {
         "extra_transforms": "",
         "similar": 0,
         "combos": 0,
+        "transform_min_score": 0.0,
+        "transform_max_complexity": None,
         "combo_candidates": 20,
         "combo_coeffs": "-2,-1,1,2",
         "combo_max_shift": 0,
@@ -39,6 +41,8 @@ PRESETS = {
         "extra_transforms": "diff2,cumprod,reverse,evenodd,movsum2,binomial,movsum3",
         "similar": 10,
         "combos": 10,
+        "transform_min_score": 0.6,
+        "transform_max_complexity": 5.5,
         "combo_candidates": 60,
         "combo_coeffs": "-3,-2,-1,1,2,3",
         "combo_max_shift": 2,
@@ -58,9 +62,11 @@ PRESETS = {
         "shift_values": "-1,1,2,3,4",
         "beta_values": "-3,-2,-1,1,2,3",
         "decimate": "2,3:1,4:1",
-        "extra_transforms": "diff2,cumprod,reverse,evenodd,movsum2,movsum3,movsum4,binomial,euler,mobius,digitsum10,mod2,xorindex,rle,rledec,concat,log2,loge,exp2",
+        "extra_transforms": "diff2,cumprod,reverse,evenodd,movsum2,movsum3,movsum4,binomial,euler,mobius,digitsum10,mod2,xorindex,rle,rledec,concat,log2,loge,exp2,omega,bigomega,tau,sigma,phi,v2,indexsquare,primeindex,indexpow2,indexfactorial",
         "similar": 20,
         "combos": 20,
+        "transform_min_score": 0.8,
+        "transform_max_complexity": 7.0,
         "combo_candidates": 250,
         "combo_coeffs": "-5,-4,-3,-2,-1,1,2,3,4,5",
         "combo_max_shift": 3,
@@ -113,7 +119,21 @@ def _fmt_terms(terms: list[int] | None, limit: int = 20) -> str:
         txt += ",…"
     return txt
 
-from .combination_search import search_two_sequence_combinations, search_three_sequence_combinations, resolve_component_transforms
+
+def _fmt_formula(text: str | None, max_len: int = 200) -> str:
+    if not text:
+        return ""
+    clean = text.replace("\n", " ")
+    if len(clean) > max_len:
+        clean = clean[: max_len - 1] + "…"
+    return clean
+
+from .combination_search import (
+    search_two_sequence_combinations,
+    search_three_sequence_combinations,
+    search_pointwise_two_sequence_combinations,
+    resolve_component_transforms,
+)
 from .config import load_config
 from .build_index import build_index
 from .matcher import match_exact, candidate_sequences
@@ -143,6 +163,8 @@ def main(argv=None):
     p_build.add_argument("--stripped", default=default_stripped, help="Path to stripped.gz")
     p_build.add_argument("--names", default=default_names, help="Path to names.gz")
     p_build.add_argument("--keywords", default=default_keywords, help="Path to keywords file (optional)")
+    p_build.add_argument("--offsets", default="", help="Path to offsets file (optional; otherwise use oeisdata/seq/OFFSET if present)")
+    p_build.add_argument("--formulas", default="", help="Path to formulas file (optional; otherwise use oeisdata/seq/FORMULA if present)")
     p_build.add_argument("--db", default=default_db, help="Output SQLite path")
     p_build.add_argument("--oeisdata", default="data/raw/oeisdata", help="Optional path to oeisdata clone for keywords/metadata")
     p_build.add_argument("--max-terms", type=int, default=default_max_terms, help="Max terms to store per sequence")
@@ -167,6 +189,7 @@ def main(argv=None):
     p_match.add_argument("--min-match-length", type=int, default=3, help="Minimum query length to consider")
     p_match.add_argument("--json", action="store_true", dest="as_json", help="Output JSON")
     p_match.add_argument("--show-terms", type=int, metavar="N", help="Include first N terms of each hit in text/JSON output")
+    p_match.add_argument("--show-formula", action="store_true", help="Include FORMULA text when available (may be lengthy)")
     p_match.add_argument("--similar", type=int, default=0, help="Also show top N similarity candidates (scale+offset).")
     p_match.add_argument("--min-corr", type=float, default=None, help="Minimum correlation for similarity candidates")
     p_match.add_argument("--max-mse", type=float, default=None, help="Maximum MSE for similarity candidates")
@@ -196,10 +219,13 @@ def main(argv=None):
     )
     p_tsearch.add_argument("--json", action="store_true", dest="as_json", help="Output JSON")
     p_tsearch.add_argument("--show-terms", type=int, metavar="N", help="Include first N terms of each hit")
+    p_tsearch.add_argument("--show-formula", action="store_true", help="Include FORMULA text when available")
     p_tsearch.add_argument("--preset", choices=list(PRESETS.keys()), help="Preset for search depth/limits (fast|deep)")
     p_tsearch.add_argument("--max-time", type=float, default=None, help="Max wall time (seconds) for transform search")
     p_tsearch.add_argument("--variance-band", type=float, default=None, help="Variance band for candidate filtering (overrides config)")
     p_tsearch.add_argument("--growth-band", type=float, default=None, help="Growth-rate band for candidate filtering")
+    p_tsearch.add_argument("--transform-min-score", type=float, default=None, help="Minimum score for transform matches")
+    p_tsearch.add_argument("--transform-max-complexity", type=float, default=None, help="Maximum complexity for transform chains")
 
     p_combo = sub.add_parser("combo", help="Search integer linear combinations of two sequences.")
     p_combo.add_argument("sequence", help="Comma or space separated integers")
@@ -227,6 +253,8 @@ def main(argv=None):
     p_combo.add_argument("--component-transforms", default="id", help="Comma-separated per-sequence transforms: id,diff,partial_sum")
     p_combo.add_argument("--json", action="store_true", dest="as_json", help="Output JSON")
     p_combo.add_argument("--combo-unfiltered", action="store_true", help="Skip prefix index when building combo candidate pool (use invariant/length filter instead)")
+    p_combo.add_argument("--pointwise-ops", default="", help="Comma-separated pointwise ops: mul,gcd,lcm")
+    p_combo.add_argument("--convolution-ops", default="", help="Comma-separated convolution ops: cauchy,dirichlet")
 
     p_analyze = sub.add_parser("analyze", help="Run exact + transform search pipeline.")
     p_analyze.add_argument("sequence", help="Comma or space separated integers")
@@ -251,6 +279,7 @@ def main(argv=None):
     )
     p_analyze.add_argument("--json", action="store_true", dest="as_json", help="Output JSON")
     p_analyze.add_argument("--show-terms", type=int, metavar="N", help="Include first N terms of each hit")
+    p_analyze.add_argument("--show-formula", action="store_true", help="Include FORMULA text when available")
     p_analyze.add_argument("--similar", type=int, default=0, help="Return top N similarity-ranked candidates (scale+offset).")
     p_analyze.add_argument("--min-corr", type=float, default=None, help="Minimum correlation for similarity candidates")
     p_analyze.add_argument("--max-mse", type=float, default=None, help="Maximum MSE for similarity candidates")
@@ -278,6 +307,10 @@ def main(argv=None):
     p_analyze.add_argument("--triple-max-complexity", type=float, default=None, help="Maximum complexity for triple combo matches")
     p_analyze.add_argument("--combo-unfiltered", action="store_true", help="Skip prefix index when building combo candidate pool (use invariant/length filter instead)")
     p_analyze.add_argument("--no-subsequence-fallback", action="store_true", help="Do not auto-try subsequence if no prefix hit")
+    p_analyze.add_argument("--pointwise-ops", default="", help="Comma-separated pointwise ops for combinations: mul,gcd,lcm")
+    p_analyze.add_argument("--pointwise-limit", type=int, default=0, help="Return up to N pointwise combinations (experimental)")
+    p_analyze.add_argument("--convolution-ops", default="", help="Comma-separated convolution ops: cauchy,dirichlet")
+    p_analyze.add_argument("--convolution-limit", type=int, default=0, help="Return up to N convolution combinations (experimental)")
     p_analyze.add_argument("--preset", choices=list(PRESETS.keys()), help="Preset for search depth/limits (fast|deep)")
     p_analyze.add_argument("--timings", action="store_true", help="Include per-stage timing diagnostics")
     p_analyze.add_argument("--transform-max-time", type=float, default=None, help="Max wall time (seconds) for transform search")
@@ -294,6 +327,8 @@ def main(argv=None):
             Path(args.db),
             max_terms=args.max_terms,
             oeisdata_root=Path(args.oeisdata),
+            offsets_path=Path(args.offsets) if args.offsets else None,
+            formulas_path=Path(args.formulas) if args.formulas else None,
         )
         print(f"Inserted {stats['inserted']} sequences into {stats['db']}")
         return 0
@@ -367,6 +402,7 @@ def main(argv=None):
                     "match_type": m.match_type,
                     "offset": m.offset,
                     "length": m.length,
+                    **({"formula": m.formula} if args.show_formula and m.formula else {}),
                     **({"terms": m.snippet} if m.snippet is not None else {}),
                     **({"score": m.score} if m.score is not None else {}),
                 }
@@ -397,7 +433,9 @@ def main(argv=None):
                 if m.snippet is not None:
                     snippet = " terms=" + ",".join(str(t) for t in m.snippet)
                 score = f" score={m.score:.2f}" if m.score is not None else ""
-                print(f"{m.id} [{m.match_type} @ {m.offset}] len={m.length}{name}{score}{snippet}")
+                formula_txt = _fmt_formula(m.formula) if args.show_formula else ""
+                formula_disp = f" formula={formula_txt}" if formula_txt else ""
+                print(f"{m.id} [{m.match_type} @ {m.offset}] len={m.length}{name}{score}{snippet}{formula_disp}")
             if sim_matches:
                 print("\nSimilarity candidates:")
                 for c in sim_matches:
@@ -456,6 +494,16 @@ def main(argv=None):
             log_bases=extras["log_bases"],
             allow_exp=bool(extras["exp_bases"]),
             exp_bases=extras["exp_bases"],
+            allow_omega=extras["omega"],
+            allow_bigomega=extras["bigomega"],
+            allow_tau=extras["tau"],
+            allow_sigma=extras["sigma"],
+            allow_phi=extras["phi"],
+            allow_v2=extras["v2"],
+            allow_index_square=extras["index_square"],
+            allow_prime_index=extras["prime_index"],
+            allow_index_pow2=extras["index_pow2"],
+            allow_index_factorial=extras["index_factorial"],
         )
 
         snip = _choose_snippet_len(query.terms, args.show_terms)
@@ -486,8 +534,11 @@ def main(argv=None):
                     "offset": m.offset,
                     "length": m.length,
                     "transform": m.transform_desc,
+                    **({"formula": m.formula} if args.show_formula and m.formula else {}),
                     **({"explanation": m.explanation} if m.explanation else {}),
                     **({"latex": m.latex} if m.latex else {}),
+                    **({"symbolic": m.symbolic} if m.symbolic else {}),
+                    **({"symbolic_latex": m.symbolic_latex} if m.symbolic_latex else {}),
                     **({"terms": m.snippet} if m.snippet is not None else {}),
                     **({"transformed_terms": m.transformed_terms} if m.transformed_terms is not None else {}),
                 }
@@ -506,8 +557,12 @@ def main(argv=None):
                     snippet += " transformed=" + ",".join(str(t) for t in m.transformed_terms)
                 expl = m.explanation or m.transform_desc or ""
                 tdesc = f" via {expl}" if expl else ""
-                print(f"{m.id} [{m.match_type} @ {m.offset}] len={m.length}{name}{tdesc}{snippet}")
-        return 0
+                if m.symbolic:
+                    tdesc += f" [{m.symbolic}]"
+                formula_txt = _fmt_formula(m.formula) if args.show_formula else ""
+                formula_disp = f" formula={formula_txt}" if formula_txt else ""
+                print(f"{m.id} [{m.match_type} @ {m.offset}] len={m.length}{name}{tdesc}{formula_disp}{snippet}")
+            return 0
 
     if args.cmd == "combo":
         query = parse_query(
@@ -549,6 +604,25 @@ def main(argv=None):
             min_score=args.min_score,
             max_complexity=args.max_complexity,
         )
+        pointwise_matches = []
+        conv_matches: list = []
+        pw_ops = _parse_pointwise_ops(args.pointwise_ops)
+        if pw_ops:
+            pointwise_matches = search_pointwise_two_sequence_combinations(
+                query,
+                candidates,
+                ops=pw_ops,
+                max_shift=args.max_shift,
+                max_shift_back=args.max_shift_back,
+                limit=args.limit,
+                max_candidates=args.candidates,
+                max_checks=args.max_checks,
+                max_time_s=args.max_time,
+                component_transforms=comp_transforms,
+                snippet_len=snip,
+                min_score=args.min_score,
+                max_complexity=args.max_complexity,
+            )
         triples = []
         if args.triples:
             triples = search_three_sequence_combinations(
@@ -599,7 +673,22 @@ def main(argv=None):
                 }
                 for m in triples
             ]
-            print(json.dumps({"query": query.terms, "combinations": out, "triple_combinations": out3}, indent=2))
+            out_pw = [
+                {
+                    "ids": list(m.ids),
+                    "names": list(m.names),
+                    "coeffs": [_fmt_coeff_json(c) for c in m.coeffs],
+                    "shifts": list(m.shifts),
+                    "length": m.length,
+                    "score": m.score,
+                    "expression": m.expression,
+                    **({"component_transforms": list(m.component_transforms)} if m.component_transforms else {}),
+                    **({"component_terms": [list(t) for t in m.component_terms]} if m.component_terms else {}),
+                    **({"combined_terms": m.combined_terms} if m.combined_terms else {}),
+                }
+                for m in pointwise_matches
+            ]
+            print(json.dumps({"query": query.terms, "combinations": out, "triple_combinations": out3, "pointwise_combinations": out_pw}, indent=2))
         else:
             if not combos:
                 print("No combinations found.")
@@ -621,6 +710,16 @@ def main(argv=None):
                     extra = ""
                     if m.component_terms:
                         extra = " " + " ".join(f"terms{i+1}={_fmt_terms(ts)}" for i, ts in enumerate(m.component_terms))
+                    if m.combined_terms:
+                        extra += f" result={_fmt_terms(m.combined_terms)}"
+                    print(f"{m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}")
+            if pointwise_matches:
+                print("\nPointwise combinations:")
+                for m in pointwise_matches:
+                    name_parts = [f"{id_}{f' - {nm}' if nm else ''}" for id_, nm in zip(m.ids, m.names)]
+                    extra = ""
+                    if m.component_terms:
+                        extra = f" terms1={_fmt_terms(m.component_terms[0])} terms2={_fmt_terms(m.component_terms[1])}"
                     if m.combined_terms:
                         extra += f" result={_fmt_terms(m.combined_terms)}"
                     print(f"{m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}")
@@ -701,6 +800,16 @@ def main(argv=None):
             log_bases=extras["log_bases"],
             allow_exp=bool(extras["exp_bases"]),
             exp_bases=extras["exp_bases"],
+            allow_omega=extras["omega"],
+            allow_bigomega=extras["bigomega"],
+            allow_tau=extras["tau"],
+            allow_sigma=extras["sigma"],
+            allow_phi=extras["phi"],
+            allow_v2=extras["v2"],
+            allow_index_square=extras["index_square"],
+            allow_prime_index=extras["prime_index"],
+            allow_index_pow2=extras["index_pow2"],
+            allow_index_factorial=extras["index_factorial"],
         )
 
         combo_snip = _choose_snippet_len(query.terms, args.show_terms)
@@ -741,9 +850,11 @@ def main(argv=None):
         t2 = time.perf_counter()
         if args.timings and args.similar:
             timings["similarity_ms"] = 1000 * (t2 - t1)
-        combo_matches = []
+        combo_matches: list = []
         triple_matches: list = []
-        if args.combos or args.triples:
+        pointwise_matches: list = []
+        conv_matches: list = []
+        if args.combos or args.triples or (getattr(args, "pointwise_limit", 0) > 0 and args.pointwise_ops) or (getattr(args, "convolution_limit", 0) > 0 and args.convolution_ops):
             combo_coeffs = _parse_int_list(args.combo_coeffs)
             triple_candidates = args.triple_candidates or args.combo_candidates
             cap = max(args.combo_candidates, triple_candidates)
@@ -807,11 +918,58 @@ def main(argv=None):
                 triple_start = triple_end = None
                 triple_start = triple_end = None
 
+            pw_ops = _parse_pointwise_ops(getattr(args, "pointwise_ops", ""))
+            if getattr(args, "pointwise_limit", 0) > 0 and pw_ops:
+                pw_start = time.perf_counter()
+                pointwise_matches = search_pointwise_two_sequence_combinations(
+                    query,
+                    bucket.records,
+                    ops=pw_ops,
+                    max_shift=args.combo_max_shift,
+                    max_shift_back=args.combo_max_shift_back,
+                    limit=args.pointwise_limit,
+                    max_candidates=args.combo_candidates,
+                    max_checks=args.combo_max_checks,
+                    max_time_s=args.combo_max_time,
+                    component_transforms=comp_transforms,
+                    snippet_len=combo_snip,
+                    min_score=args.combo_min_score,
+                    max_complexity=args.combo_max_complexity,
+                )
+                pw_end = time.perf_counter()
+            else:
+                pw_start = pw_end = None
+
+            conv_ops = _parse_conv_ops(getattr(args, "convolution_ops", ""))
+            if getattr(args, "convolution_limit", 0) > 0 and conv_ops:
+                conv_start = time.perf_counter()
+                conv_matches = search_convolution_two_sequence_combinations(
+                    query,
+                    bucket.records,
+                    ops=conv_ops,
+                    max_length=32,
+                    limit=args.convolution_limit,
+                    max_candidates=args.combo_candidates,
+                    max_checks=args.combo_max_checks,
+                    max_time_s=args.combo_max_time,
+                    component_transforms=comp_transforms,
+                    snippet_len=combo_snip,
+                    min_score=args.combo_min_score,
+                    max_complexity=args.combo_max_complexity,
+                )
+                conv_end = time.perf_counter()
+            else:
+                conv_start = conv_end = None
+
             if args.timings:
                 if combo_start is not None and combo_end is not None:
                     timings["combination_ms"] = 1000 * (combo_end - combo_start)
                 if triple_start is not None and triple_end is not None:
                     timings["triple_ms"] = 1000 * (triple_end - triple_start)
+                if pw_start is not None and pw_end is not None:
+                    timings["pointwise_ms"] = 1000 * (pw_end - pw_start)
+                if conv_start is not None and conv_end is not None:
+                    timings["convolution_ms"] = 1000 * (conv_end - conv_start)
 
         if args.as_json:
             def _mrow(m):
@@ -829,6 +987,12 @@ def main(argv=None):
                     row["explanation"] = m.explanation
                 if m.latex:
                     row["latex"] = m.latex
+                if m.symbolic:
+                    row["symbolic"] = m.symbolic
+                if m.symbolic_latex:
+                    row["symbolic_latex"] = m.symbolic_latex
+                if args.show_formula and m.formula:
+                    row["formula"] = m.formula
                 if m.snippet is not None:
                     row["terms"] = m.snippet
                 if m.transformed_terms is not None:
@@ -880,6 +1044,36 @@ def main(argv=None):
                     }
                     for m in triple_matches
                 ],
+                "pointwise_combinations": [
+                    {
+                        "ids": list(m.ids),
+                        "names": list(m.names),
+                        "coeffs": [_fmt_coeff_json(c) for c in m.coeffs],
+                        "shifts": list(m.shifts),
+                        "length": m.length,
+                        "score": m.score,
+                        "expression": m.expression,
+                        **({"component_transforms": list(m.component_transforms)} if m.component_transforms else {}),
+                        **({"component_terms": [list(t) for t in m.component_terms]} if m.component_terms else {}),
+                        **({"combined_terms": m.combined_terms} if m.combined_terms else {}),
+                    }
+                    for m in pointwise_matches
+                ],
+                "convolution_combinations": [
+                    {
+                        "ids": list(m.ids),
+                        "names": list(m.names),
+                        "coeffs": [_fmt_coeff_json(c) for c in m.coeffs],
+                        "shifts": list(m.shifts),
+                        "length": m.length,
+                        "score": m.score,
+                        "expression": m.expression,
+                        **({"component_transforms": list(m.component_transforms)} if m.component_transforms else {}),
+                        **({"component_terms": [list(t) for t in m.component_terms]} if m.component_terms else {}),
+                        **({"combined_terms": m.combined_terms} if m.combined_terms else {}),
+                    }
+                    for m in conv_matches
+                ],
             }
             if args.timings:
                 timings["total_ms"] = 1000 * (time.perf_counter() - t_start)
@@ -898,7 +1092,9 @@ def main(argv=None):
                 name = f" - {m.name}" if m.name else ""
                 snippet = f" terms={','.join(str(t) for t in m.snippet)}" if m.snippet else ""
                 score = f" score={m.score:.2f}" if m.score is not None else ""
-                print(f"  {m.id} [{m.match_type} @ {m.offset}] len={m.length}{name}{score}{snippet}")
+                formula_txt = _fmt_formula(m.formula) if args.show_formula else ""
+                formula_disp = f" formula={formula_txt}" if formula_txt else ""
+                print(f"  {m.id} [{m.match_type} @ {m.offset}] len={m.length}{name}{score}{snippet}{formula_disp}")
 
             print("\nTransform matches:")
             if not t_matches:
@@ -910,8 +1106,12 @@ def main(argv=None):
                     snippet += f" transformed={','.join(str(t) for t in m.transformed_terms)}"
                 expl = m.explanation or m.transform_desc or ""
                 tdesc = f" via {expl}" if expl else ""
+                if m.symbolic:
+                    tdesc += f" [{m.symbolic}]"
                 score = f" score={m.score:.2f}" if m.score is not None else ""
-                print(f"  {m.id} [{m.match_type} @ {m.offset}] len={m.length}{name}{tdesc}{score}{snippet}")
+                formula_txt = _fmt_formula(m.formula) if args.show_formula else ""
+                formula_disp = f" formula={formula_txt}" if formula_txt else ""
+                print(f"  {m.id} [{m.match_type} @ {m.offset}] len={m.length}{name}{tdesc}{score}{snippet}{formula_disp}")
 
             if sim_matches:
                 print("\nSimilarity candidates:")
@@ -940,6 +1140,26 @@ def main(argv=None):
                     extra = ""
                     if m.component_terms:
                         extra = " " + " ".join(f"terms{i+1}={_fmt_terms(ts)}" for i, ts in enumerate(m.component_terms))
+                    if m.combined_terms:
+                        extra += f" result={_fmt_terms(m.combined_terms)}"
+                    print(f"  {m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}")
+            if pointwise_matches:
+                print("\nPointwise combination matches:")
+                for m in pointwise_matches:
+                    name_parts = [f"{id_}{f' - {nm}' if nm else ''}" for id_, nm in zip(m.ids, m.names)]
+                    extra = ""
+                    if m.component_terms:
+                        extra = f" terms1={_fmt_terms(m.component_terms[0])} terms2={_fmt_terms(m.component_terms[1])}"
+                    if m.combined_terms:
+                        extra += f" result={_fmt_terms(m.combined_terms)}"
+                    print(f"  {m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}")
+            if conv_matches:
+                print("\nConvolution combination matches:")
+                for m in conv_matches:
+                    name_parts = [f"{id_}{f' - {nm}' if nm else ''}" for id_, nm in zip(m.ids, m.names)]
+                    extra = ""
+                    if m.component_terms:
+                        extra = f" terms1={_fmt_terms(m.component_terms[0])} terms2={_fmt_terms(m.component_terms[1])}"
                     if m.combined_terms:
                         extra += f" result={_fmt_terms(m.combined_terms)}"
                     print(f"  {m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}")
@@ -991,6 +1211,16 @@ def _parse_decimate(text: str) -> list[tuple[int, int]]:
 
 def _parse_transform_names(text: str) -> list[str]:
     return [p.strip() for p in text.split(",") if p.strip()]
+
+
+def _parse_pointwise_ops(text: str) -> list[str]:
+    allowed = {"mul", "gcd", "lcm"}
+    return [p for p in (t.strip().lower() for t in text.split(",")) if p in allowed]
+
+
+def _parse_conv_ops(text: str) -> list[str]:
+    allowed = {"cauchy", "dirichlet"}
+    return [p for p in (t.strip().lower() for t in text.split(",")) if p in allowed]
 
 
 def _parse_extra_transforms(text: str) -> dict:
@@ -1051,6 +1281,16 @@ def _parse_extra_transforms(text: str) -> dict:
                 }
             )
         ),
+        "omega": "omega" in names,
+        "bigomega": "bigomega" in names,
+        "tau": "tau" in names,
+        "sigma": "sigma" in names,
+        "phi": "phi" in names,
+        "v2": "v2" in names,
+        "index_square": "indexsquare" in names,
+        "prime_index": "primeindex" in names,
+        "index_pow2": "indexpow2" in names,
+        "index_factorial": "indexfactorial" in names,
     }
 
 

@@ -21,6 +21,14 @@ from oeis_matcher.transforms import (
     concat_index_value_transform,
     log_transform,
     exp_transform,
+    omega_transform,
+    big_omega_transform,
+    tau_transform,
+    sigma_transform,
+    phi_transform,
+    v2_transform,
+    square_index_transform,
+    prime_index_transform,
 )
 
 
@@ -130,6 +138,8 @@ def test_rle_decode_transform():
     assert rld == [9, 9, 5]
     # odd length should give empty
     assert run_length_decode_transform().apply([1, 2, 3]) == []
+    # very large expansion should be rejected
+    assert run_length_decode_transform().apply([20000, 1]) == []
 
 
 def test_log_and_exp_transforms():
@@ -142,3 +152,31 @@ def test_log_and_exp_transforms():
     assert log_transform(2.0).apply([0, 1]) == []
     # exp drops on huge overflow
     assert exp_transform(2.0).apply([1000]) == []
+
+
+def test_arithmetic_function_transforms():
+    seq = [1, 2, 4, 12]
+    omega = omega_transform().apply(seq)
+    big = big_omega_transform().apply(seq)
+    tau = tau_transform().apply(seq)
+    sigma = sigma_transform().apply(seq)
+    phi = phi_transform().apply(seq)
+    v2 = v2_transform().apply(seq)
+
+    assert omega == [0, 1, 1, 2]
+    assert big == [0, 1, 2, 3]
+    assert tau == [1, 2, 3, 6]
+    assert sigma == [1, 3, 7, 28]
+    assert phi == [1, 1, 2, 4]
+    assert v2 == [0, 1, 2, 2]
+
+
+def test_index_based_transforms():
+    seq = [10, 11, 12, 13, 14, 15]
+    sq = square_index_transform().apply(seq)
+    primes = prime_index_transform().apply(seq)
+
+    # indices 0^2=0,1^2=1,2^2=4 -> 10,11,14
+    assert sq == [10, 11, 14]
+    # primes 2,3,5 -> indices 1,2,4 -> 11,12,14
+    assert primes == [11, 12, 14]

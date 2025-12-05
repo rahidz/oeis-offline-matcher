@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from typing import Iterable, List, Optional
+from .config import load_config
+from .similarity import growth_rate
 
 from .models import Match, SequenceQuery, SequenceRecord
 from .storage import iter_sequences, iter_sequences_by_prefix, iter_sequences_filtered
@@ -90,18 +92,19 @@ def _first_diff_sign(values: List[int]) -> str:
     if len(values) < 2:
         return "na"
     diffs = [values[i + 1] - values[i] for i in range(len(values) - 1)]
-    all_pos = all(d > 0 for d in diffs)
-    all_neg = all(d < 0 for d in diffs)
-    all_nonneg = all(d >= 0 for d in diffs)
-    all_nonpos = all(d <= 0 for d in diffs)
-    if all_pos:
+    pos = sum(1 for d in diffs if d > 0)
+    neg = sum(1 for d in diffs if d < 0)
+    zero = len(diffs) - pos - neg
+    if pos == len(diffs):
         return "pos"
-    if all_neg:
+    if neg == len(diffs):
         return "neg"
-    if all_nonneg:
+    if pos > 0 and neg == 0:
         return "nonneg"
-    if all_nonpos:
+    if neg > 0 and pos == 0:
         return "nonpos"
+    if zero == len(diffs):
+        return "flat"
     return "mixed"
 
 
@@ -111,6 +114,8 @@ def candidate_sequences(
     *,
     use_prefix_index: bool = True,
     loosen_nonzero: bool = False,
+    variance_band: float | None = None,
+    growth_band: float | None = None,
 ) -> Iterable[SequenceRecord]:
     """
     Select an iterator over sequences using prefix index when possible,
@@ -123,9 +128,51 @@ def candidate_sequences(
     if use_prefix_index and (not query.allow_subsequence) and len(terms) >= 5:
         return iter_sequences_by_prefix(db_path, terms)
 
+    cfg = load_config()
+    # Subsequence searches should not filter on absolute nonzero counts, since
+    # the query length can be much shorter than the stored sequence; otherwise
+    # long all-nonzero sequences (the vast majority of OEIS) are wrongly
+    # excluded. Treat allow_subsequence as an automatic request to loosen.
+    if query.allow_subsequence:
+        loosen_nonzero = True
+
+    if variance_band is None:
+        variance_band = float(cfg["limits"].get("variance_band", 50.0))
+    if growth_band is None:
+        growth_band = float(cfg["limits"].get("growth_band", 4.0))
+
     sp = _sign_pattern(terms)
     fd = _first_diff_sign(terms)
+    # The global first-difference sign of a full sequence can differ from the
+    # local behavior of a matching subsequence (e.g., early plateaus or sign
+    # changes). Skip this filter for subsequence searches to avoid false
+    # negatives like A063886/A182027-style offsets.
+    if query.allow_subsequence:
+        fd = None
     nz = sum(1 for t in terms if t != 0)
+    # variance bands (guard against zero/near-zero variance)
+    def _var(vals):
+        vals = [v for v in vals if v is not None]
+        if len(vals) < 2:
+            return None
+        mean = sum(vals) / len(vals)
+        return sum((v - mean) ** 2 for v in vals) / len(vals)
+
+    var_q = _var(terms)
+    diff_var_q = _var([terms[i + 1] - terms[i] for i in range(len(terms) - 1)]) if len(terms) > 1 else None
+    growth_q = growth_rate([t for t in terms if t is not None])
+    var_min = var_max = None
+    diff_var_min = diff_var_max = None
+    growth_min = growth_max = None
+    if var_q and var_q > 0 and var_q <= 1000:
+        var_min = var_q / variance_band
+        var_max = var_q * variance_band
+    if diff_var_q and diff_var_q > 0 and diff_var_q <= 1000:
+        diff_var_min = diff_var_q / variance_band
+        diff_var_max = diff_var_q * variance_band
+    if growth_q and growth_q > 0 and growth_band:
+        growth_min = growth_q / growth_band
+        growth_max = growth_q * growth_band
     # nonzero band: allow +/- 50% to avoid over-filtering on short queries
     if loosen_nonzero:
         nz_min = 0
@@ -141,6 +188,12 @@ def candidate_sequences(
         nonzero_min=nz_min,
         nonzero_max=nz_max,
         min_length=query.min_match_length,
+        var_min=var_min,
+        var_max=var_max,
+        diff_var_min=diff_var_min,
+        diff_var_max=diff_var_max,
+        growth_min=growth_min,
+        growth_max=growth_max,
     )
 
 
@@ -164,6 +217,10 @@ def match_exact(
                 Match(
                     id=seq.id,
                     name=seq.name,
+                    keywords=seq.keywords,
+                    seq_offset=seq.offset,
+                    formula=seq.formula,
+                    has_formula=seq.has_formula,
                     match_type="prefix",
                     offset=0,
                     length=len(qterms),
@@ -177,12 +234,16 @@ def match_exact(
                 results.append(
                     Match(
                         id=seq.id,
-                    name=seq.name,
-                    match_type="subsequence",
-                    offset=off,
-                    length=len(qterms),
-                    snippet=seq.terms[:snippet_len] if snippet_len else None,
-                    score=len(qterms) - 0.5,
+                        name=seq.name,
+                        keywords=seq.keywords,
+                        seq_offset=seq.offset,
+                        formula=seq.formula,
+                        has_formula=seq.has_formula,
+                        match_type="subsequence",
+                        offset=off,
+                        length=len(qterms),
+                        snippet=seq.terms[:snippet_len] if snippet_len else None,
+                        score=len(qterms) - 0.5,
                 )
             )
         if limit and len(results) >= limit:

@@ -14,6 +14,7 @@ from .transform_search import search_transform_matches
 from .transforms import default_transforms
 from .candidates import get_candidate_bucket
 from .combination_search import search_two_sequence_combinations, search_three_sequence_combinations, resolve_component_transforms
+from .similarity import growth_rate
 
 
 def match_exact_terms(
@@ -26,6 +27,8 @@ def match_exact_terms(
     fallback_full_scan: bool = True,
     limit: int | None = 10,
     show_terms: int | None = None,
+    variance_band: float | None = None,
+    growth_band: float | None = None,
 ) -> List[Match]:
     """
     Convenience wrapper around match_exact for library use.
@@ -37,7 +40,7 @@ def match_exact_terms(
         min_match_length=min_match_length,
         allow_subsequence=allow_subsequence,
     )
-    seq_iter = candidate_sequences(db_path, query)
+    seq_iter = candidate_sequences(db_path, query, variance_band=variance_band, growth_band=growth_band)
     matches = match_exact(query, seq_iter, limit=limit, snippet_len=show_terms)
     if matches or allow_subsequence or not fallback_subsequence:
         return matches
@@ -66,6 +69,11 @@ def search_transforms(
     max_depth: int = 2,
     limit: int = 20,
     show_terms: int | None = None,
+    max_time: float | None = None,
+    min_score: float | None = None,
+    max_complexity: float | None = None,
+    variance_band: float | None = None,
+    growth_band: float | None = None,
     scale_values: Iterable[int] = (-3, -2, -1, 2, 3),
     beta_values: Iterable[int] = (),
     shift_values: Iterable[int] = (1, 2),
@@ -75,6 +83,25 @@ def search_transforms(
     allow_abs: bool = True,
     allow_gcd_norm: bool = True,
     full_scan: bool = False,
+    allow_binomial: bool = False,
+    allow_euler: bool = False,
+    digit_sum_bases: Iterable[int] = (),
+    modulus_values: Iterable[int] = (),
+    allow_xor_index: bool = False,
+    allow_rle: bool = False,
+    allow_log: bool = False,
+    log_bases: Iterable[float] = (),
+    allow_exp: bool = False,
+    exp_bases: Iterable[float] = (),
+    allow_mobius: bool = False,
+    allow_omega: bool = False,
+    allow_bigomega: bool = False,
+    allow_tau: bool = False,
+    allow_sigma: bool = False,
+    allow_phi: bool = False,
+    allow_v2: bool = False,
+    allow_index_square: bool = False,
+    allow_prime_index: bool = False,
 ) -> List[Match]:
     cfg = load_config()
     db_path = Path(db_path or cfg["paths"]["db"])
@@ -88,10 +115,38 @@ def search_transforms(
         beta_values=beta_values,
         shift_values=shift_values,
         allow_diff=allow_diff,
+        diff_orders=(1,),
         allow_partial_sum=allow_partial_sum,
+        allow_cumprod=False,
         allow_abs=allow_abs,
         allow_gcd_norm=allow_gcd_norm,
         decimate_params=decimate_params,
+        allow_reverse=False,
+        allow_even_odd=False,
+        moving_sum_windows=(),
+        allow_popcount=False,
+        allow_digit_sum=bool(digit_sum_bases),
+        digit_sum_bases=digit_sum_bases,
+        modulus_values=modulus_values,
+        allow_xor_index=allow_xor_index,
+        allow_rle=allow_rle,
+        allow_rle_decode=False,
+        allow_concat=False,
+        allow_log=allow_log,
+        log_bases=log_bases,
+        allow_exp=allow_exp,
+        exp_bases=exp_bases,
+        allow_mobius=allow_mobius,
+        allow_binomial=allow_binomial,
+        allow_euler=allow_euler,
+        allow_omega=allow_omega,
+        allow_bigomega=allow_bigomega,
+        allow_tau=allow_tau,
+        allow_sigma=allow_sigma,
+        allow_phi=allow_phi,
+        allow_v2=allow_v2,
+        allow_index_square=allow_index_square,
+        allow_prime_index=allow_prime_index,
     )
     return search_transform_matches(
         query,
@@ -101,6 +156,11 @@ def search_transforms(
         limit=limit,
         snippet_len=show_terms,
         full_scan=full_scan,
+        max_time_s=max_time,
+        min_score=min_score,
+        max_complexity=max_complexity,
+        variance_band=variance_band,
+        growth_band=growth_band,
     )
 
 
@@ -111,6 +171,7 @@ def search_combinations(
     min_match_length: int = 3,
     coeffs: Iterable[int] = (-3, -2, -1, 1, 2, 3),
     max_shift: int = 0,
+    max_shift_back: int = 0,
     limit: int = 20,
     candidate_cap: int = 40,
     max_checks: int | None = 200_000,
@@ -119,6 +180,11 @@ def search_combinations(
     component_transforms: Iterable[str] | None = None,
     combo_unfiltered: bool = False,
     snippet_len: int | None = None,
+    use_rational: bool = False,
+    combo_min_score: float | None = None,
+    combo_max_complexity: float | None = None,
+    variance_band: float | None = None,
+    growth_band: float | None = None,
 ) -> list:
     cfg = load_config()
     db_path = Path(db_path or cfg["paths"]["db"])
@@ -131,12 +197,15 @@ def search_combinations(
         max_records=candidate_cap,
         fill_unfiltered=True,
         skip_prefix_filter=combo_unfiltered,
+        variance_band=variance_band,
+        growth_band=growth_band,
     )
     return search_two_sequence_combinations(
         query,
         bucket.records,
         coeffs=tuple(coeffs),
         max_shift=max_shift,
+        max_shift_back=max_shift_back,
         limit=limit,
         max_candidates=candidate_cap,
         max_checks=max_checks,
@@ -144,6 +213,9 @@ def search_combinations(
         max_combinations=max_combinations,
         component_transforms=resolve_component_transforms(list(component_transforms) if component_transforms is not None else None),
         snippet_len=snippet_len,
+        use_rational=use_rational,
+        min_score=combo_min_score,
+        max_complexity=combo_max_complexity,
     )
 
 
@@ -154,6 +226,7 @@ def search_three_combinations(
     min_match_length: int = 3,
     coeffs: Iterable[int] = (-2, -1, 1, 2),
     max_shift: int = 0,
+    max_shift_back: int = 0,
     limit: int = 10,
     candidate_cap: int = 25,
     max_checks: int | None = 300_000,
@@ -162,6 +235,11 @@ def search_three_combinations(
     component_transforms: Iterable[str] | None = None,
     combo_unfiltered: bool = False,
     snippet_len: int | None = None,
+    use_rational: bool = False,
+    triple_min_score: float | None = None,
+    triple_max_complexity: float | None = None,
+    variance_band: float | None = None,
+    growth_band: float | None = None,
 ) -> list:
     cfg = load_config()
     db_path = Path(db_path or cfg["paths"]["db"])
@@ -174,12 +252,15 @@ def search_three_combinations(
         max_records=candidate_cap,
         fill_unfiltered=True,
         skip_prefix_filter=combo_unfiltered,
+        variance_band=variance_band,
+        growth_band=growth_band,
     )
     return search_three_sequence_combinations(
         query,
         bucket.records,
         coeffs=tuple(coeffs),
         max_shift=max_shift,
+        max_shift_back=max_shift_back,
         limit=limit,
         max_candidates=candidate_cap,
         max_checks=max_checks,
@@ -187,6 +268,9 @@ def search_three_combinations(
         max_combinations=max_combinations,
         component_transforms=resolve_component_transforms(list(component_transforms) if component_transforms is not None else None),
         snippet_len=snippet_len,
+        use_rational=use_rational,
+        min_score=triple_min_score,
+        max_complexity=triple_max_complexity,
     )
 
 
@@ -200,11 +284,16 @@ def analyze_sequence(
     transform_limit: int = 10,
     transform_depth: int = 2,
     transform_args: Optional[Dict] = None,
+    transform_max_time: float | None = None,
     similarity: int = 0,
+    similarity_min_corr: float | None = None,
+    similarity_max_mse: float | None = None,
     combos: int = 0,
     triples: int = 0,
     combo_coeffs: Iterable[int] = (-3, -2, -1, 1, 2, 3),
     combo_max_shift: int = 0,
+    combo_max_shift_back: int = 0,
+    combo_rational: bool = False,
     combo_candidates: int = 40,
     combo_max_checks: int | None = 200_000,
     combo_max_time: float | None = None,
@@ -213,7 +302,13 @@ def analyze_sequence(
     triple_max_checks: int | None = 300_000,
     triple_max_time: float | None = None,
     triple_max_combinations: int | None = None,
+    triple_max_shift_back: int = 0,
     combo_component_transforms: Iterable[str] | None = None,
+    triple_rational: bool = False,
+    combo_min_score: float | None = None,
+    combo_max_complexity: float | None = None,
+    triple_min_score: float | None = None,
+    triple_max_complexity: float | None = None,
     fallback_subsequence: bool = True,
     fallback_full_scan: bool = False,
     show_terms: int | None = None,
@@ -221,6 +316,8 @@ def analyze_sequence(
     collect_timings: bool = False,
     full_transform_scan: bool = False,
     combo_unfiltered: bool = False,
+    variance_band: float | None = None,
+    growth_band: float | None = None,
 ) -> Dict[str, object]:
     """
     High-level, deterministic analysis pipeline used by CLI but available as a library call.
@@ -237,13 +334,19 @@ def analyze_sequence(
     timings: dict[str, float] = {}
     t0 = time.perf_counter()
 
+    def _variance(vals: list[int]) -> float | None:
+        if len(vals) < 2:
+            return None
+        m = sum(vals) / len(vals)
+        return sum((v - m) ** 2 for v in vals) / len(vals)
+
     # Exact
-    exact_iter = candidate_sequences(db_path, query)
+    exact_iter = candidate_sequences(db_path, query, variance_band=variance_band, growth_band=growth_band)
     exact = match_exact(query, exact_iter, limit=exact_limit, snippet_len=show_terms)
     fallback_used = False
     if not exact and not query.allow_subsequence and fallback_subsequence:
         fb_query = SequenceQuery(terms=query.terms, min_match_length=min_match_length, allow_subsequence=True)
-        exact_iter = candidate_sequences(db_path, fb_query)
+        exact_iter = candidate_sequences(db_path, fb_query, variance_band=variance_band, growth_band=growth_band)
         exact = match_exact(fb_query, exact_iter, limit=exact_limit, snippet_len=show_terms)
         if not exact and fallback_full_scan:
             from .storage import iter_sequences
@@ -268,6 +371,7 @@ def analyze_sequence(
             limit=transform_limit,
             show_terms=snip_len,
             full_scan=full_transform_scan,
+            max_time=transform_max_time,
             **t_args,
         )
     else:
@@ -276,7 +380,15 @@ def analyze_sequence(
         timings["transform_ms"] = 1000 * (time.perf_counter() - t1)
     t2 = time.perf_counter()
 
-    sim_matches = rank_candidates_for_query(query, db_path, top_k=similarity) if similarity else []
+    sim_matches = rank_candidates_for_query(
+        query,
+        db_path,
+        top_k=similarity,
+        min_corr=similarity_min_corr,
+        max_mse=similarity_max_mse,
+        variance_band=variance_band,
+        growth_band=growth_band,
+    ) if similarity else []
     if collect_timings:
         timings["similarity_ms"] = 1000 * (time.perf_counter() - t2)
 
@@ -292,6 +404,7 @@ def analyze_sequence(
                 min_match_length=min_match_length,
                 coeffs=combo_coeffs_seq,
                 max_shift=combo_max_shift,
+                max_shift_back=combo_max_shift_back,
                 limit=combos,
                 candidate_cap=combo_candidates,
                 max_checks=combo_max_checks,
@@ -300,6 +413,11 @@ def analyze_sequence(
                 component_transforms=combo_component_transforms,
                 combo_unfiltered=combo_unfiltered,
                 snippet_len=snip_len,
+                use_rational=combo_rational,
+                combo_min_score=combo_min_score,
+                combo_max_complexity=combo_max_complexity,
+                variance_band=variance_band,
+                growth_band=growth_band,
             )
             combo_end = time.perf_counter()
         else:
@@ -312,6 +430,7 @@ def analyze_sequence(
                 min_match_length=min_match_length,
                 coeffs=combo_coeffs_seq,
                 max_shift=combo_max_shift,
+                max_shift_back=triple_max_shift_back,
                 limit=triples,
                 candidate_cap=triple_candidates,
                 max_checks=triple_max_checks,
@@ -320,6 +439,11 @@ def analyze_sequence(
                 component_transforms=combo_component_transforms,
                 combo_unfiltered=combo_unfiltered,
                 snippet_len=snip_len,
+                use_rational=triple_rational,
+                triple_min_score=triple_min_score,
+                triple_max_complexity=triple_max_complexity,
+                variance_band=variance_band,
+                growth_band=growth_band,
             )
             triple_end = time.perf_counter()
         else:
@@ -342,6 +466,10 @@ def analyze_sequence(
         for c in sim_matches
     ]
 
+    query_var = _variance(query.terms)
+    query_diff_var = _variance([query.terms[i + 1] - query.terms[i] for i in range(len(query.terms) - 1)]) if len(query.terms) > 1 else None
+    query_growth = growth_rate([t for t in query.terms if t is not None])
+
     diag = {
         "query_length": len(query.terms),
         "exact_limit": exact_limit,
@@ -353,6 +481,11 @@ def analyze_sequence(
         "triple_limit": triples,
         "triple_candidate_cap": triple_candidates,
         "triple_max_checks": triple_max_checks,
+        "variance_band": variance_band,
+        "growth_band": growth_band,
+        "query_var": query_var,
+        "query_diff_var": query_diff_var,
+        "query_growth": query_growth,
     }
     if fallback_used:
         diag["subsequence_fallback"] = True

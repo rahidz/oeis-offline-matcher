@@ -16,6 +16,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "limits": {
         "max_terms": 128,
         "max_results": 10,
+        "variance_band": 50.0,
+        "growth_band": 4.0,
     },
 }
 
@@ -56,6 +58,8 @@ def load_config(config_path: Path | None = None) -> Dict[str, Any]:
         "limits": {
             "max_terms": _parse_int(os.environ.get("OEIS_MAX_TERMS")),
             "max_results": _parse_int(os.environ.get("OEIS_MAX_RESULTS")),
+            "variance_band": _parse_float(os.environ.get("OEIS_VARIANCE_BAND")),
+            "growth_band": _parse_float(os.environ.get("OEIS_GROWTH_BAND")),
         },
     }
     _deep_update(cfg, {k: {kk: vv for kk, vv in v.items() if vv is not None} for k, v in overrides.items()})
@@ -68,5 +72,14 @@ def _parse_int(val: str | None) -> int | None:
         return None
     try:
         return int(val)
+    except ValueError:
+        return None
+
+
+def _parse_float(val: str | None) -> float | None:
+    if val is None:
+        return None
+    try:
+        return float(val)
     except ValueError:
         return None

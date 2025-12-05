@@ -6,6 +6,7 @@ Currently uses a simple SQLite file with one table:
             length INTEGER NOT NULL,
             terms TEXT NOT NULL,            -- comma-separated ints
             name TEXT,
+            formula TEXT,                   -- optional combined FORMULA text
             keywords TEXT,                  -- comma-separated keywords (optional)
             prefix5 TEXT,                   -- first 5 terms comma-joined
             min_val TEXT,
@@ -37,6 +38,16 @@ def _compute_gcd(values: list[int]) -> int:
     for v in values:
         g = math.gcd(g, abs(v))
     return g
+
+
+def _variance(values: list[int]) -> float | None:
+    if len(values) < 2:
+        return None
+    try:
+        mean = sum(values) / len(values)
+        return sum((v - mean) ** 2 for v in values) / len(values)
+    except OverflowError:
+        return None
 
 
 def _monotonic_flags(values: list[int]) -> tuple[int, int]:
@@ -96,12 +107,23 @@ def _record_to_row(rec: SequenceRecord) -> tuple:
     sign_pat = _sign_pattern(rec.terms)
     first_diff = _first_diff_sign(rec.terms)
     nonzero_count = sum(1 for t in rec.terms if t != 0)
+    var_val = _variance(rec.terms)
+    diff_var = _variance([rec.terms[i + 1] - rec.terms[i] for i in range(len(rec.terms) - 1)]) if len(rec.terms) > 1 else None
+    offset0 = rec.offset[0] if rec.offset else None
+    offset1 = rec.offset[1] if rec.offset and len(rec.offset) > 1 else None
+    has_formula = 1 if rec.has_formula else 0 if rec.has_formula is not None else None
+    if rec.formula:
+        has_formula = 1
     return (
         rec.id,
         rec.length,
         terms_text,
         rec.name,
+        rec.formula,
         ",".join(rec.keywords) if rec.keywords else None,
+        offset0,
+        offset1,
+        has_formula,
         prefix5,
         min_val,
         max_val,
@@ -112,6 +134,8 @@ def _record_to_row(rec: SequenceRecord) -> tuple:
         nonzero_count,
         first_diff,
         growth_rate(rec.terms),
+        var_val,
+        diff_var,
     )
 
 
@@ -126,7 +150,11 @@ def init_db(db_path: Path) -> None:
                 length INTEGER NOT NULL,
                 terms TEXT NOT NULL,
                 name TEXT,
+                formula TEXT,
                 keywords TEXT,
+                offset0 INTEGER,
+                offset1 INTEGER,
+                has_formula INTEGER,
                 prefix5 TEXT,
                 min_val TEXT,
                 max_val TEXT,
@@ -136,7 +164,9 @@ def init_db(db_path: Path) -> None:
                 sign_pattern TEXT,
                 nonzero_count INTEGER,
                 first_diff_sign TEXT,
-                growth_rate REAL
+                growth_rate REAL,
+                var REAL,
+                diff_var REAL
             )
             """
         )
@@ -147,6 +177,8 @@ def init_db(db_path: Path) -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_first_diff ON sequences(first_diff_sign)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_nonzero ON sequences(nonzero_count)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_growth ON sequences(growth_rate)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_var ON sequences(var)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_diff_var ON sequences(diff_var)")
         conn.commit()
 
 
@@ -179,14 +211,19 @@ def write_records(records: Iterable[SequenceRecord], db_path: Path, *, batch_siz
 def _insert_batch(conn: sqlite3.Connection, rows: list[tuple]) -> None:
     conn.executemany(
         """
-        INSERT INTO sequences (id, length, terms, name, keywords, prefix5, min_val, max_val, gcd_val,
-                               is_nondecreasing, is_nonincreasing, sign_pattern, nonzero_count, first_diff_sign, growth_rate)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO sequences (id, length, terms, name, formula, keywords, offset0, offset1, has_formula, prefix5, min_val, max_val, gcd_val,
+                               is_nondecreasing, is_nonincreasing, sign_pattern, nonzero_count, first_diff_sign, growth_rate,
+                               var, diff_var)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
             length=excluded.length,
             terms=excluded.terms,
             name=excluded.name,
+            formula=excluded.formula,
             keywords=excluded.keywords,
+            offset0=excluded.offset0,
+            offset1=excluded.offset1,
+            has_formula=excluded.has_formula,
             prefix5=excluded.prefix5,
             min_val=excluded.min_val,
             max_val=excluded.max_val,
@@ -196,7 +233,9 @@ def _insert_batch(conn: sqlite3.Connection, rows: list[tuple]) -> None:
             sign_pattern=excluded.sign_pattern,
             nonzero_count=excluded.nonzero_count,
             first_diff_sign=excluded.first_diff_sign,
-            growth_rate=excluded.growth_rate
+            growth_rate=excluded.growth_rate,
+            var=excluded.var,
+            diff_var=excluded.diff_var
         """,
         rows,
     )
@@ -209,15 +248,39 @@ def iter_sequences(db_path: Path) -> Iterator[SequenceRecord]:
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
         has_kw = _has_column(conn, "keywords")
-        select = "id, terms, length, name, keywords" if has_kw else "id, terms, length, name"
+        has_off = _has_column(conn, "offset0")
+        has_formula_flag = _has_column(conn, "has_formula")
+        has_formula_text = _has_column(conn, "formula")
+        select_fields = ["id", "terms", "length", "name"]
+        if has_formula_text:
+            select_fields.append("formula")
+        if has_kw:
+            select_fields.append("keywords")
+        if has_off:
+            select_fields.extend(["offset0", "offset1"])
+        if has_formula_flag:
+            select_fields.append("has_formula")
+        select = ", ".join(select_fields)
         for row in conn.execute(f"SELECT {select} FROM sequences"):
             terms = [int(x) for x in row["terms"].split(",")] if row["terms"] else []
+            offset = None
+            if has_off and row["offset0"] is not None:
+                offset = (int(row["offset0"]), int(row["offset1"]) if "offset1" in row.keys() else None)
+            formula_val = row["formula"] if has_formula_text else None
+            has_formula_val = None
+            if has_formula_flag and "has_formula" in row.keys() and row["has_formula"] is not None:
+                has_formula_val = bool(row["has_formula"])
+            elif formula_val:
+                has_formula_val = True
             yield SequenceRecord(
                 id=row["id"],
                 terms=terms,
                 length=row["length"],
                 name=row["name"],
+                formula=formula_val,
                 keywords=row["keywords"].split(",") if has_kw and row["keywords"] else None,
+                offset=offset,
+                has_formula=has_formula_val,
             )
 
 
@@ -230,49 +293,108 @@ def iter_sequences_filtered(
     nonzero_max: int | None = None,
     min_length: int | None = None,
     max_length: int | None = None,
+    var_min: float | None = None,
+    var_max: float | None = None,
+    diff_var_min: float | None = None,
+    diff_var_max: float | None = None,
+    growth_min: float | None = None,
+    growth_max: float | None = None,
 ) -> Iterator[SequenceRecord]:
     """
     Stream sequences filtered by stored invariants.
     """
-    clauses = []
-    params: list = []
-    if sign_pattern:
-        clauses.append("sign_pattern = ?")
-        params.append(sign_pattern)
-    if first_diff_sign:
-        clauses.append("first_diff_sign = ?")
-        params.append(first_diff_sign)
-    if nonzero_min is not None:
-        clauses.append("nonzero_count >= ?")
-        params.append(nonzero_min)
-    if nonzero_max is not None:
-        clauses.append("nonzero_count <= ?")
-        params.append(nonzero_max)
-    if min_length is not None:
-        clauses.append("length >= ?")
-        params.append(min_length)
-    if max_length is not None:
-        clauses.append("length <= ?")
-        params.append(max_length)
-
-    where = ""
-    if clauses:
-        where = "WHERE " + " AND ".join(clauses)
-
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
         has_kw = _has_column(conn, "keywords")
-        select = "id, terms, length, name, keywords" if has_kw else "id, terms, length, name"
+        has_var = _has_column(conn, "var")
+        has_dvar = _has_column(conn, "diff_var")
+        has_growth = _has_column(conn, "growth_rate")
+        has_off = _has_column(conn, "offset0")
+        has_formula_flag = _has_column(conn, "has_formula")
+        has_formula_text = _has_column(conn, "formula")
+        # Drop variance/growth filters if columns not present (older DBs)
+        if not has_var:
+            var_min = var_max = None
+        if not has_dvar:
+            diff_var_min = diff_var_max = None
+        if not has_growth:
+            growth_min = growth_max = None
+
+        clauses = []
+        params: list = []
+        if sign_pattern:
+            clauses.append("sign_pattern = ?")
+            params.append(sign_pattern)
+        if first_diff_sign:
+            clauses.append("first_diff_sign = ?")
+            params.append(first_diff_sign)
+        if nonzero_min is not None:
+            clauses.append("nonzero_count >= ?")
+            params.append(nonzero_min)
+        if nonzero_max is not None:
+            clauses.append("nonzero_count <= ?")
+            params.append(nonzero_max)
+        if min_length is not None:
+            clauses.append("length >= ?")
+            params.append(min_length)
+        if max_length is not None:
+            clauses.append("length <= ?")
+            params.append(max_length)
+        if var_min is not None:
+            clauses.append("var >= ?")
+            params.append(var_min)
+        if var_max is not None:
+            clauses.append("var <= ?")
+            params.append(var_max)
+        if diff_var_min is not None:
+            clauses.append("diff_var >= ?")
+            params.append(diff_var_min)
+        if diff_var_max is not None:
+            clauses.append("diff_var <= ?")
+            params.append(diff_var_max)
+        if growth_min is not None:
+            clauses.append("growth_rate >= ?")
+            params.append(growth_min)
+        if growth_max is not None:
+            clauses.append("growth_rate <= ?")
+            params.append(growth_max)
+
+        where = ""
+        if clauses:
+            where = "WHERE " + " AND ".join(clauses)
+
+        select_fields = ["id", "terms", "length", "name"]
+        if has_formula_text:
+            select_fields.append("formula")
+        if has_kw:
+            select_fields.append("keywords")
+        if has_off:
+            select_fields.extend(["offset0", "offset1"])
+        if has_formula_flag:
+            select_fields.append("has_formula")
+        select = ", ".join(select_fields)
         query = f"SELECT {select} FROM sequences {where}"
 
         for row in conn.execute(query, params):
             terms = [int(x) for x in row["terms"].split(",")] if row["terms"] else []
+            offset = None
+            if has_off and row["offset0"] is not None:
+                offset = (int(row["offset0"]), int(row["offset1"]) if "offset1" in row.keys() else None)
+            formula_val = row["formula"] if has_formula_text else None
+            has_formula_val = None
+            if has_formula_flag and "has_formula" in row.keys() and row["has_formula"] is not None:
+                has_formula_val = bool(row["has_formula"])
+            elif formula_val:
+                has_formula_val = True
             yield SequenceRecord(
                 id=row["id"],
                 terms=terms,
                 length=row["length"],
                 name=row["name"],
+                formula=formula_val,
                 keywords=row["keywords"].split(",") if has_kw and row["keywords"] else None,
+                offset=offset,
+                has_formula=has_formula_val,
             )
 
 
@@ -289,17 +411,41 @@ def iter_sequences_by_prefix(db_path: Path, prefix_terms: list[int]) -> Iterator
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
         has_kw = _has_column(conn, "keywords")
-        select = "id, terms, length, name, keywords" if has_kw else "id, terms, length, name"
+        has_off = _has_column(conn, "offset0")
+        has_formula_flag = _has_column(conn, "has_formula")
+        has_formula_text = _has_column(conn, "formula")
+        select_fields = ["id", "terms", "length", "name"]
+        if has_formula_text:
+            select_fields.append("formula")
+        if has_kw:
+            select_fields.append("keywords")
+        if has_off:
+            select_fields.extend(["offset0", "offset1"])
+        if has_formula_flag:
+            select_fields.append("has_formula")
+        select = ", ".join(select_fields)
         for row in conn.execute(
             f"SELECT {select} FROM sequences WHERE prefix5 = ?", (prefix5,)
         ):
             terms = [int(x) for x in row["terms"].split(",")] if row["terms"] else []
+            offset = None
+            if has_off and row["offset0"] is not None:
+                offset = (int(row["offset0"]), int(row["offset1"]) if "offset1" in row.keys() else None)
+            formula_val = row["formula"] if has_formula_text else None
+            has_formula_val = None
+            if has_formula_flag and "has_formula" in row.keys() and row["has_formula"] is not None:
+                has_formula_val = bool(row["has_formula"])
+            elif formula_val:
+                has_formula_val = True
             yield SequenceRecord(
                 id=row["id"],
                 terms=terms,
                 length=row["length"],
                 name=row["name"],
+                formula=formula_val,
                 keywords=row["keywords"].split(",") if has_kw and row["keywords"] else None,
+                offset=offset,
+                has_formula=has_formula_val,
             )
 
 

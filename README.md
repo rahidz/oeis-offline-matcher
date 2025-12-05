@@ -22,12 +22,15 @@ scripts/fetch_oeis_data.sh --clone-oeisdata
 oeis sync
 # Offline/sandboxed? `oeis sync --stripped /tmp/stripped.gz --names /tmp/names.gz`
 # accepts local paths or file:// URIs and will simply copy the files.
+# FORMULA text is ingested automatically if you provide `--formulas` or clone `oeisdata` (uses seq/FORMULA).
 
 # Build SQLite index in data/processed/oeis.db
 oeis build-index
 
 # Match a sequence (prefix by default)
 oeis match "0,1,1,2,3,5,8"
+# Include stored FORMULA text when available
+oeis match "0,1,1,2,3,5,8" --show-formula
 
 # Allow subsequence search (auto-fallback runs if no prefix hit)
 oeis match "2,3,5" --subsequence --limit 5
@@ -40,8 +43,9 @@ oeis tsearch "1,2,3,4,5"
 oeis tsearch "1,2,3,4,5" --max-time 1.5   # cap transform search runtime
 oeis tsearch "1,2,3,4,5" --min-score 1.5  # drop weak/degenerate transforms
 
-# Extra transforms (diff^2, cumprod, popcount/digitsum, mod, reverse, even/odd, movsumN, binomial/euler/mobius, rle/rledec, concat, log/exp)
-oeis tsearch "1,2,3,4" --extra-transforms "diff2,cumprod,reverse,binomial,mobius,movsum4,digitsum10,mod2,rle,concat,log2,exp2"
+# Extra transforms (diff^2, cumprod, popcount/digitsum, mod, reverse, even/odd, movsumN, binomial/euler/mobius, omega/bigomega/tau/sigma/phi/v2,
+# index-based: squares/primes/powers-of-2/factorials, rle/rledec, concat, log/exp)
+oeis tsearch "1,2,3,4" --extra-transforms "diff2,cumprod,reverse,binomial,mobius,movsum4,digitsum10,mod2,rle,concat,log2,exp2,omega,bigomega,tau,sigma,phi,v2,indexsquare,primeindex,indexpow2,indexfactorial"
 
 # Presets: fast, deep, or max (override many knobs)
 oeis analyze "1,2,3,4,5" --preset fast
@@ -56,10 +60,14 @@ oeis analyze "1,2,3,4,5" --preset max   # “find everything”: deeper transfor
 
 ```bash
 
-# Two-sequence integer combinations (experimental)
+# Two-sequence integer combinations and pointwise/convolution operations (experimental)
 oeis combo "3,5,7,9,11" --coeffs "1,2" --candidates 40 --max-shift 1 --max-shift-back 0 --max-checks 200000
 oeis combo "2,3,4,5" --rational  # solve coefficients over rationals (pairs)
 oeis combo "2,10,100,1004,9991" --coeffs "1,1" --combo-unfiltered  # wider candidate pool for mismatched prefixes
+# Pointwise ops (products, gcd, lcm)
+oeis combo "2,6,12,20" --pointwise-ops "mul,gcd,lcm" --max-shift 1 --candidates 40
+# Convolutions (Cauchy/Dirichlet) under strong caps
+oeis combo "1,3,6,10" --convolution-ops "cauchy" --candidates 40 --max-checks 50000
 
 # Full pipeline (exact + transforms) with JSON output
 oeis analyze "1,2,3,4,5" --json
@@ -69,6 +77,9 @@ oeis analyze "3,5,7,9,11" --combos 5 --combo-coeffs "1,2" --combo-max-shift 1 --
 oeis analyze "3,5,7,9,11" --combos 5 --combo-max-shift 1 --combo-max-shift-back 1 --timings
 oeis analyze "3,5,7,9,11" --combos 5 --combo-min-score 1.0  # filter low-confidence combos
 oeis analyze "1,2,3,4,5" --transform-max-time 2.0  # cap transform stage
+# Pointwise + convolution combos in the analyze pipeline
+oeis analyze "2,6,12,20" --preset max --combos 3 --pointwise-ops "mul,gcd" --pointwise-limit 3
+oeis analyze "1,3,6,10" --preset max --convolution-ops "cauchy,dirichlet" --convolution-limit 3
 
 # Three-sequence combinations (experimental, slower)
 oeis analyze "2,1,0,-1,-2" --triples 3 --combo-coeffs "1,-1" --triple-max-checks 200000
@@ -135,6 +146,7 @@ For quick offline checks, see `tests/data/mini_oeis` with stripped/names/keyword
   - `OEIS_MAX_TERMS`, `OEIS_MAX_RESULTS`
   - `OEIS_MATCHER_CONFIG` to point at an alternate TOML file
   - Wildcards: parser allows `?/*` but caps wildcards to avoid overbroad queries.
+  - Offsets/formulas: if you clone `oeisdata`, the builder will ingest `seq/OFFSET` and `seq/FORMULA` for ranking bonuses.
 
 ## Design Notes
 - Language: Python 3.11+

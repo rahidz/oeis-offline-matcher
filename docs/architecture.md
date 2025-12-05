@@ -4,7 +4,7 @@ This snapshot describes the current v0/v1 pipeline.
 
 ## Data Flow (build)
 - `scripts/fetch_oeis_data.sh` downloads `stripped.gz` + `names.gz` to `data/raw/`.
-- `oeis build-index` parses stripped lines into `SequenceRecord` objects, attaches titles from names, computes invariants (prefix5, min/max, gcd, monotone flags, sign patterns, nonzero counts, first-diff sign, growth_rate), and stores them in `data/processed/oeis.db` (SQLite).
+- `oeis build-index` parses stripped lines into `SequenceRecord` objects, attaches titles from names, keywords (when available), offsets, FORMULA text (when provided via `--formulas` or an `oeisdata` clone), computes invariants (prefix5, min/max, gcd, monotone flags, sign patterns, nonzero counts, first-diff sign, growth_rate), and stores them in `data/processed/oeis.db` (SQLite).
 
 ## Query Flow (CLI/API)
 1) **Parse**: `parse_query` → `SequenceQuery` (terms, min_match_length, allow_subsequence).
@@ -29,7 +29,7 @@ This snapshot describes the current v0/v1 pipeline.
 - Presets: CLI `--preset fast|deep` adjusts depth, limits, coeffs, candidate caps, combo checks.
 
 ## Storage
-- SQLite table `sequences(id TEXT PRIMARY KEY, length INT, terms TEXT, name TEXT, prefix5 TEXT, min_val, max_val, gcd_val, is_nondecreasing, is_nonincreasing, sign_pattern, nonzero_count, first_diff_sign, growth_rate REAL)`.
+- SQLite table `sequences(id TEXT PRIMARY KEY, length INT, terms TEXT, name TEXT, formula TEXT, prefix5 TEXT, min_val, max_val, gcd_val, is_nondecreasing, is_nonincreasing, sign_pattern, nonzero_count, first_diff_sign, growth_rate REAL, var REAL, diff_var REAL)`.
 - Indexes on prefix5, length, gcd_val, sign_pattern, first_diff_sign, nonzero_count, growth_rate.
 
 ## Extensibility Notes

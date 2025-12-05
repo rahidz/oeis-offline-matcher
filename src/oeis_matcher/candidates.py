@@ -27,6 +27,8 @@ def get_candidate_bucket(
     max_records: int | None = None,
     fill_unfiltered: bool = False,
     skip_prefix_filter: bool = False,
+    variance_band: float | None = None,
+    growth_band: float | None = None,
 ) -> CandidateBucket:
     """
     Collect a union of ids from direct candidate filter and similarity ranking,
@@ -54,6 +56,8 @@ def get_candidate_bucket(
                 query,
                 use_prefix_index=not skip_prefix_filter,
                 loosen_nonzero=skip_prefix_filter,
+                variance_band=variance_band,
+                growth_band=growth_band,
             )
         )
         # Restrict to avoid explosion
@@ -69,6 +73,8 @@ def get_candidate_bucket(
         top_k=sim_top,
         use_prefix_index=not skip_prefix_filter,
         loosen_nonzero=skip_prefix_filter,
+        min_corr=None,
+        max_mse=None,
     )
     sim_ids = [c.record.id for c in sim]
 

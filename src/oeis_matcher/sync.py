@@ -8,6 +8,7 @@ Responsibilities:
 Notes:
 - Uses stdlib only to keep the tool easy to install anywhere.
 - Download is skipped when the destination file already exists unless `force=True`.
+- Supports local file paths/URIs as sources to stay usable in sandboxed or offline environments.
 """
 
 from __future__ import annotations
@@ -16,16 +17,38 @@ import shutil
 import subprocess
 import urllib.request
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
+from urllib.parse import urlparse
 
 DEFAULT_STRIPPED_URL = "https://oeis.org/stripped.gz"
 DEFAULT_NAMES_URL = "https://oeis.org/names.gz"
 DEFAULT_OEISDATA_REPO = "https://github.com/oeis/oeisdata"
 
 
-def download_file(url: str, dest: Path, *, force: bool = False, chunk_size: int = 64 * 1024) -> Dict:
+def _coerce_local_path(url: Union[str, Path]) -> Optional[Path]:
     """
-    Stream a file to `dest`, creating parent dirs. Returns a small status dict.
+    Return a Path if the URL points to a local file (path or file:// URI),
+    otherwise None.
+    """
+    if isinstance(url, Path):
+        return url
+
+    parsed = urlparse(str(url))
+    if parsed.scheme in ("", "file"):
+        # file:///tmp/x -> /tmp/x ; bare relative paths also handled
+        candidate = Path(parsed.path)
+        if parsed.netloc and parsed.scheme == "file":
+            # Preserve netloc for file://host/path; treat host as root prefix.
+            candidate = Path(f"/{parsed.netloc}{parsed.path}")
+        return candidate
+
+    candidate_path = Path(str(url))
+    return candidate_path if candidate_path.exists() else None
+
+
+def download_file(url: Union[str, Path], dest: Path, *, force: bool = False, chunk_size: int = 64 * 1024) -> Dict:
+    """
+    Stream a file (local or remote) to `dest`, creating parent dirs. Returns a small status dict.
     """
     dest = Path(dest)
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -33,9 +56,15 @@ def download_file(url: str, dest: Path, *, force: bool = False, chunk_size: int 
     if dest.exists() and not force:
         return {"path": dest, "status": "skipped", "bytes": dest.stat().st_size}
 
+    local_src = _coerce_local_path(url)
+
     try:
-        with urllib.request.urlopen(url) as resp, dest.open("wb") as out:
-            shutil.copyfileobj(resp, out, length=chunk_size)
+        if local_src and local_src.exists():
+            with local_src.open("rb") as inp, dest.open("wb") as out:
+                shutil.copyfileobj(inp, out, length=chunk_size)
+        else:
+            with urllib.request.urlopen(str(url)) as resp, dest.open("wb") as out:
+                shutil.copyfileobj(resp, out, length=chunk_size)
     except Exception as exc:  # pragma: no cover - propagated for caller to handle
         if dest.exists() and force:
             dest.unlink(missing_ok=True)

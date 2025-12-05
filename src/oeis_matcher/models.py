@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
-from typing import List, Optional
+from fractions import Fraction
+from typing import List, Optional, Union
 
 
 @dataclass
@@ -11,6 +12,9 @@ class SequenceRecord:
     length: int = 0
     name: Optional[str] = None
     keywords: Optional[List[str]] = None
+    offset: Optional[tuple[int, int]] = None  # (offset_start, offset_second) from OEIS OFFSET
+    formula: Optional[str] = None
+    has_formula: Optional[bool] = None
     metadata: Optional[dict] = None
 
     def truncated(self, max_terms: int) -> "SequenceRecord":
@@ -21,6 +25,9 @@ class SequenceRecord:
             length=min(self.length, max_terms),
             name=self.name,
             keywords=self.keywords,
+            offset=self.offset,
+            formula=self.formula,
+            has_formula=self.has_formula,
             metadata=self.metadata,
         )
 
@@ -40,18 +47,24 @@ class Match:
     offset: int
     length: int
     snippet: Optional[list[int]] = None
+    keywords: Optional[list[str]] = None
+    seq_offset: Optional[tuple[int, int]] = None
+    formula: Optional[str] = None
+    has_formula: Optional[bool] = None
     transformed_terms: Optional[list[int]] = None
     transform_desc: Optional[str] = None
     score: Optional[float] = None
     explanation: Optional[str] = None
     latex: Optional[str] = None
+    symbolic: Optional[str] = None
+    symbolic_latex: Optional[str] = None
 
 
 @dataclass(frozen=True)
 class CombinationMatch:
     ids: tuple[str, ...]
     names: tuple[Optional[str], ...]
-    coeffs: tuple[int, ...]
+    coeffs: tuple[Union[int, Fraction], ...]
     shifts: tuple[int, ...]
     length: int
     score: float
@@ -75,13 +88,35 @@ class AnalysisResult:
     def to_dict(self) -> dict:
         from dataclasses import asdict
 
+        def _coeffs_to_json(coeffs):
+            out = []
+            for c in coeffs:
+                try:
+                    from fractions import Fraction
+                    if isinstance(c, Fraction) and c.denominator != 1:
+                        out.append(f"{c.numerator}/{c.denominator}")
+                        continue
+                except Exception:
+                    pass
+                if isinstance(c, (int, float)) and float(c).is_integer():
+                    out.append(str(int(c)))
+                else:
+                    out.append(str(c))
+            return out
+
+        def _combo_to_dict(m):
+            d = asdict(m)
+            d["coeffs"] = _coeffs_to_json(m.coeffs)
+            return d
+
         # asdict cannot handle non-serializable nested SequenceRecord; we already flatten similarity to dicts.
+        diag = self.diagnostics or {}
         return {
             "query": self.query,
             "exact_matches": [asdict(m) for m in self.exact_matches],
             "transform_matches": [asdict(m) for m in self.transform_matches],
             "similarity": self.similarity,
-            "combinations": [asdict(m) for m in self.combinations],
-            "triple_combinations": [asdict(m) for m in self.triple_combinations] if self.triple_combinations is not None else [],
-            "diagnostics": self.diagnostics or {},
+            "combinations": [_combo_to_dict(m) for m in self.combinations],
+            "triple_combinations": [_combo_to_dict(m) for m in self.triple_combinations] if self.triple_combinations is not None else [],
+            "diagnostics": diag,
         }

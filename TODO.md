@@ -29,7 +29,8 @@ Build a local tool that
 ### 1.2 Parsing
 - [x] Parse stripped + names.
 - [x] Parse keywords (from oeisdata or keywords file).
-- [ ] Parse offsets/formula snippets for ranking penalties/bonuses.
+- [x] Parse offsets.
+- [x] Parse FORMULA text (when provided) for ranking/metadata.
 
 ### 1.3 Storage/index
 - [x] SQLite primary store with invariants/prefix index.
@@ -57,7 +58,7 @@ Build a local tool that
   - [x] For each OEIS sequence:
     - [x] Check if query is prefix.
     - [x] Check if query appears as contiguous subsequence.
-- [ ] Optimized matcher polish:
+- [x] Optimized matcher polish:
   - [x] Use hash of first k terms as a key to find candidate sequences quickly (prefix5 index).
   - [x] Optionally use rolling hash/KMP to scan subsequences (implemented KMP).
   - [x] Early exit on mismatch to reduce comparisons (prefix loop).
@@ -92,8 +93,10 @@ Build a local tool that
 ## Phase 3 – Transform engine (accuracy first)
 
 ### 3.1 Transform vocabulary
-- [x] Current set: scale/affine, shift, diff/diff^2, partial_sum, abs, gcd_norm, decimate, reverse, even/odd, movsum(2+N), cumprod, popcount, digit sum, binomial (opt-in), Euler (opt-in).
+- [x] Current set: scale/affine, shift, diff/diff^2, partial_sum, abs, gcd_norm, decimate, reverse, even/odd, movsum(2+N), cumprod, popcount, digit sum, binomial (opt-in), Euler (opt-in), Möbius (opt-in).
 - [ ] Add vetted accuracy-focused transforms: running average/movsum(k>2) scoring tweaks, sign/digit-based with stricter complexity penalties.
+  - [x] Arithmetic-function transforms on terms: omega/Omega (prime factor counts), tau/sigma (divisor counts/sums), phi, v2.
+  - [x] Index-based transforms: values at square indices, prime indices, powers of 2, and factorial indices.
 
 ### 3.1b Transform backlog (enable all in `--preset max`)
 - [x] Promote **binomial** to on-by-default in `max` (keep opt-in elsewhere).
@@ -117,8 +120,10 @@ Build a local tool that
 
 ### 3.3 Transform search quality
 - [x] Generate/score transform chains with complexity penalties; dedupe identical transformed outputs; time caps.
-- [ ] Tighten noise filters: reject low-variance/constant results unless query constant; enforce min variance per transform family.
-- [ ] Add rarity/length bonuses to scoring; expose `--min-score` / `--max-complexity` filters (CLI/API).
+- [x] Tighten noise filters: reject constant/low-diversity outputs unless query is low-diversity; variance-based drop for collapsed outputs.
+- [x] Add noisy-chain guards (RLE/popcount/mod/etc.) to drop trivial arith/progression outputs on random data.
+- [x] Add coverage/diversity/variance bonuses; presets set `transform_min_score` / `transform_max_complexity`.
+- [x] Add keyword/popularity bonuses to scoring.
 
 ### 3.4 CLI for transform search
 
@@ -169,7 +174,7 @@ Build a local tool that
   - [x] transform-based matches,
   - [x] add similarity-ranked candidates:
     - [x] Ensure union of candidates ≤ some K (e.g., 100–200).
-- [ ] Expose API to get “candidate bucket” for multi-sequence search:
+- [x] Expose API to get “candidate bucket” for multi-sequence search:
   - [x] `get_candidate_bucket(q, K) -> list[Candidate]`.
   - [x] Option to skip prefix index and relax nonzero filter for combos (handles mismatched prefixes; `--combo-unfiltered`).
 - [x] Use additional invariants (variance, growth buckets) to trim candidate sets further for transforms/combos.
@@ -229,6 +234,17 @@ Build a local tool that
   - [x] `max_coeff_abs` (via CLI coeff list),
   - [x] `max_shift_abs` (via CLI `--max-shift`).
 
+### 5.6 Pointwise and convolution combinations
+
+- [x] Pointwise two-sequence operations:
+  - [x] Products `a(n) = A(n)*B(n)`.
+  - [x] `gcd(A(n), B(n))`, `lcm(A(n), B(n))`.
+  - [x] Exposed via `oeis combo --pointwise-ops` and `oeis analyze --pointwise-ops/--pointwise-limit` with strong `max_checks`/time caps.
+- [x] Convolution combinations:
+  - [x] Cauchy convolution `c_n = Σ_{k<=n} A_k B_{n-k}`.
+  - [x] Dirichlet convolution `c(n) = Σ_{d|n} A(d) B(n/d)` (1-based).
+  - [x] Guarded by `max_length`, `max_candidates`, `max_checks`, and `max_time_s`; exposed via `--convolution-ops/--convolution-limit`.
+
 ### 5.5 Scoring & ranking
 
 - [x] Define complexity measure for a combination:
@@ -240,6 +256,7 @@ Build a local tool that
   - [x] simplest explanation first (lower complexity),
   - [x] then by length of match,
   - [ ] then by sequence popularity/importance (optional heuristic).
+- [x] Deduplicate combo/triple outputs per sequence+transform family to keep only the top explanation.
 
 ---
 
@@ -264,12 +281,10 @@ Build a local tool that
 
 ### 6.3 Output formatting + explanation
 
-- [ ] Human-readable explanation strings, e.g.:
-  - [ ] `a(n) = 2 * A013546(n+2) + A132950(n)`
-  - [ ] `a(n) = Δ A000045(n)` (first differences of Fibonacci numbers).
-- [ ] Optional LaTeX-friendly output for use in papers/notes.
+- [x] Human-readable explanation strings.
+- [x] Optional LaTeX-friendly output for use in papers/notes.
 
-Progress: Combination matches now emit `a(n) = c1*Axxxx(n+s1)+c2*Ayyyy(n+s2)` with LaTeX; transform matches include human + LaTeX-ish chain descriptions.
+Progress: Combination matches now emit `a(n) = c1*Axxxx(n+s1)+c2*Ayyyy(n+s2)` with LaTeX; transform matches include human + LaTeX-ish chain descriptions and symbolic renderings.
 
 ---
 
@@ -311,8 +326,8 @@ Progress: Combination matches now emit `a(n) = c1*Axxxx(n+s1)+c2*Ayyyy(n+s2)` wi
 - [x] Matcher tests:
   - [x] Exact prefix/subsequence cases.
   - [x] Edge cases: too short, mismatched lengths, negative numbers.
-- [ ] Combination tests:
-  - [ ] Real OEIS-derived pairs to validate expressions beyond synthetic fixtures.
+- [x] Combination tests:
+  - [x] Real OEIS-derived pairs to validate expressions beyond synthetic fixtures.
 
 ### 8.2 Integration tests
 
@@ -343,7 +358,7 @@ Progress: Combination matches now emit `a(n) = c1*Axxxx(n+s1)+c2*Ayyyy(n+s2)` wi
 - [x] Write `docs/architecture.md`:
   - [x] Data flow diagram (query → transforms → matchers → combos) — textual for now.
   - [x] Description of internal data structures and storage schema.
-- [ ] Provide example notebooks (if using Python):
+- [x] Provide example notebooks (if using Python):
   - [x] “Exploring a sequence” (docs/notebook_template.ipynb stub).
   - [x] “Using combination search to explain a sequence” (docs/notebook_combo.ipynb).
 - [ ] Add FAQ:
@@ -372,8 +387,8 @@ Progress: Combination matches now emit `a(n) = c1*Axxxx(n+s1)+c2*Ayyyy(n+s2)` wi
 
 ## Milestones
 
-- [ ] **v0.1** – Offline OEIS index + exact/prefix/subsequence matcher (Phase 1–2).
-- [ ] **v0.2** – Single-sequence transform engine and search (Phase 3).
-- [ ] **v0.3** – Candidate ranking + 2-sequence linear combo search (Phase 4–5).
+- [x] **v0.1** – Offline OEIS index + exact/prefix/subsequence matcher (Phase 1–2).
+- [x] **v0.2** – Single-sequence transform engine and search (Phase 3).
+- [x] **v0.3** – Candidate ranking + 2-sequence linear combo search (Phase 4–5).
 - [ ] **v0.4** – CLI polish, config presets, docs (Phase 6–7–9).
 - [ ] **v0.5+** – 3-sequence combos, richer transforms, research experiments (Phase 8–10).

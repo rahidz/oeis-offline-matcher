@@ -4,6 +4,7 @@ import time
 from fractions import Fraction
 from dataclasses import dataclass
 from itertools import combinations
+import math
 from typing import Callable, Iterable, Sequence
 
 from .models import CombinationMatch, SequenceQuery, SequenceRecord
@@ -120,7 +121,61 @@ def _format_latex(ids: Sequence[str], coeffs: Sequence, shifts: Sequence[int], t
     return "a_{{n}} = " + " + ".join(parts)
 
 
+def _format_pointwise_expr(op: str, ids: Sequence[str], shifts: Sequence[int], t_names: Sequence[str]) -> str:
+    def _tn(tn: str, id_: str, shift: int) -> str:
+        if tn == "id":
+            return f"{id_}({_shift_str(shift)})"
+        return f"{tn}({id_}({_shift_str(shift)}) )".replace(") )", ")")
+
+    s1 = _tn(t_names[0], ids[0], shifts[0])
+    s2 = _tn(t_names[1], ids[1], shifts[1])
+    if op == "mul":
+        body = f"{s1}*{s2}"
+    elif op == "gcd":
+        body = f"gcd({s1}, {s2})"
+    elif op == "lcm":
+        body = f"lcm({s1}, {s2})"
+    else:
+        body = f"{s1}?{op}?{s2}"
+    return "a(n) = " + body
+
+
+def _format_pointwise_latex(op: str, ids: Sequence[str], shifts: Sequence[int], t_names: Sequence[str]) -> str:
+    def shift_to_tex(k: int) -> str:
+        if k == 0:
+            return "n"
+        sign = "+" if k > 0 else "-"
+        return f"n{sign}{abs(k)}"
+
+    def t_tex(name: str, id_: str, s: int) -> str:
+        base = f"\\mathrm{{{id_}}}({shift_to_tex(s)})"
+        if name == "id":
+            return base
+        if name == "diff":
+            return f"\\Delta\\,{base}"
+        if name == "partial_sum":
+            return f"\\mathrm{{psum}}\\,{base}"
+        return f"\\mathrm{{{name}}}\\,{base}"
+
+    s1 = t_tex(t_names[0], ids[0], shifts[0])
+    s2 = t_tex(t_names[1], ids[1], shifts[1])
+    if op == "mul":
+        body = f"{s1}\\,{s2}"
+    elif op == "gcd":
+        body = f"\\gcd({s1}, {s2})"
+    elif op == "lcm":
+        body = f"\\operatorname{{lcm}}({s1}, {s2})"
+    else:
+        body = f"{s1}?{op}?{s2}"
+    return "a_{n} = " + body
+
+
 def _sorted_and_trim(results: list[CombinationMatch], limit: int | None) -> list[CombinationMatch]:
+    def _family_key(m: CombinationMatch) -> tuple:
+        cts = m.component_transforms or tuple("id" for _ in m.ids)
+        paired = tuple(sorted(zip(m.ids, cts)))
+        return (tuple(sorted(m.ids)), paired)
+
     results.sort(
         key=lambda m: (
             -m.score,
@@ -130,9 +185,19 @@ def _sorted_and_trim(results: list[CombinationMatch], limit: int | None) -> list
             m.ids,
         )
     )
+    deduped: list[CombinationMatch] = []
+    seen: set[tuple] = set()
+    for m in results:
+        key = _family_key(m)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(m)
+        if limit and len(deduped) >= limit:
+            break
     if limit:
-        results = results[:limit]
-    return results
+        return deduped[:limit]
+    return deduped
 
 
 def _aligned_slices(
@@ -378,6 +443,278 @@ def search_two_sequence_combinations(
                                     combined_terms=combined_terms,
                                 )
                             )
+
+    return _sorted_and_trim(results, limit)
+
+
+def _apply_pointwise_op(op: str, a: int, b: int) -> int:
+    if op == "mul":
+        return a * b
+    if op == "gcd":
+        return math.gcd(a, b)
+    if op == "lcm":
+        g = math.gcd(a, b)
+        if g == 0:
+            return 0
+        return abs(a // g * b)
+    return 0
+
+
+def _cauchy_convolution(seq1: Sequence[int], seq2: Sequence[int], length: int) -> list[int]:
+    """Cauchy convolution c_n = sum_{k=0..n} a_k b_{n-k} for n=0..length-1."""
+    out: list[int] = []
+    L1, L2 = len(seq1), len(seq2)
+    for n in range(length):
+        s = 0
+        for k in range(n + 1):
+            if k < L1 and n - k < L2:
+                s += seq1[k] * seq2[n - k]
+        out.append(s)
+    return out
+
+
+def _dirichlet_convolution(seq1: Sequence[int], seq2: Sequence[int], length: int) -> list[int]:
+    """Dirichlet convolution on 1-based indices: c(n) = sum_{d|n} a(d) b(n/d).
+
+    seq[i] is interpreted as a(i+1). Returned list has length `length`, representing c(1)..c(length).
+    """
+    out: list[int] = []
+    L1, L2 = len(seq1), len(seq2)
+    for n in range(1, length + 1):
+        s = 0
+        for d in range(1, n + 1):
+            if n % d != 0:
+                continue
+            i = d - 1
+            j = n // d - 1
+            if i < L1 and j < L2:
+                s += seq1[i] * seq2[j]
+        out.append(s)
+    return out
+
+
+def search_pointwise_two_sequence_combinations(
+    query: SequenceQuery,
+    candidates: Sequence[SequenceRecord] | Iterable[SequenceRecord],
+    *,
+    ops: Sequence[str] = ("mul", "gcd", "lcm"),
+    max_shift: int = 0,
+    max_shift_back: int = 0,
+    limit: int = 20,
+    max_candidates: int | None = None,
+    max_checks: int | None = None,
+    max_time_s: float | None = None,
+    time_fn: Callable[[], float] = time.perf_counter,
+    component_transforms: Sequence[ComponentTransform] | None = None,
+    snippet_len: int | None = None,
+    min_score: float | None = None,
+    max_complexity: float | None = None,
+) -> list[CombinationMatch]:
+    """Search pointwise combinations like a(n)=op(S1,S2): mul/gcd/lcm on aligned terms."""
+    q = query.terms
+    qlen = len(q)
+    if qlen < query.min_match_length or qlen == 0:
+        return []
+    if any(t is None for t in q):
+        return []
+
+    ops = [o for o in ops if o in {"mul", "gcd", "lcm"}]
+    if not ops:
+        return []
+
+    records = list(candidates)
+    records.sort(key=lambda r: r.id)
+    if max_candidates is not None:
+        records = records[:max_candidates]
+
+    results: list[CombinationMatch] = []
+    seen: set[tuple] = set()
+    checks = 0
+    t_start = time_fn()
+
+    shift_vals = range(-max_shift_back, max_shift + 1)
+    transforms = list(component_transforms or [t for t in _default_component_transforms() if t.name == "id"])
+    if snippet_len is None:
+        snippet_len = len(query.terms)
+
+    for rec1, rec2 in combinations(records, 2):
+        for t1 in transforms:
+            seq1 = t1.func(rec1.terms)
+            for s1 in shift_vals:
+                for t2 in transforms:
+                    seq2 = t2.func(rec2.terms)
+                    for s2 in shift_vals:
+                        alignment = _aligned_slices(
+                            query.terms,
+                            (seq1, seq2),
+                            (s1, s2),
+                            min_match_length=query.min_match_length,
+                        )
+                        if alignment is None:
+                            continue
+                        _q_start, match_len, q_slice, seq_slices = alignment
+                        slice1, slice2 = seq_slices
+                        for op in ops:
+                            if max_time_s is not None and (time_fn() - t_start) > max_time_s:
+                                return _sorted_and_trim(results, limit)
+                            checks += 1
+                            if max_checks is not None and checks > max_checks:
+                                return _sorted_and_trim(results, limit)
+                            combined = [_apply_pointwise_op(op, x, y) for x, y in zip(slice1, slice2)]
+                            if combined != q_slice:
+                                continue
+                            key = (op, rec1.id, rec2.id, t1.name, t2.name, s1, s2)
+                            if key in seen:
+                                continue
+                            seen.add(key)
+                            pop_bonus = _popularity_bonus((rec1, rec2))
+                            t_weights = (t1.weight, t2.weight)
+                            coeffs = (1, 1)
+                            shifts = (s1, s2)
+                            comp_val = _combo_complexity(coeffs, shifts, t_weights=t_weights)
+                            if max_complexity is not None and comp_val > max_complexity:
+                                continue
+                            score = _combo_score(match_len, coeffs, shifts, t_weights=t_weights, pop_bonus=pop_bonus)
+                            if min_score is not None and score < min_score:
+                                continue
+                            expr = _format_pointwise_expr(op, (rec1.id, rec2.id), shifts, (t1.name, t2.name))
+                            latex = _format_pointwise_latex(op, (rec1.id, rec2.id), shifts, (t1.name, t2.name))
+                            if snippet_len is None:
+                                comp_terms = None
+                                combined_terms = None
+                            else:
+                                snip = min(snippet_len, match_len)
+                                comp_terms = (slice1[:snip], slice2[:snip])
+                                combined_terms = q_slice[:snip]
+
+                            results.append(
+                                CombinationMatch(
+                                    ids=(rec1.id, rec2.id),
+                                    names=(rec1.name, rec2.name),
+                                    coeffs=coeffs,
+                                    shifts=shifts,
+                                    length=match_len,
+                                    score=score,
+                                    expression=expr,
+                                    latex_expression=latex,
+                                    component_transforms=(t1.name, t2.name),
+                                    component_terms=comp_terms,
+                                    combined_terms=combined_terms,
+                                )
+                            )
+
+    return _sorted_and_trim(results, limit)
+
+
+def search_convolution_two_sequence_combinations(
+    query: SequenceQuery,
+    candidates: Sequence[SequenceRecord] | Iterable[SequenceRecord],
+    *,
+    ops: Sequence[str] = ("cauchy", "dirichlet"),
+    max_length: int = 32,
+    limit: int = 20,
+    max_candidates: int | None = None,
+    max_checks: int | None = None,
+    max_time_s: float | None = None,
+    time_fn: Callable[[], float] = time.perf_counter,
+    component_transforms: Sequence[ComponentTransform] | None = None,
+    snippet_len: int | None = None,
+    min_score: float | None = None,
+    max_complexity: float | None = None,
+) -> list[CombinationMatch]:
+    """Search Cauchy/Dirichlet convolutions a(n) of two sequences.
+
+    For Cauchy, c_n = sum_{k=0..n} A_k B_{n-k} (0-based indices).
+    For Dirichlet, c(n) = sum_{d|n} A(d) B(n/d) using 1-based n with seq[i]=A(i+1).
+    Strong caps: disabled for long queries via `max_length`, and bounded by max_candidates/max_checks/max_time_s.
+    """
+    q = query.terms
+    qlen = len(q)
+    if qlen < query.min_match_length or qlen == 0:
+        return []
+    if any(t is None for t in q):
+        return []
+    if qlen > max_length:
+        return []
+
+    ops = [o for o in ops if o in {"cauchy", "dirichlet"}]
+    if not ops:
+        return []
+
+    records = list(candidates)
+    records.sort(key=lambda r: r.id)
+    if max_candidates is not None:
+        records = records[:max_candidates]
+
+    results: list[CombinationMatch] = []
+    seen: set[tuple] = set()
+    checks = 0
+    t_start = time_fn()
+
+    transforms = list(component_transforms or [t for t in _default_component_transforms() if t.name == "id"])
+    if snippet_len is None:
+        snippet_len = len(query.terms)
+
+    for rec1, rec2 in combinations(records, 2):
+        for t1 in transforms:
+            seq1 = t1.func(rec1.terms)
+            for t2 in transforms:
+                seq2 = t2.func(rec2.terms)
+                for op in ops:
+                    if max_time_s is not None and (time_fn() - t_start) > max_time_s:
+                        return _sorted_and_trim(results, limit)
+                    checks += 1
+                    if max_checks is not None and checks > max_checks:
+                        return _sorted_and_trim(results, limit)
+                    if op == "cauchy":
+                        combined = _cauchy_convolution(seq1, seq2, qlen)
+                    else:
+                        combined = _dirichlet_convolution(seq1, seq2, qlen)
+                    if combined != q:
+                        continue
+                    key = (op, rec1.id, rec2.id, t1.name, t2.name)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    pop_bonus = _popularity_bonus((rec1, rec2))
+                    t_weights = (t1.weight, t2.weight)
+                    coeffs = (1, 1)
+                    shifts = (0, 0)
+                    comp_val = _combo_complexity(coeffs, shifts, t_weights=t_weights)
+                    if max_complexity is not None and comp_val > max_complexity:
+                        continue
+                    score = _combo_score(qlen, coeffs, shifts, t_weights=t_weights, pop_bonus=pop_bonus)
+                    if min_score is not None and score < min_score:
+                        continue
+                    if op == "cauchy":
+                        expr = f"a(n) = (Cauchy * convolution of {rec1.id} and {rec2.id})_n"
+                        latex = f"a_{{n}} = (\\mathrm{{{rec1.id}}} * \\mathrm{{{rec2.id}}})_n"
+                    else:
+                        expr = f"a(n) = (Dirichlet convolution of {rec1.id} and {rec2.id})(n)"
+                        latex = f"a_{{n}} = (\\mathrm{{{rec1.id}}} \\star \\mathrm{{{rec2.id}}})(n)"
+                    if snippet_len is None:
+                        comp_terms = None
+                        combined_terms = None
+                    else:
+                        snip = min(snippet_len, qlen)
+                        comp_terms = (seq1[:snip], seq2[:snip])
+                        combined_terms = q[:snip]
+
+                    results.append(
+                        CombinationMatch(
+                            ids=(rec1.id, rec2.id),
+                            names=(rec1.name, rec2.name),
+                            coeffs=coeffs,
+                            shifts=shifts,
+                            length=qlen,
+                            score=score,
+                            expression=expr,
+                            latex_expression=latex,
+                            component_transforms=(t1.name, t2.name),
+                            component_terms=comp_terms,
+                            combined_terms=combined_terms,
+                        )
+                    )
 
     return _sorted_and_trim(results, limit)
 

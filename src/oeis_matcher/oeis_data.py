@@ -97,6 +97,84 @@ def parse_keywords_line(line: str) -> Optional[Tuple[str, list[str]]]:
     return seq_id, kws
 
 
+def parse_offsets_line(line: str) -> Optional[Tuple[str, tuple[int, int]]]:
+    """
+    Parse a line like 'A000045 0,1' into (id, (0,1)).
+    """
+    line = line.strip()
+    if not line:
+        return None
+    parts = line.split()
+    if len(parts) < 2:
+        return None
+    seq_id, rest = parts[0], parts[1]
+    if not seq_id.startswith("A") or not seq_id[1:].isdigit():
+        return None
+    nums = rest.split(",")
+    try:
+        first = int(nums[0])
+        second = int(nums[1]) if len(nums) > 1 else 0
+    except ValueError:
+        return None
+    return seq_id, (first, second)
+
+
+def load_offsets(path: Path) -> Dict[str, tuple[int, int]]:
+    mapping: Dict[str, tuple[int, int]] = {}
+    with _open_maybe_gzip(path) as f:
+        for line in f:
+            parsed = parse_offsets_line(line)
+            if parsed:
+                seq_id, offs = parsed
+                mapping[seq_id] = offs
+    return mapping
+
+
+def load_offsets_from_oeisdata(root: Path) -> Dict[str, tuple[int, int]]:
+    offsets_file = root / "seq" / "OFFSET"
+    if not offsets_file.exists():
+        return {}
+    return load_offsets(offsets_file)
+
+
+def parse_formula_line(line: str) -> Optional[Tuple[str, str]]:
+    """
+    Parse a FORMULA line like 'A000045 Fibonacci formula text...'.
+    Returns (id, formula_text) or None.
+    """
+    line = line.strip()
+    if not line or not line.startswith("A"):
+        return None
+    parts = line.split(maxsplit=1)
+    if len(parts) != 2:
+        return None
+    seq_id, text = parts
+    if not seq_id[1:].isdigit():
+        return None
+    return seq_id, text.strip()
+
+
+def load_formulas(path: Path) -> Dict[str, str]:
+    """
+    Load FORMULA entries into a mapping id -> combined text (joined with '\n' when multiple lines exist).
+    """
+    mapping: Dict[str, list[str]] = {}
+    with _open_maybe_gzip(path) as f:
+        for line in f:
+            parsed = parse_formula_line(line)
+            if parsed:
+                seq_id, text = parsed
+                mapping.setdefault(seq_id, []).append(text)
+    return {k: "\n".join(vs) for k, vs in mapping.items()}
+
+
+def load_formulas_from_oeisdata(root: Path) -> Dict[str, str]:
+    formula_file = root / "seq" / "FORMULA"
+    if not formula_file.exists():
+        return {}
+    return load_formulas(formula_file)
+
+
 def load_stripped(path: Path, *, max_terms: int = DEFAULT_MAX_TERMS) -> Iterator[SequenceRecord]:
     """
     Stream SequenceRecord objects from a stripped file (plain or .gz).
@@ -188,6 +266,60 @@ def attach_keywords(records: Iterable[SequenceRecord], keywords: Dict[str, list[
                 length=rec.length,
                 name=rec.name,
                 keywords=keywords[rec.id],
+                offset=rec.offset,
+                has_formula=rec.has_formula,
+                metadata=rec.metadata,
+            )
+        yield rec
+
+
+def attach_offsets(records: Iterable[SequenceRecord], offsets: Dict[str, tuple[int, int]]) -> Iterator[SequenceRecord]:
+    for rec in records:
+        if rec.offset is None and rec.id in offsets:
+            rec = SequenceRecord(
+                id=rec.id,
+                terms=rec.terms,
+                length=rec.length,
+                name=rec.name,
+                keywords=rec.keywords,
+                offset=offsets[rec.id],
+                formula=rec.formula,
+                has_formula=rec.has_formula,
+                metadata=rec.metadata,
+            )
+        yield rec
+
+
+def attach_formulas(records: Iterable[SequenceRecord], formulas: Dict[str, str]) -> Iterator[SequenceRecord]:
+    for rec in records:
+        if rec.id in formulas:
+            rec = SequenceRecord(
+                id=rec.id,
+                terms=rec.terms,
+                length=rec.length,
+                name=rec.name,
+                keywords=rec.keywords,
+                offset=rec.offset,
+                formula=formulas[rec.id],
+                has_formula=True,
+                metadata=rec.metadata,
+            )
+        yield rec
+
+
+def attach_formula_flags(records: Iterable[SequenceRecord], flags: Dict[str, bool]) -> Iterator[SequenceRecord]:
+    for rec in records:
+        hasf = flags.get(rec.id)
+        if hasf:
+            rec = SequenceRecord(
+                id=rec.id,
+                terms=rec.terms,
+                length=rec.length,
+                name=rec.name,
+                keywords=rec.keywords,
+                offset=rec.offset,
+                formula=rec.formula,
+                has_formula=True,
                 metadata=rec.metadata,
             )
         yield rec

@@ -11,10 +11,16 @@ from .oeis_data import (
     DEFAULT_MAX_TERMS,
     attach_titles,
     attach_keywords,
+    attach_offsets,
+    attach_formulas,
     load_names,
     load_keywords,
     load_keywords_from_oeisdata,
     load_stripped,
+    load_offsets,
+    load_offsets_from_oeisdata,
+    load_formulas,
+    load_formulas_from_oeisdata,
 )
 from .storage import init_db, write_records
 
@@ -26,6 +32,8 @@ def build_index(
     db_path: Path,
     *,
     oeisdata_root: Optional[Path] = None,
+    offsets_path: Optional[Path] = None,
+    formulas_path: Optional[Path] = None,
     max_terms: int = DEFAULT_MAX_TERMS,
 ) -> dict:
     """
@@ -36,8 +44,23 @@ def build_index(
     if not keywords and oeisdata_root and oeisdata_root.exists():
         keywords = load_keywords_from_oeisdata(oeisdata_root)
 
+    offsets = (
+        load_offsets(offsets_path)
+        if offsets_path and offsets_path.exists()
+        else load_offsets_from_oeisdata(oeisdata_root) if oeisdata_root and oeisdata_root.exists() else {}
+    )
+    formulas = (
+        load_formulas(formulas_path)
+        if formulas_path and formulas_path.exists()
+        else load_formulas_from_oeisdata(oeisdata_root)
+        if oeisdata_root and oeisdata_root.exists()
+        else {}
+    )
+
     records = attach_titles(load_stripped(stripped_path, max_terms=max_terms), titles)
     records = attach_keywords(records, keywords)
+    records = attach_offsets(records, offsets)
+    records = attach_formulas(records, formulas)
 
     init_db(db_path)
     inserted = write_records(records, db_path)

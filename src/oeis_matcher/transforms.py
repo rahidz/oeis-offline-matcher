@@ -176,7 +176,7 @@ def run_length_encode_transform() -> Transform:
     return Transform(name="rle_len", func=_rle)
 
 
-def run_length_decode_transform() -> Transform:
+def run_length_decode_transform(max_len: int = 10000) -> Transform:
     """
     Decode sequence as length,value pairs: [l1,v1,l2,v2,...] -> v1 repeated l1 times, etc.
     If input length is odd or lengths are negative, returns empty list.
@@ -191,7 +191,16 @@ def run_length_decode_transform() -> Transform:
             v = seq[i + 1]
             if l < 0:
                 return []
-            out.extend([v] * l)
+            if l == 0:
+                continue
+            if l > max_len or len(out) > max_len:
+                return []
+            # guard against huge expansion
+            remaining = max_len - len(out)
+            to_add = min(l, remaining)
+            out.extend([v] * to_add)
+            if len(out) >= max_len:
+                return []
         return out
 
     return Transform(name="rle_dec", func=_rld)
@@ -309,6 +318,216 @@ def mobius_transform() -> Transform:
     return Transform(name="mobius", func=_mob)
 
 
+def _factor_abs(n: int) -> dict[int, int]:
+    """Return prime factorization of |n| as {p: exponent}. Returns {} for |n| in {0,1}."""
+    m = abs(n)
+    factors: dict[int, int] = {}
+    if m <= 1:
+        return factors
+    d = 2
+    while d * d <= m:
+        while m % d == 0:
+            factors[d] = factors.get(d, 0) + 1
+            m //= d
+        d += 1 if d == 2 else 2  # skip even numbers after 2
+    if m > 1:
+        factors[m] = factors.get(m, 0) + 1
+    return factors
+
+
+def omega_transform() -> Transform:
+    """Distinct prime factor count omega(n). Returns empty if any term is 0."""
+
+    def _omega(seq: List[int]) -> List[int]:
+        out: List[int] = []
+        for v in seq:
+            if v == 0:
+                return []
+            factors = _factor_abs(v)
+            out.append(len(factors))
+        return out
+
+    return Transform(name="omega", func=_omega)
+
+
+def big_omega_transform() -> Transform:
+    """Total prime factor count with multiplicity Omega(n). Returns empty if any term is 0."""
+
+    def _big(seq: List[int]) -> List[int]:
+        out: List[int] = []
+        for v in seq:
+            if v == 0:
+                return []
+            factors = _factor_abs(v)
+            out.append(sum(factors.values()))
+        return out
+
+    return Transform(name="bigomega", func=_big)
+
+
+def tau_transform() -> Transform:
+    """Divisor-count function tau(n). Uses |n|; drops if any term is 0."""
+
+    def _tau(seq: List[int]) -> List[int]:
+        out: List[int] = []
+        for v in seq:
+            if v == 0:
+                return []
+            factors = _factor_abs(v)
+            if not factors:
+                out.append(1)
+            else:
+                d = 1
+                for e in factors.values():
+                    d *= e + 1
+                out.append(d)
+        return out
+
+    return Transform(name="tau", func=_tau)
+
+
+def sigma_transform() -> Transform:
+    """Sum-of-divisors function sigma(n). Uses |n|; drops if any term is 0."""
+
+    def _sigma(seq: List[int]) -> List[int]:
+        out: List[int] = []
+        for v in seq:
+            if v == 0:
+                return []
+            factors = _factor_abs(v)
+            if not factors:
+                out.append(1)
+            else:
+                s = 1
+                for p, e in factors.items():
+                    s *= (p ** (e + 1) - 1) // (p - 1)
+                out.append(s)
+        return out
+
+    return Transform(name="sigma", func=_sigma)
+
+
+def phi_transform() -> Transform:
+    """Euler totient phi(n). Uses |n|; drops if any term is 0."""
+
+    def _phi(seq: List[int]) -> List[int]:
+        out: List[int] = []
+        for v in seq:
+            if v == 0:
+                return []
+            m = abs(v)
+            if m == 1:
+                out.append(1)
+                continue
+            factors = _factor_abs(m)
+            phi_val = m
+            for p in factors.keys():
+                phi_val = phi_val // p * (p - 1)
+            out.append(phi_val)
+        return out
+
+    return Transform(name="phi", func=_phi)
+
+
+def v2_transform() -> Transform:
+    """2-adic valuation v_2(n): exponent of 2 in |n|. Drops if any term is 0."""
+
+    def _v2(seq: List[int]) -> List[int]:
+        out: List[int] = []
+        for v in seq:
+            if v == 0:
+                return []
+            m = abs(v)
+            e = 0
+            while m % 2 == 0:
+                m //= 2
+                e += 1
+            out.append(e)
+        return out
+
+    return Transform(name="v2", func=_v2)
+
+
+def square_index_transform() -> Transform:
+    """Subsequence at square indices: b_n = a_{n^2} (0-based)."""
+
+    def _sq(seq: List[int]) -> List[int]:
+        out: List[int] = []
+        n = 0
+        L = len(seq)
+        while n * n < L:
+            out.append(seq[n * n])
+            n += 1
+        return out
+
+    return Transform(name="index_square", func=_sq)
+
+
+def prime_index_transform() -> Transform:
+    """Subsequence at prime indices: b_n = a_{p_n-1} where p_n is n-th prime (2,3,5,...)"""
+
+    def _is_prime(k: int, primes: List[int]) -> bool:
+        if k < 2:
+            return False
+        for p in primes:
+            if p * p > k:
+                break
+            if k % p == 0:
+                return False
+        return True
+
+    def _prime_index(seq: List[int]) -> List[int]:
+        L = len(seq)
+        if L < 2:
+            return []
+        primes: List[int] = []
+        out: List[int] = []
+        n = 2
+        while True:
+            if _is_prime(n, primes):
+                primes.append(n)
+                idx = n - 1
+                if idx >= L:
+                    break
+                out.append(seq[idx])
+            n += 1
+        return out
+
+    return Transform(name="prime_index", func=_prime_index)
+
+
+def pow2_index_transform() -> Transform:
+    """Subsequence at power-of-two indices: b_n = a_{2^n} (0-based)."""
+
+    def _pow2(seq: List[int]) -> List[int]:
+        out: List[int] = []
+        L = len(seq)
+        idx = 1  # 2^0 = 1
+        while idx < L:
+            out.append(seq[idx])
+            idx <<= 1
+        return out
+
+    return Transform(name="index_pow2", func=_pow2)
+
+
+def factorial_index_transform() -> Transform:
+    """Subsequence at factorial indices: b_n = a_{n!} for n>=1 (0-based)."""
+
+    def _fact(seq: List[int]) -> List[int]:
+        out: List[int] = []
+        L = len(seq)
+        fact = 1
+        n = 1
+        while fact < L:
+            out.append(seq[fact])
+            n += 1
+            fact *= n
+        return out
+
+    return Transform(name="index_factorial", func=_fact)
+
+
 def digit_sum_transform(base: int = 10) -> Transform:
     def _ds(seq: List[int]) -> List[int]:
         out = []
@@ -399,6 +618,16 @@ def default_transforms(
     allow_mobius: bool = False,
     allow_binomial: bool = False,
     allow_euler: bool = False,
+    allow_omega: bool = False,
+    allow_bigomega: bool = False,
+    allow_tau: bool = False,
+    allow_sigma: bool = False,
+    allow_phi: bool = False,
+    allow_v2: bool = False,
+    allow_index_square: bool = False,
+    allow_prime_index: bool = False,
+    allow_index_pow2: bool = False,
+    allow_index_factorial: bool = False,
 ) -> List[Transform]:
     transforms: List[Transform] = []
     # Affine (k,b) including pure scale
@@ -465,6 +694,26 @@ def default_transforms(
         transforms.append(binomial_transform())
     if allow_euler:
         transforms.append(euler_transform())
+    if allow_omega:
+        transforms.append(omega_transform())
+    if allow_bigomega:
+        transforms.append(big_omega_transform())
+    if allow_tau:
+        transforms.append(tau_transform())
+    if allow_sigma:
+        transforms.append(sigma_transform())
+    if allow_phi:
+        transforms.append(phi_transform())
+    if allow_v2:
+        transforms.append(v2_transform())
+    if allow_index_square:
+        transforms.append(square_index_transform())
+    if allow_prime_index:
+        transforms.append(prime_index_transform())
+    if allow_index_pow2:
+        transforms.append(pow2_index_transform())
+    if allow_index_factorial:
+        transforms.append(factorial_index_transform())
     return transforms
 
 
