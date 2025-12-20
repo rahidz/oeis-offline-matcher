@@ -7,3 +7,5 @@ data/processed/
 *.pyc
 .DS_Store
 .venv/
+.ipynb_checkpoints/
+$DB

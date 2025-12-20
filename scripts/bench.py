@@ -25,6 +25,12 @@ from oeis_matcher.config import load_config
 CASES = [
     ("Exact Fibonacci", "0,1,1,2,3,5,8", dict(similarity=0, combos=0, transform_limit=0)),
     ("Transform (scale)", "1,2,3,4,5", dict(similarity=0, combos=0, transform_limit=20)),
+    ("Subsequence (offset)", "2,3,5,8,13", dict(similarity=0, combos=0, transform_limit=0, allow_subsequence=True)),
+    (
+        "Transform (deep)",
+        "1,2,3,4,5,6,7",
+        dict(similarity=0, combos=0, transform_limit=150, transform_depth=2, transform_max_time=2.0),
+    ),
     ("Combo (small)", "3,5,7,9,11", dict(similarity=0, combos=5, combo_coeffs=(1, 2), combo_max_shift=1)),
     ("Triple (demo)", "2,1,0,-1,-2,-3", dict(similarity=0, combos=0, triples=5, combo_coeffs=(1, -1), combo_candidates=30, triple_candidates=30)),
 ]

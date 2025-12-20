@@ -249,6 +249,46 @@ def test_constant_collapsing_chain_is_dropped(tmp_path: Path):
     assert "A900010" not in ids
 
 
+def test_constant_outputs_can_be_opted_in(tmp_path: Path):
+    stripped = tmp_path / "stripped.txt"
+    names = tmp_path / "names.txt"
+    stripped.write_text(
+        "\n".join(
+            [
+                "A900010 2,2,2,2,2",
+                "A900011 3,4,5,6,7",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    names.write_text(
+        "\n".join(
+            [
+                "A900010 Constant twos",
+                "A900011 Sample linear",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    db = tmp_path / "oeis.db"
+    build_index(stripped, names, None, db, max_terms=10)
+
+    query = parse_query("3,4,5,6")
+    transforms = [make_affine(0, 2)]
+
+    matches = search_transform_matches(
+        query,
+        db,
+        max_depth=1,
+        transforms=transforms,
+        limit=5,
+        full_scan=True,
+        allow_constant_outputs=True,
+    )
+    ids = [m.id for m in matches]
+    assert "A900010" in ids
+
+
 def test_full_scan_prefers_best_scoring_match(tmp_path: Path):
     stripped = tmp_path / "stripped.txt"
     names = tmp_path / "names.txt"
@@ -338,6 +378,37 @@ def test_transform_search_deduplicates_same_transformed_terms(tmp_path: Path):
     # abs(q) and scale(-1)->abs both collapse to constants; filtered for non-constant query
     ids = [m.id for m in matches]
     assert ids == []
+
+
+def test_low_diversity_transforms_filtered(tmp_path: Path):
+    stripped = tmp_path / "stripped.txt"
+    names = tmp_path / "names.txt"
+    stripped.write_text(
+        "\n".join(
+            [
+                "A950000 0,1,2,3,4,5",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    names.write_text("A950000 Simple\n", encoding="utf-8")
+    db = tmp_path / "oeis.db"
+    build_index(stripped, names, None, db, max_terms=10)
+
+    query = parse_query("10,9,8,7,6")
+    from oeis_matcher.transforms import mod_transform
+
+    transforms = [mod_transform(2)]
+
+    matches = search_transform_matches(
+        query,
+        db,
+        max_depth=1,
+        transforms=transforms,
+        limit=5,
+        full_scan=True,
+    )
+    assert matches == []
 
 
 def test_transform_results_dedup_by_id(tmp_path: Path):

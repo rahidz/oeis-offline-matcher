@@ -239,14 +239,15 @@ def binomial_transform() -> Transform:
     """
     def _bt(seq: List[int]) -> List[int]:
         out: List[int] = []
+        # O(n^2) incremental binomial coefficient update:
+        # C(n,0)=1 and C(n,k+1)=C(n,k)*(n-k)/(k+1).
         for n in range(len(seq)):
             s = 0
+            comb = 1
             for k in range(n + 1):
-                # simple iterative comb
-                comb = 1
-                for i in range(1, k + 1):
-                    comb = comb * (n - i + 1) // i
                 s += comb * seq[k]
+                if k != n:
+                    comb = comb * (n - k) // (k + 1)
             out.append(s)
         return out
 
@@ -260,16 +261,19 @@ def euler_transform() -> Transform:
     Note: limited to n >= 1 and requires len(seq) > n.
     """
     def _et(seq: List[int]) -> List[int]:
-        out: List[int] = []
-        for n in range(len(seq)):
-            if n == 0:
-                out.append(seq[0])
+        if not seq:
+            return []
+        L = len(seq)
+        out = [0] * L
+        out[0] = seq[0]
+        # For n>=1: b_n = sum_{d|n} d * a_d.
+        # Compute via a divisor-sieve accumulation (O(n log n)).
+        for d in range(1, L):
+            contrib = d * seq[d]
+            if contrib == 0:
                 continue
-            s = 0
-            for d in range(1, n + 1):
-                if n % d == 0 and d < len(seq):
-                    s += d * seq[d]
-            out.append(s)
+            for n in range(d, L, d):
+                out[n] += contrib
         return out
 
     return Transform(name="euler", func=_et)

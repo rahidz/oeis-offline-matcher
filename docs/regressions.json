@@ -1,0 +1,64 @@
+[
+  {
+    "name": "Exact: Fibonacci",
+    "query": "0,1,1,2,3,5,8",
+    "opts": { "exact_limit": 3, "transform_limit": 0, "similarity": 0, "combos": 0 },
+    "expect": { "exact_top": "A000045" }
+  },
+  {
+    "name": "Exact: primes",
+    "query": "2,3,5,7,11",
+    "opts": { "exact_limit": 3, "transform_limit": 0, "similarity": 0, "combos": 0 },
+    "expect": { "exact_top": "A000040" }
+  },
+  {
+    "name": "Transform: diff(n) = 1",
+    "query": "1,2,3,4,5",
+    "opts": { "exact_limit": 0, "transform_limit": 20, "similarity": 0, "combos": 0 },
+    "expect": { "transform_contains": ["A000012"] }
+  },
+  {
+    "name": "Combo: pronic = n^2 + n",
+    "query": "0,2,6,12,20,30",
+    "opts": {
+      "exact_limit": 0,
+      "transform_limit": 0,
+      "similarity": 30,
+      "combos": 20,
+      "combo_coeffs": [-2, -1, 1, 2],
+      "combo_candidates": 200,
+      "combo_max_shift": 0
+    },
+    "expect": { "combo_contains_ids": ["A000290", "A001477"] }
+  },
+  {
+    "name": "Pointwise: pronic = n*(n+1)",
+    "query": "0,2,6,12,20,30",
+    "opts": {
+      "exact_limit": 0,
+      "transform_limit": 0,
+      "similarity": 30,
+      "combos": 0,
+      "pointwise_limit": 10,
+      "pointwise_ops": ["mul"],
+      "combo_candidates": 200,
+      "combo_max_shift": 0
+    },
+    "expect": { "pointwise_contains_ids": ["A001477", "A000027"] }
+  },
+  {
+    "name": "Convolution: ones * ones = naturals",
+    "query": "1,2,3,4,5,6",
+    "opts": {
+      "exact_limit": 0,
+      "transform_limit": 0,
+      "similarity": 30,
+      "combos": 0,
+      "convolution_limit": 5,
+      "convolution_ops": ["cauchy"],
+      "combo_candidates": 200
+    },
+    "expect": { "convolution_contains_ids": ["A000012", "A000012"] }
+  }
+]
+

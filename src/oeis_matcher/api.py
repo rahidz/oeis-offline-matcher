@@ -6,14 +6,20 @@ from typing import Dict, Iterable, List, Optional, Sequence
 import time
 
 from .config import load_config
-from .matcher import match_exact, candidate_sequences
+from .matcher import candidate_sequences, match_exact, match_exact_db
 from .models import Match, SequenceQuery, AnalysisResult
 from .query import parse_query
 from .ranking import rank_candidates_for_query
 from .transform_search import search_transform_matches
 from .transforms import default_transforms
 from .candidates import get_candidate_bucket
-from .combination_search import search_two_sequence_combinations, search_three_sequence_combinations, resolve_component_transforms
+from .combination_search import (
+    resolve_component_transforms,
+    search_convolution_two_sequence_combinations,
+    search_pointwise_two_sequence_combinations,
+    search_three_sequence_combinations,
+    search_two_sequence_combinations,
+)
 from .similarity import growth_rate
 
 
@@ -40,8 +46,7 @@ def match_exact_terms(
         min_match_length=min_match_length,
         allow_subsequence=allow_subsequence,
     )
-    seq_iter = candidate_sequences(db_path, query, variance_band=variance_band, growth_band=growth_band)
-    matches = match_exact(query, seq_iter, limit=limit, snippet_len=show_terms)
+    matches = match_exact_db(query, db_path, limit=limit, snippet_len=show_terms)
     if matches or allow_subsequence or not fallback_subsequence:
         return matches
     # fallback to subsequence search using invariant-filtered candidates first, optionally full scan
@@ -50,8 +55,7 @@ def match_exact_terms(
         min_match_length=min_match_length,
         allow_subsequence=True,
     )
-    seq_iter = candidate_sequences(db_path, fallback_query)
-    fmatches = match_exact(fallback_query, seq_iter, limit=limit, snippet_len=show_terms)
+    fmatches = match_exact_db(fallback_query, db_path, limit=limit, snippet_len=show_terms)
     if fmatches or not fallback_full_scan:
         return fmatches
     # final try: full scan
@@ -102,6 +106,7 @@ def search_transforms(
     allow_v2: bool = False,
     allow_index_square: bool = False,
     allow_prime_index: bool = False,
+    allow_constant_outputs: bool = False,
 ) -> List[Match]:
     cfg = load_config()
     db_path = Path(db_path or cfg["paths"]["db"])
@@ -161,6 +166,7 @@ def search_transforms(
         max_complexity=max_complexity,
         variance_band=variance_band,
         growth_band=growth_band,
+        allow_constant_outputs=allow_constant_outputs,
     )
 
 
@@ -309,6 +315,13 @@ def analyze_sequence(
     combo_max_complexity: float | None = None,
     triple_min_score: float | None = None,
     triple_max_complexity: float | None = None,
+    pointwise_limit: int = 0,
+    pointwise_ops: Iterable[str] = (),
+    pointwise_max_time: float | None = None,
+    convolution_limit: int = 0,
+    convolution_ops: Iterable[str] = (),
+    convolution_max_time: float | None = None,
+    convolution_max_length: int = 32,
     fallback_subsequence: bool = True,
     fallback_full_scan: bool = False,
     show_terms: int | None = None,
@@ -341,13 +354,11 @@ def analyze_sequence(
         return sum((v - m) ** 2 for v in vals) / len(vals)
 
     # Exact
-    exact_iter = candidate_sequences(db_path, query, variance_band=variance_band, growth_band=growth_band)
-    exact = match_exact(query, exact_iter, limit=exact_limit, snippet_len=show_terms)
+    exact = match_exact_db(query, db_path, limit=exact_limit, snippet_len=show_terms)
     fallback_used = False
     if not exact and not query.allow_subsequence and fallback_subsequence:
         fb_query = SequenceQuery(terms=query.terms, min_match_length=min_match_length, allow_subsequence=True)
-        exact_iter = candidate_sequences(db_path, fb_query, variance_band=variance_band, growth_band=growth_band)
-        exact = match_exact(fb_query, exact_iter, limit=exact_limit, snippet_len=show_terms)
+        exact = match_exact_db(fb_query, db_path, limit=exact_limit, snippet_len=show_terms)
         if not exact and fallback_full_scan:
             from .storage import iter_sequences
 
@@ -394,65 +405,139 @@ def analyze_sequence(
 
     combo_matches = []
     triple_matches = []
-    if combos or triples:
+    pointwise_matches = []
+    convolution_matches = []
+    if combos or triples or (pointwise_limit and pointwise_ops) or (convolution_limit and convolution_ops):
         combo_coeffs_seq = combo_coeffs
+        cap = max(int(combo_candidates or 0), int(triple_candidates or 0))
+        if cap <= 0:
+            cap = max(int(combo_candidates or 0), 1)
+
+        bucket = get_candidate_bucket(
+            query,
+            db_path,
+            exact_limit=cap,
+            similar_limit=cap,
+            max_records=cap,
+            fill_unfiltered=True,
+            skip_prefix_filter=combo_unfiltered,
+            variance_band=variance_band,
+            growth_band=growth_band,
+        )
+        if combo_component_transforms is None:
+            comp_names = None
+        elif isinstance(combo_component_transforms, str):
+            comp_names = [t.strip() for t in combo_component_transforms.split(",") if t.strip()]
+        else:
+            comp_names = list(combo_component_transforms)
+        comp_transforms = resolve_component_transforms(comp_names)
+
         if combos:
             combo_start = time.perf_counter()
-            combo_matches = search_combinations(
-                query.terms,
-                db_path=db_path,
-                min_match_length=min_match_length,
-                coeffs=combo_coeffs_seq,
+            combo_matches = search_two_sequence_combinations(
+                query,
+                bucket.records,
+                coeffs=tuple(combo_coeffs_seq),
                 max_shift=combo_max_shift,
                 max_shift_back=combo_max_shift_back,
                 limit=combos,
-                candidate_cap=combo_candidates,
+                max_candidates=combo_candidates,
                 max_checks=combo_max_checks,
-                max_time=combo_max_time,
+                max_time_s=combo_max_time,
                 max_combinations=combo_max_combinations,
-                component_transforms=combo_component_transforms,
-                combo_unfiltered=combo_unfiltered,
+                component_transforms=comp_transforms,
                 snippet_len=snip_len,
                 use_rational=combo_rational,
-                combo_min_score=combo_min_score,
-                combo_max_complexity=combo_max_complexity,
-                variance_band=variance_band,
-                growth_band=growth_band,
+                min_score=combo_min_score,
+                max_complexity=combo_max_complexity,
             )
             combo_end = time.perf_counter()
         else:
             combo_start = combo_end = None
+
         if triples:
             triple_start = time.perf_counter()
-            triple_matches = search_three_combinations(
-                query.terms,
-                db_path=db_path,
-                min_match_length=min_match_length,
-                coeffs=combo_coeffs_seq,
+            triple_matches = search_three_sequence_combinations(
+                query,
+                bucket.records,
+                coeffs=tuple(combo_coeffs_seq),
                 max_shift=combo_max_shift,
                 max_shift_back=triple_max_shift_back,
                 limit=triples,
-                candidate_cap=triple_candidates,
+                max_candidates=triple_candidates,
                 max_checks=triple_max_checks,
-                max_time=triple_max_time,
+                max_time_s=triple_max_time,
                 max_combinations=triple_max_combinations,
-                component_transforms=combo_component_transforms,
-                combo_unfiltered=combo_unfiltered,
+                component_transforms=comp_transforms,
                 snippet_len=snip_len,
                 use_rational=triple_rational,
-                triple_min_score=triple_min_score,
-                triple_max_complexity=triple_max_complexity,
-                variance_band=variance_band,
-                growth_band=growth_band,
+                min_score=triple_min_score,
+                max_complexity=triple_max_complexity,
             )
             triple_end = time.perf_counter()
         else:
             triple_start = triple_end = None
+
+        pw_ops = []
+        if isinstance(pointwise_ops, str):
+            pw_ops = [t.strip() for t in pointwise_ops.split(",") if t.strip()]
+        else:
+            pw_ops = list(pointwise_ops or ())
+        if pointwise_limit and pw_ops:
+            pw_start = time.perf_counter()
+            pointwise_matches = search_pointwise_two_sequence_combinations(
+                query,
+                bucket.records,
+                ops=tuple(pw_ops),
+                max_shift=combo_max_shift,
+                max_shift_back=combo_max_shift_back,
+                limit=pointwise_limit,
+                max_candidates=combo_candidates,
+                max_checks=combo_max_checks,
+                max_time_s=pointwise_max_time if pointwise_max_time is not None else combo_max_time,
+                component_transforms=comp_transforms,
+                snippet_len=snip_len,
+                min_score=combo_min_score,
+                max_complexity=combo_max_complexity,
+            )
+            pw_end = time.perf_counter()
+        else:
+            pw_start = pw_end = None
+
+        conv_ops = []
+        if isinstance(convolution_ops, str):
+            conv_ops = [t.strip() for t in convolution_ops.split(",") if t.strip()]
+        else:
+            conv_ops = list(convolution_ops or ())
+        if convolution_limit and conv_ops:
+            conv_start = time.perf_counter()
+            convolution_matches = search_convolution_two_sequence_combinations(
+                query,
+                bucket.records,
+                ops=tuple(conv_ops),
+                max_length=int(convolution_max_length),
+                limit=convolution_limit,
+                max_candidates=combo_candidates,
+                max_checks=combo_max_checks,
+                max_time_s=convolution_max_time if convolution_max_time is not None else combo_max_time,
+                component_transforms=comp_transforms,
+                snippet_len=snip_len,
+                min_score=combo_min_score,
+                max_complexity=combo_max_complexity,
+            )
+            conv_end = time.perf_counter()
+        else:
+            conv_start = conv_end = None
+
         if collect_timings:
             if combo_start is not None and combo_end is not None:
                 timings["combination_ms"] = 1000 * (combo_end - combo_start)
             if triple_start is not None and triple_end is not None:
                 timings["triple_ms"] = 1000 * (triple_end - triple_start)
+            if pw_start is not None and pw_end is not None:
+                timings["pointwise_ms"] = 1000 * (pw_end - pw_start)
+            if conv_start is not None and conv_end is not None:
+                timings["convolution_ms"] = 1000 * (conv_end - conv_start)
 
     similarity_rows = [
         {
@@ -481,6 +566,8 @@ def analyze_sequence(
         "triple_limit": triples,
         "triple_candidate_cap": triple_candidates,
         "triple_max_checks": triple_max_checks,
+        "pointwise_limit": pointwise_limit,
+        "convolution_limit": convolution_limit,
         "variance_band": variance_band,
         "growth_band": growth_band,
         "query_var": query_var,
@@ -499,6 +586,8 @@ def analyze_sequence(
         similarity=similarity_rows,
         combinations=combo_matches,
         triple_combinations=triple_matches,
+        pointwise_combinations=pointwise_matches,
+        convolution_combinations=convolution_matches,
         diagnostics=diag,
     )
 

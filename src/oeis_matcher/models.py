@@ -83,6 +83,8 @@ class AnalysisResult:
     similarity: list[dict]
     combinations: list[CombinationMatch]
     triple_combinations: list[CombinationMatch] | None = None
+    pointwise_combinations: list[CombinationMatch] | None = None
+    convolution_combinations: list[CombinationMatch] | None = None
     diagnostics: Optional[dict] = None
 
     def to_dict(self) -> dict:
@@ -118,5 +120,7 @@ class AnalysisResult:
             "similarity": self.similarity,
             "combinations": [_combo_to_dict(m) for m in self.combinations],
             "triple_combinations": [_combo_to_dict(m) for m in self.triple_combinations] if self.triple_combinations is not None else [],
+            "pointwise_combinations": [_combo_to_dict(m) for m in self.pointwise_combinations] if self.pointwise_combinations is not None else [],
+            "convolution_combinations": [_combo_to_dict(m) for m in self.convolution_combinations] if self.convolution_combinations is not None else [],
             "diagnostics": diag,
         }

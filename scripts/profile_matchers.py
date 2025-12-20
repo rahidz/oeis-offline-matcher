@@ -1,10 +1,17 @@
 #!/usr/bin/env python
 """
 Micro-profiles for exact, transform, and combo search on a built DB.
-Outputs per-stage wall time. Use `python -m cProfile -s tottime scripts/profile_matchers.py`
-for deeper detail.
+Default: print wall time per canned case.
+
+Extras:
+- `--case NAME` to profile a specific case.
+- `--profile OUT.pstats` to emit cProfile stats for inspection.
+- `--sort tottime` choose cProfile sort key.
 """
 
+import argparse
+import cProfile
+import pstats
 import sys
 import time
 from pathlib import Path
@@ -27,18 +34,45 @@ CASES = [
 ]
 
 
+def _run_case(label, seq, opts, db):
+    start = time.perf_counter()
+    res = analyze_sequence(seq, db_path=db, exact_limit=10, **opts)
+    elapsed = (time.perf_counter() - start) * 1000
+    print(f"{label:20s} {elapsed:7.1f} ms  exact={len(res['exact_matches'])} transforms={len(res['transform_matches'])} combos={len(res['combinations'])}")
+    return res
+
+
 def main():
+    import argparse
+    import cProfile
+    import pstats
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--case", help="Run a single case label", choices=[c[0] for c in CASES])
+    parser.add_argument("--profile", metavar="OUT.pstats", help="Write cProfile stats to file")
+    parser.add_argument("--sort", default="tottime", help="cProfile sort key (default: tottime)")
+    args = parser.parse_args()
+
     cfg = load_config()
     db = Path(cfg["paths"]["db"])
     if not db.exists():
         print(f"DB missing at {db}. Build the index first.")
         return 1
 
-    for label, seq, opts in CASES:
-        start = time.perf_counter()
-        res = analyze_sequence(seq, db_path=db, exact_limit=10, **opts)
-        elapsed = (time.perf_counter() - start) * 1000
-        print(f"{label:20s} {elapsed:7.1f} ms  exact={len(res['exact_matches'])} transforms={len(res['transform_matches'])} combos={len(res['combinations'])}")
+    chosen = [c for c in CASES if args.case is None or c[0] == args.case]
+
+    if args.profile:
+        pr = cProfile.Profile()
+        pr.enable()
+        for label, seq, opts in chosen:
+            _run_case(label, seq, opts, db)
+        pr.disable()
+        pr.dump_stats(args.profile)
+        print(f"Profile written to {args.profile}")
+        pstats.Stats(pr).sort_stats(args.sort).print_stats(20)
+    else:
+        for label, seq, opts in chosen:
+            _run_case(label, seq, opts, db)
     return 0
 
 

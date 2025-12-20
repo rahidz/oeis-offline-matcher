@@ -35,7 +35,8 @@ Build a local tool that
 ### 1.3 Storage/index
 - [x] SQLite primary store with invariants/prefix index.
 - [x] Add extended invariants: variance and diff variance for tighter filtering (banded).
-- [ ] (Optional, later) alt backend (mmap/custom) if perf becomes limiting.
+- [x] Add composite indexes + `oeis optimize-db` for fast invariant scans (avoid ORDER BY temp B-tree on broad filters).
+- (Future idea) Alternative backend (mmap/custom) if perf becomes limiting.
 
 ---
 
@@ -62,7 +63,7 @@ Build a local tool that
   - [x] Use hash of first k terms as a key to find candidate sequences quickly (prefix5 index).
   - [x] Optionally use rolling hash/KMP to scan subsequences (implemented KMP).
   - [x] Early exit on mismatch to reduce comparisons (prefix loop).
-- [ ] Expose API:
+- [x] Expose API:
   - [x] `match_exact_prefix(query) -> list[Match]`.
   - [x] `match_subsequence(query) -> list[Match]`.
   - Note: unified `match_exact` covers both via flag; wrappers still to add if desired.
@@ -75,7 +76,7 @@ Build a local tool that
 
 ### 2.3 CLI and output formatting
 
-- [x] CLI command `oeis-match`:
+- [x] CLI command `oeis match`:
   - [x] Input: sequence via CLI arg or stdin.
   - [x] Options:
     - [x] `--subsequence`
@@ -94,7 +95,7 @@ Build a local tool that
 
 ### 3.1 Transform vocabulary
 - [x] Current set: scale/affine, shift, diff/diff^2, partial_sum, abs, gcd_norm, decimate, reverse, even/odd, movsum(2+N), cumprod, popcount, digit sum, binomial (opt-in), Euler (opt-in), Möbius (opt-in).
-- [ ] Add vetted accuracy-focused transforms: running average/movsum(k>2) scoring tweaks, sign/digit-based with stricter complexity penalties.
+- [x] Add vetted accuracy-focused transforms: movsum(k>3), sign/digit-aware variants, stricter penalties (further tuning tracked in 3.5).
   - [x] Arithmetic-function transforms on terms: omega/Omega (prime factor counts), tau/sigma (divisor counts/sums), phi, v2.
   - [x] Index-based transforms: values at square indices, prime indices, powers of 2, and factorial indices.
 
@@ -133,7 +134,8 @@ Build a local tool that
 
 ### 3.5 Scoring
 - [x] Heuristic score length/(1+complexity).
-- [ ] Re-tune weights; include variance bonus and rarity of invariants; penalize degenerate chains.
+- [x] Add variance bonus and invariants rarity bonus to scoring.
+- [x] Further re-tune weights; penalize degenerate chains more aggressively.
 
 ### 8.1 Unit tests
 
@@ -185,16 +187,16 @@ Build a local tool that
 
 ### 5.1 Define search class
 
-- [x] Decide on the class of expressions to search:
-  - [x] Number of component sequences `m`:
-    - [x] v2: `m ≤ 2` (implemented, forward + optional backward shifts),
-    - [ ] maybe optional extension: `m ≤ 3`.
-  - [x] Coefficient constraints:
-    - [x] small integers, e.g. |c_i| ≤ 5 or 10 (configurable list).
-  - [x] Shift constraints:
-    - [x] index shifts `s_i` in range, e.g., `-k ≤ s_i ≤ max_shift` (backward shifts supported).
-  - [ ] Optional per-component transforms:
-    - [x] simple things like `Diff`/`PartialSum` (component-transforms).
+  - [x] Decide on the class of expressions to search:
+    - [x] Number of component sequences `m`:
+      - [x] v2: `m ≤ 2` (implemented, forward + optional backward shifts),
+      - [x] optional extension: `m ≤ 3` (implemented, guarded/capped).
+    - [x] Coefficient constraints:
+      - [x] small integers, e.g. |c_i| ≤ 5 or 10 (configurable list).
+    - [x] Shift constraints:
+      - [x] index shifts `s_i` in range, e.g., `-k ≤ s_i ≤ max_shift` (backward shifts supported).
+    - [x] Optional per-component transforms:
+      - [x] simple things like `Diff`/`PartialSum` (component-transforms).
 
 ### 5.2 Two-sequence combinations (accuracy focus)
 
@@ -227,8 +229,9 @@ Build a local tool that
 - [x] Hard-limit candidate bucket size (e.g. K ≤ 100).
 - [x] Hard-limit total combinations checked per query (max_checks guard).
 - [x] Add time caps to combo/triple search; “max” preset sets wide caps (~10m) for exhaustive runs.
+- [x] Add expanded (DB-wide prefix index) pair/triple fallback to catch decompositions where components don’t resemble the query.
 - [x] Add coeff-norm caps/condition checks for rational solutions to cut false positives.
-- [ ] Provide configuration:
+- [x] Provide configuration:
   - [x] `max_combinations`,
   - [x] `max_time_per_query` (if implementing time budgets),
   - [x] `max_coeff_abs` (via CLI coeff list),
@@ -244,6 +247,7 @@ Build a local tool that
   - [x] Cauchy convolution `c_n = Σ_{k<=n} A_k B_{n-k}`.
   - [x] Dirichlet convolution `c(n) = Σ_{d|n} A(d) B(n/d)` (1-based).
   - [x] Guarded by `max_length`, `max_candidates`, `max_checks`, and `max_time_s`; exposed via `--convolution-ops/--convolution-limit`.
+- [x] Avoid redundant commutative self-pair duplicates when streaming (e.g. `A*diff(A)` vs `diff(A)*A`), and include component transforms in convolution expressions.
 
 ### 5.5 Scoring & ranking
 
@@ -251,11 +255,11 @@ Build a local tool that
   - [x] number of component sequences (fixed 2),
   - [x] sum of |coefficients|,
   - [x] sum of |shifts|,
-  - [ ] transform chain lengths (still N/A).
+  - [x] per-component transform weights (single-step; chaining is a future extension).
 - [x] Sort results by:
   - [x] simplest explanation first (lower complexity),
   - [x] then by length of match,
-  - [ ] then by sequence popularity/importance (optional heuristic).
+  - [x] then by sequence popularity/importance (via keyword-weight bonus in scoring).
 - [x] Deduplicate combo/triple outputs per sequence+transform family to keep only the top explanation.
 
 ---
@@ -268,6 +272,14 @@ Build a local tool that
   - [x] Runs exact + transform pipeline.
   - [x] Add combos when available.
   - [x] Common options: add max-candidates/combos.
+- [x] `--preset` works across subcommands (match/tsearch/combo/analyze) and acts like defaults (explicit flags override preset).
+- [x] Streaming + time budgeting for long runs:
+  - [x] `oeis analyze --stream` prints matches as stages complete (and streams transform/combo hits as found).
+  - [x] `oeis analyze --total-max-time SECONDS` caps the entire pipeline.
+  - [x] `oeis combo --total-max-time SECONDS` caps the entire combo pipeline (candidate bucket + pair/pointwise/convolution + triples).
+  - [x] `oeis tsearch --stream` streams transform hits as they are found (enabled in `--preset max`).
+  - [x] Two-sequence combos can reuse the same OEIS id with different shifts (enables self-shift identities like Lucas from Fibonacci).
+  - [x] Defer expanded DB-wide pair fallback until after other combo stages in streaming mode (better time-to-first-hit for triples/pointwise/convolution).
 
 ### 6.2 Library API
 
@@ -290,24 +302,26 @@ Progress: Combination matches now emit `a(n) = c1*Axxxx(n+s1)+c2*Ayyyy(n+s2)` wi
 
 ## Phase 7 – Performance, profiling, and optimization (keep fast + accurate)
 
-- [ ] Benchmark core operations:
-  - [ ] Index build time and memory footprint.
-  - [ ] Exact matcher latency vs OEIS size.
-  - [ ] Transform search cost per transform.
-  - [ ] Combination search cost vs candidate bucket size.
+- [x] Benchmark core operations (run + record, not just harnesses):
+  - [x] Index build time and memory footprint on full snapshot; stash numbers in `docs/benchmarks.md`.
+  - [x] Exact matcher latency vs OEIS size (prefix vs subsequence) with caps documented.
+  - [x] Transform search cost per transform family/depth (see `scripts/bench_sweep.py` + `docs/benchmarks.md`).
+  - [x] Combination search cost vs candidate bucket size/shift ranges (see `scripts/bench_sweep.py` + `docs/benchmarks.md`).
   - [x] Add quick timing harness (`scripts/bench.py`) to measure common cases.
   - [x] Add profiling helper (`scripts/profile_matchers.py`) for stage timing.
   - [x] Add build benchmark script (`scripts/bench_build.py`).
   - [x] Perf smoke test for analyze path (mini fixture, <200ms).
 - [x] Expose per-stage timings in CLI (`oeis analyze --timings`) and API (`collect_timings=True`).
 - [x] Add time caps to transform search to bound worst-case runs; dedupe repeated transformed queries.
-- [ ] Profile hotspots:
+- [x] Profile hotspots (regular runs with current snapshot; store flamegraphs/notebook):
   - [x] Identify slow parts (e.g. inner comparison loops, transform application) with `scripts/profile_matchers.py --profile ...`.
-- [ ] Optimize:
-  - [ ] Use vectorized operations where possible.
-  - [ ] Consider compiled extensions (C/Rust) for tight loops.
-  - [ ] Cache intermediate results (e.g., transformed sequences).
-- [ ] Add configuration presets:
+- [x] Optimize:
+  - [x] Reduce Python-level hot loops where possible (e.g., faster binomial/euler transforms; reuse depth-2 transform intermediates; avoid duplicate stride scans in expanded combo fallback).
+  - [x] Speed up short (4-term) prefix matching by leveraging `prefix5` via partial prefix queries (avoids full invariant scans for common transform outputs like shifts/diffs).
+  - [x] Avoid allocating full convolution vectors when verifying convolution combos (early-exit matching).
+  - (Future idea) Consider compiled extensions (C/Rust) for tight loops.
+  - [x] Cache intermediate results (e.g., transformed sequences).
+- [x] Add configuration presets:
   - [x] “Fast” preset (small transform set, few candidates).
   - [x] “Deep” preset (more transforms, combos, but bounded).
   - [x] “Max” preset (exhaustive search: deeper transforms, combos/triples, generous limits/time caps).
@@ -338,13 +352,15 @@ Progress: Combination matches now emit `a(n) = c1*Axxxx(n+s1)+c2*Ayyyy(n+s2)` wi
 - [x] Test combination matches:
   - [x] Construct synthetic sequences as `2*A + B` and verify tool finds that relationship.
   - [x] Add real OEIS-derived combo case (Lucas from Fibonacci shifts).
-- [ ] Add notebook-driven regression set for whole pipeline.
+- [x] Add notebook-driven regression set for whole pipeline.
 
 ### 8.3 Regression tests
 
 - [x] Collect interesting real-world sequences and their OEIS IDs.
 - [x] Run tool periodically and ensure output remains stable or improves.
 - [x] Detect performance regressions (benchmark snapshots) — mini perf smoke test.
+- [x] Add `oeis selfcheck` command for regressions + random combo sanity.
+- [x] Extend random sanity checks to include pointwise (`mul`) and convolution (Cauchy/Dirichlet) combos.
 
 ---
 
@@ -361,7 +377,7 @@ Progress: Combination matches now emit `a(n) = c1*Axxxx(n+s1)+c2*Ayyyy(n+s2)` wi
 - [x] Provide example notebooks (if using Python):
   - [x] “Exploring a sequence” (docs/notebook_template.ipynb stub).
   - [x] “Using combination search to explain a sequence” (docs/notebook_combo.ipynb).
-- [ ] Add FAQ:
+- [x] Add FAQ:
   - [x] Limitations (what the tool can’t realistically find).
   - [x] Performance tips.
   - [x] Licensing clarification.
@@ -370,18 +386,18 @@ Progress: Combination matches now emit `a(n) = c1*Axxxx(n+s1)+c2*Ayyyy(n+s2)` wi
 
 ## Phase 10 – Stretch goals / research directions
 
-- [ ] Explore additional transform families:
-  - [ ] Binomial/Euler transforms.
-  - [ ] Möbius transform and Dirichlet convolutions.
-  - [ ] Digit-based transforms (binary, decimal).
-- [ ] Integrate with external CAS tools:
-  - [ ] Optional hooks to Maple/Mathematica/Pari for advanced transforms/recurrence guessing.
-- [ ] Experiment with learning-based candidate selection:
-  - [ ] Train a model to suggest promising OEIS candidates for combos.
-- [ ] Add small web UI:
-  - [ ] Paste sequence → interactive explanation tree.
-- [ ] Export found relations in machine-readable format:
-  - [ ] JSON schemas compatible with OEIS submission formats or other tools.
+- [x] Explore additional transform families (baseline implemented; future: richer/parameterized variants):
+  - [x] Binomial/Euler transforms.
+  - [x] Möbius transform and Dirichlet convolutions.
+  - [x] Digit-based transforms (binary, decimal).
+- (Future idea) Integrate with external CAS tools:
+  - Optional hooks to Maple/Mathematica/Pari for advanced transforms/recurrence guessing.
+- (Future idea) Experiment with learning-based candidate selection:
+  - Train a model to suggest promising OEIS candidates for combos.
+- (Future idea) Add small web UI:
+  - Paste sequence → interactive explanation tree.
+- [x] Export found relations in machine-readable format:
+  - [x] Structured JSON output for `oeis analyze --json` / `oeis combo --json`, with schemas in `docs/schemas/`.
 
 ---
 
@@ -390,5 +406,6 @@ Progress: Combination matches now emit `a(n) = c1*Axxxx(n+s1)+c2*Ayyyy(n+s2)` wi
 - [x] **v0.1** – Offline OEIS index + exact/prefix/subsequence matcher (Phase 1–2).
 - [x] **v0.2** – Single-sequence transform engine and search (Phase 3).
 - [x] **v0.3** – Candidate ranking + 2-sequence linear combo search (Phase 4–5).
-- [ ] **v0.4** – CLI polish, config presets, docs (Phase 6–7–9).
-- [ ] **v0.5+** – 3-sequence combos, richer transforms, research experiments (Phase 8–10).
+- [x] **v0.4** – CLI polish, config presets, docs (Phase 6–7–9).
+- [x] **v0.5** – 3-sequence combos + expanded fallback, more transforms, and regression notebook (Phase 8–9).
+- **v0.6+** – Research directions / stretch goals (Phase 10). (Future ideas; not part of the v0.x core milestones.)

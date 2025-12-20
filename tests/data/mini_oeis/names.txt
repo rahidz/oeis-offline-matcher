@@ -3,3 +3,5 @@ A000027 The natural numbers
 A000012 The all 1's sequence
 A000040 The prime numbers
 A000290 The squares
+A001477 Nonnegative integers
+A002378 Pronic numbers: n(n+1)

@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "oeis analyze --json output schema",
+  "type": "object",
+  "required": [
+    "query",
+    "exact_matches",
+    "transform_matches",
+    "similarity",
+    "combinations",
+    "triple_combinations",
+    "pointwise_combinations",
+    "convolution_combinations",
+    "diagnostics"
+  ],
+  "properties": {
+    "query": {
+      "type": "array",
+      "items": { "type": ["integer", "null"] }
+    },
+    "exact_matches": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/match" }
+    },
+    "transform_matches": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/match" }
+    },
+    "similarity": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/similarity" }
+    },
+    "combinations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/combination" }
+    },
+    "triple_combinations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/combination" }
+    },
+    "pointwise_combinations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/combination" }
+    },
+    "convolution_combinations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/combination" }
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "match": {
+      "type": "object",
+      "required": ["id", "name", "match_type", "offset", "length", "score"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": ["string", "null"] },
+        "match_type": { "type": "string", "enum": ["prefix", "subsequence"] },
+        "offset": { "type": "integer" },
+        "length": { "type": "integer" },
+        "score": { "type": ["number", "null"] },
+        "transform": { "type": "string" },
+        "explanation": { "type": "string" },
+        "latex": { "type": "string" },
+        "symbolic": { "type": "string" },
+        "symbolic_latex": { "type": "string" },
+        "formula": { "type": "string" },
+        "terms": { "type": "array", "items": { "type": "integer" } },
+        "transformed_terms": { "type": "array", "items": { "type": "integer" } }
+      },
+      "additionalProperties": true
+    },
+    "similarity": {
+      "type": "object",
+      "required": ["id", "name", "corr", "mse", "scale", "offset"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": ["string", "null"] },
+        "corr": { "type": "number" },
+        "mse": { "type": "number" },
+        "scale": { "type": "number" },
+        "offset": { "type": "number" }
+      },
+      "additionalProperties": true
+    },
+    "combination": {
+      "type": "object",
+      "required": ["ids", "names", "coeffs", "shifts", "length", "score", "expression"],
+      "properties": {
+        "ids": { "type": "array", "items": { "type": "string" }, "minItems": 2, "maxItems": 3 },
+        "names": { "type": "array", "items": { "type": ["string", "null"] }, "minItems": 2, "maxItems": 3 },
+        "coeffs": { "type": "array", "items": { "type": "string" } },
+        "shifts": { "type": "array", "items": { "type": "integer" } },
+        "length": { "type": "integer" },
+        "score": { "type": "number" },
+        "expression": { "type": "string" },
+        "component_transforms": { "type": "array", "items": { "type": "string" } },
+        "component_terms": { "type": "array", "items": { "type": "array", "items": { "type": "integer" } } },
+        "combined_terms": { "type": "array", "items": { "type": "integer" } }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
+

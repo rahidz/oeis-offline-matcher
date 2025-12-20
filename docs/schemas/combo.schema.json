@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "oeis combo --json output schema",
+  "type": "object",
+  "required": [
+    "query",
+    "combinations",
+    "triple_combinations",
+    "pointwise_combinations",
+    "convolution_combinations"
+  ],
+  "properties": {
+    "query": {
+      "type": "array",
+      "items": { "type": ["integer", "null"] }
+    },
+    "combinations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/combination" }
+    },
+    "triple_combinations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/combination" }
+    },
+    "pointwise_combinations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/combination" }
+    },
+    "convolution_combinations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/combination" }
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "combination": {
+      "type": "object",
+      "required": ["ids", "names", "coeffs", "shifts", "length", "score", "expression"],
+      "properties": {
+        "ids": { "type": "array", "items": { "type": "string" }, "minItems": 2, "maxItems": 3 },
+        "names": { "type": "array", "items": { "type": ["string", "null"] }, "minItems": 2, "maxItems": 3 },
+        "coeffs": { "type": "array", "items": { "type": "string" } },
+        "shifts": { "type": "array", "items": { "type": "integer" } },
+        "length": { "type": "integer" },
+        "score": { "type": "number" },
+        "expression": { "type": "string" },
+        "component_transforms": { "type": "array", "items": { "type": "string" } },
+        "component_terms": { "type": "array", "items": { "type": "array", "items": { "type": "integer" } } },
+        "combined_terms": { "type": "array", "items": { "type": "integer" } }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

@@ -174,12 +174,121 @@ def init_db(db_path: Path) -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_length ON sequences(length)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_gcd ON sequences(gcd_val)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_sign ON sequences(sign_pattern)")
+        # Composite indexes to avoid expensive ORDER BY temp B-trees in broad
+        # invariant-filtered scans (e.g., sign_pattern='nonneg' with ORDER BY id).
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_sign_id ON sequences(sign_pattern, id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_first_diff ON sequences(first_diff_sign)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_first_diff_id ON sequences(first_diff_sign, id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_nonzero ON sequences(nonzero_count)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_growth ON sequences(growth_rate)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_var ON sequences(var)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_diff_var ON sequences(diff_var)")
         conn.commit()
+
+
+def ensure_db_indexes(db_path: Path, *, analyze: bool = False) -> dict[str, object]:
+    """
+    Create any missing SQLite indexes needed for good runtime performance.
+
+    Safe to run repeatedly; uses CREATE INDEX IF NOT EXISTS.
+    Returns a small diagnostics payload suitable for CLI/JSON output.
+    """
+
+    def _index_names(conn: sqlite3.Connection) -> set[str]:
+        rows = conn.execute("PRAGMA index_list(sequences)").fetchall()
+        # row format: (seq, name, unique, origin, partial) for modern sqlite
+        return {str(r[1]) for r in rows if len(r) > 1 and r[1]}
+
+    with sqlite3.connect(db_path) as conn:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(sequences)").fetchall()}
+
+        def has_col(name: str) -> bool:
+            return name in cols
+
+        before = _index_names(conn)
+
+        if has_col("prefix5"):
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_prefix5 ON sequences(prefix5)")
+        if has_col("length"):
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_length ON sequences(length)")
+        if has_col("gcd_val"):
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_gcd ON sequences(gcd_val)")
+        if has_col("sign_pattern"):
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_sign ON sequences(sign_pattern)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_sign_id ON sequences(sign_pattern, id)")
+        if has_col("first_diff_sign"):
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_first_diff ON sequences(first_diff_sign)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_first_diff_id ON sequences(first_diff_sign, id)")
+        if has_col("nonzero_count"):
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_nonzero ON sequences(nonzero_count)")
+        if has_col("growth_rate"):
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_growth ON sequences(growth_rate)")
+        if has_col("var"):
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_var ON sequences(var)")
+        if has_col("diff_var"):
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_diff_var ON sequences(diff_var)")
+
+        if analyze:
+            conn.execute("ANALYZE")
+
+        conn.commit()
+        after = _index_names(conn)
+
+    created = sorted(after - before)
+    missing_cols = sorted(
+        [c for c in ("prefix5", "length", "gcd_val", "sign_pattern", "first_diff_sign", "nonzero_count", "growth_rate", "var", "diff_var") if c not in cols]
+    )
+
+    return {
+        "db": str(Path(db_path)),
+        "created": created,
+        "already_present": sorted(before & after),
+        "missing_columns": missing_cols,
+        "analyzed": bool(analyze),
+    }
+
+
+def missing_recommended_indexes(db_path: Path) -> list[str]:
+    """
+    Return a list of recommended index names that are missing on `db_path`.
+
+    This is a lightweight diagnostic helper used by the CLI to suggest running
+    `oeis optimize-db` when the DB was built by an older version of the tool.
+    It does NOT create any indexes (unlike `ensure_db_indexes`).
+    """
+
+    def _index_names(conn: sqlite3.Connection) -> set[str]:
+        rows = conn.execute("PRAGMA index_list(sequences)").fetchall()
+        return {str(r[1]) for r in rows if len(r) > 1 and r[1]}
+
+    with sqlite3.connect(db_path) as conn:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(sequences)").fetchall()}
+        have = _index_names(conn)
+
+    required: set[str] = set()
+    if "prefix5" in cols:
+        required.add("idx_prefix5")
+    if "length" in cols:
+        required.add("idx_length")
+    if "gcd_val" in cols:
+        required.add("idx_gcd")
+    if "sign_pattern" in cols:
+        required.add("idx_sign")
+        required.add("idx_sign_id")
+    if "first_diff_sign" in cols:
+        required.add("idx_first_diff")
+        required.add("idx_first_diff_id")
+    if "nonzero_count" in cols:
+        required.add("idx_nonzero")
+    if "growth_rate" in cols:
+        required.add("idx_growth")
+    if "var" in cols:
+        required.add("idx_var")
+    if "diff_var" in cols:
+        required.add("idx_diff_var")
+
+    missing = sorted(required - have)
+    return missing
 
 
 def write_records(records: Iterable[SequenceRecord], db_path: Path, *, batch_size: int = 5000) -> int:
@@ -261,7 +370,9 @@ def iter_sequences(db_path: Path) -> Iterator[SequenceRecord]:
         if has_formula_flag:
             select_fields.append("has_formula")
         select = ", ".join(select_fields)
-        for row in conn.execute(f"SELECT {select} FROM sequences"):
+        # Deterministic ordering matters for reproducibility and for "best-effort"
+        # time-capped searches that may stop early.
+        for row in conn.execute(f"SELECT {select} FROM sequences ORDER BY id ASC"):
             terms = [int(x) for x in row["terms"].split(",")] if row["terms"] else []
             offset = None
             if has_off and row["offset0"] is not None:
@@ -284,6 +395,55 @@ def iter_sequences(db_path: Path) -> Iterator[SequenceRecord]:
             )
 
 
+def get_sequence_by_id(db_path: Path, seq_id: str) -> SequenceRecord | None:
+    """
+    Fetch a single SequenceRecord by OEIS id (e.g., "A000045"), or None if missing.
+
+    Intended for CLI features like "seed these candidates" without requiring a full scan.
+    """
+    if not seq_id:
+        return None
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        has_kw = _has_column(conn, "keywords")
+        has_off = _has_column(conn, "offset0")
+        has_formula_flag = _has_column(conn, "has_formula")
+        has_formula_text = _has_column(conn, "formula")
+        select_fields = ["id", "terms", "length", "name"]
+        if has_formula_text:
+            select_fields.append("formula")
+        if has_kw:
+            select_fields.append("keywords")
+        if has_off:
+            select_fields.extend(["offset0", "offset1"])
+        if has_formula_flag:
+            select_fields.append("has_formula")
+        select = ", ".join(select_fields)
+        row = conn.execute(f"SELECT {select} FROM sequences WHERE id = ?", (seq_id,)).fetchone()
+        if not row:
+            return None
+        terms = [int(x) for x in row["terms"].split(",")] if row["terms"] else []
+        offset = None
+        if has_off and row["offset0"] is not None:
+            offset = (int(row["offset0"]), int(row["offset1"]) if "offset1" in row.keys() else None)
+        formula_val = row["formula"] if has_formula_text else None
+        has_formula_val = None
+        if has_formula_flag and "has_formula" in row.keys() and row["has_formula"] is not None:
+            has_formula_val = bool(row["has_formula"])
+        elif formula_val:
+            has_formula_val = True
+        return SequenceRecord(
+            id=row["id"],
+            terms=terms,
+            length=row["length"],
+            name=row["name"],
+            formula=formula_val,
+            keywords=row["keywords"].split(",") if has_kw and row["keywords"] else None,
+            offset=offset,
+            has_formula=has_formula_val,
+        )
+
+
 def iter_sequences_filtered(
     db_path: Path,
     *,
@@ -299,6 +459,8 @@ def iter_sequences_filtered(
     diff_var_max: float | None = None,
     growth_min: float | None = None,
     growth_max: float | None = None,
+    order_by_length_distance_to: int | None = None,
+    limit: int | None = None,
 ) -> Iterator[SequenceRecord]:
     """
     Stream sequences filtered by stored invariants.
@@ -312,6 +474,9 @@ def iter_sequences_filtered(
         has_off = _has_column(conn, "offset0")
         has_formula_flag = _has_column(conn, "has_formula")
         has_formula_text = _has_column(conn, "formula")
+        has_sign = _has_column(conn, "sign_pattern")
+        has_first_diff = _has_column(conn, "first_diff_sign")
+        has_nonzero = _has_column(conn, "nonzero_count")
         # Drop variance/growth filters if columns not present (older DBs)
         if not has_var:
             var_min = var_max = None
@@ -319,6 +484,12 @@ def iter_sequences_filtered(
             diff_var_min = diff_var_max = None
         if not has_growth:
             growth_min = growth_max = None
+        if not has_sign:
+            sign_pattern = None
+        if not has_first_diff:
+            first_diff_sign = None
+        if not has_nonzero:
+            nonzero_min = nonzero_max = None
 
         clauses = []
         params: list = []
@@ -375,6 +546,18 @@ def iter_sequences_filtered(
         select = ", ".join(select_fields)
         query = f"SELECT {select} FROM sequences {where}"
 
+        if order_by_length_distance_to is not None:
+            # Deterministic ordering (id tie-break) is important for reproducibility/tests.
+            query += " ORDER BY ABS(length - ?) ASC, id ASC"
+            params.append(int(order_by_length_distance_to))
+        else:
+            # Keep output deterministic when using invariants-only filters.
+            query += " ORDER BY id ASC"
+
+        if limit is not None:
+            query += " LIMIT ?"
+            params.append(int(limit))
+
         for row in conn.execute(query, params):
             terms = [int(x) for x in row["terms"].split(",")] if row["terms"] else []
             offset = None
@@ -400,14 +583,19 @@ def iter_sequences_filtered(
 
 def iter_sequences_by_prefix(db_path: Path, prefix_terms: list[int]) -> Iterator[SequenceRecord]:
     """
-    Stream sequences whose first 5 terms match the provided prefix (length>=5).
-    Falls back to iter_sequences if prefix is too short.
+    Stream sequences whose prefix matches the provided terms.
+
+    Implementation notes:
+    - For prefix length >= 5, this uses exact equality on the stored `prefix5` column.
+    - For shorter prefixes (1..4), this uses `prefix5 = ? OR prefix5 LIKE ?` to still
+      leverage the `idx_prefix5` index (e.g., matching "1,1,1,1,%").
     """
-    if len(prefix_terms) < 5:
+    if not prefix_terms:
         yield from iter_sequences(db_path)
         return
 
-    prefix5 = ",".join(str(t) for t in prefix_terms[:5])
+    prefix_len = min(len(prefix_terms), 5)
+    prefix_txt = ",".join(str(t) for t in prefix_terms[:prefix_len])
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
         has_kw = _has_column(conn, "keywords")
@@ -424,9 +612,18 @@ def iter_sequences_by_prefix(db_path: Path, prefix_terms: list[int]) -> Iterator
         if has_formula_flag:
             select_fields.append("has_formula")
         select = ", ".join(select_fields)
-        for row in conn.execute(
-            f"SELECT {select} FROM sequences WHERE prefix5 = ?", (prefix5,)
-        ):
+        if prefix_len >= 5:
+            where = "prefix5 = ?"
+            params = (prefix_txt,)
+        else:
+            # Include:
+            # - short stored sequences where prefix5 == prefix_txt (length < 5),
+            # - normal sequences where prefix5 starts with "prefix_txt,".
+            start = prefix_txt + ","
+            end = prefix_txt + ",\uffff"
+            where = "(prefix5 = ? OR (prefix5 >= ? AND prefix5 < ?))"
+            params = (prefix_txt, start, end)
+        for row in conn.execute(f"SELECT {select} FROM sequences WHERE {where} ORDER BY id", params):
             terms = [int(x) for x in row["terms"].split(",")] if row["terms"] else []
             offset = None
             if has_off and row["offset0"] is not None:
@@ -456,6 +653,49 @@ def db_stats(db_path: Path) -> Optional[dict]:
         cur = conn.execute("SELECT COUNT(*), MIN(length), MAX(length) FROM sequences")
         count, min_len, max_len = cur.fetchone()
         return {"count": count, "min_length": min_len, "max_length": max_len}
+
+
+_INVARIANT_STATS_CACHE: dict[str, dict] = {}
+
+
+def invariant_stats(db_path: Path) -> dict:
+    """
+    Return coarse histograms over a few stored invariants.
+
+    Intended for scoring heuristics like "rarity of invariants" without scanning
+    the full DB per query.
+    """
+    key = str(Path(db_path).resolve())
+    cached = _INVARIANT_STATS_CACHE.get(key)
+    if cached is not None:
+        return cached
+
+    stats: dict[str, object] = {"total": 0, "sign_pattern": {}, "first_diff_sign": {}}
+    if not Path(db_path).exists():
+        _INVARIANT_STATS_CACHE[key] = stats
+        return stats
+
+    with sqlite3.connect(db_path) as conn:
+        total = conn.execute("SELECT COUNT(*) FROM sequences").fetchone()[0]
+        stats["total"] = int(total or 0)
+
+        if _has_column(conn, "sign_pattern"):
+            sign_counts = {
+                str(sp): int(n)
+                for sp, n in conn.execute("SELECT sign_pattern, COUNT(*) FROM sequences GROUP BY sign_pattern")
+                if sp is not None
+            }
+            stats["sign_pattern"] = sign_counts
+        if _has_column(conn, "first_diff_sign"):
+            diff_counts = {
+                str(fd): int(n)
+                for fd, n in conn.execute("SELECT first_diff_sign, COUNT(*) FROM sequences GROUP BY first_diff_sign")
+                if fd is not None
+            }
+            stats["first_diff_sign"] = diff_counts
+
+    _INVARIANT_STATS_CACHE[key] = stats
+    return stats
 
 
 def _has_column(conn: sqlite3.Connection, column: str) -> bool:

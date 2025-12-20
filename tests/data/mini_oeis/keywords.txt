@@ -3,3 +3,5 @@ A000027 nonn,easy
 A000012 easy
 A000040 nonn,hard
 A000290 nonn,easy
+A001477 nonn,easy
+A002378 nonn,easy

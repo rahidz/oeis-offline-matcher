@@ -1,158 +1,195 @@
 # OEIS Offline Matcher
 
-Python-based offline helper inspired by OEIS Superseeker. It downloads a local snapshot of OEIS data, builds lightweight indexes, and matches user-provided integer sequences against:
-- Direct OEIS entries (exact, prefix, subsequence).
-- (Planned) transformations of a single sequence (e.g., scale, shift, diff, partial sums).
-- (Planned) small linear combinations of a few sequences with simple transforms.
+Offline helper inspired by OEIS Superseeker.
+
+It downloads an OEIS snapshot once, builds a local SQLite index, then lets you paste a numeric sequence and search for:
+- Exact/prefix/subsequence OEIS matches.
+- Transform matches (scale/affine, shifts, diffs/partial sums, digit/mod/arithmetical-function transforms, etc.).
+- Combination matches:
+  - Linear combinations of 2–3 sequences with small integer (or optional rational) coefficients and shifts.
+  - Pointwise operations (mul/gcd/lcm).
+  - Cauchy and Dirichlet convolutions (guarded by strict caps).
+  - Optional expanded “DB-wide” pair/triple fallback using a prefix index (enabled in `--preset max`).
+
+After the initial `oeis sync` + `oeis build-index`, analysis runs fully offline.
 
 ## Status
-Early scaffolding. See `TODO.md` for the detailed roadmap.
+Works end-to-end; still actively tuning scoring and performance heuristics. See `TODO.md` for the roadmap.
 
 ## Quick Start
+
 ```bash
 python -m venv .venv
 . .venv/bin/activate
 pip install -e .
 
-# Download raw OEIS exports (once, cached in data/raw)
-scripts/fetch_oeis_data.sh
-# Optional: also clone oeisdata mirror (more metadata, slower download)
-scripts/fetch_oeis_data.sh --clone-oeisdata
-# Python alternative (no bash dependency)
+# Download raw OEIS exports (cached in data/raw)
 oeis sync
-# Offline/sandboxed? `oeis sync --stripped /tmp/stripped.gz --names /tmp/names.gz`
-# accepts local paths or file:// URIs and will simply copy the files.
-# FORMULA text is ingested automatically if you provide `--formulas` or clone `oeisdata` (uses seq/FORMULA).
+# Optional bash alternative:
+#   scripts/fetch_oeis_data.sh
+#   scripts/fetch_oeis_data.sh --clone-oeisdata
 
 # Build SQLite index in data/processed/oeis.db
 oeis build-index
 
-# Match a sequence (prefix by default)
-oeis match "0,1,1,2,3,5,8"
-# Include stored FORMULA text when available
-oeis match "0,1,1,2,3,5,8" --show-formula
+# If you built your DB with an older version, you can add newer performance
+# indexes in-place (one-time, safe to re-run):
+oeis optimize-db --db data/processed/oeis.db
+# If you see a CLI warning like "DB is missing recommended index(es)", run the command above.
 
-# Allow subsequence search (auto-fallback runs if no prefix hit)
-oeis match "2,3,5" --subsequence --limit 5
+# Full pipeline (exact + transforms + similarity + combos), “find everything”
+# - Streams results as they are found
+# - Includes expanded DB-wide combo fallback
+# - Uses a long total runtime budget (see --total-max-time)
+oeis analyze "5,17,103,1011,10042" --preset max
 
-# Show first 8 terms of each hit
-oeis match "0,1,1,2,3,5,8" --show-terms 8
+# Prefer a single consolidated report?
+oeis analyze "5,17,103,1011,10042" --preset max --no-stream
 
-# Transform search (scale/shift/diff/sum/abs up to depth 2 by default)
-oeis tsearch "1,2,3,4,5"
-oeis tsearch "1,2,3,4,5" --max-time 1.5   # cap transform search runtime
-oeis tsearch "1,2,3,4,5" --min-score 1.5  # drop weak/degenerate transforms
+# Hard cap the entire pipeline runtime (seconds)
+oeis analyze "5,17,103,1011,10042" --preset max --total-max-time 600
 
-# Extra transforms (diff^2, cumprod, popcount/digitsum, mod, reverse, even/odd, movsumN, binomial/euler/mobius, omega/bigomega/tau/sigma/phi/v2,
-# index-based: squares/primes/powers-of-2/factorials, rle/rledec, concat, log/exp)
-oeis tsearch "1,2,3,4" --extra-transforms "diff2,cumprod,reverse,binomial,mobius,movsum4,digitsum10,mod2,rle,concat,log2,exp2,omega,bigomega,tau,sigma,phi,v2,indexsquare,primeindex,indexpow2,indexfactorial"
+# Combo-only mode (pairs/triples/pointwise/convolution), “find combinations”
+# Note: `--preset max` enables streaming + expanded fallback + a long total budget (default ~1 hour).
+oeis combo "5,17,103,1011,10042" --preset max --triples 10
 
-# Presets: fast, deep, or max (override many knobs)
-oeis analyze "1,2,3,4,5" --preset fast
-oeis analyze "1,2,3,4,5" --preset deep --json
-oeis analyze "1,2,3,4,5" --preset max   # “find everything”: deeper transforms, combos+triples, wide limits, ~10 min caps
+# Hard cap the entire combo pipeline runtime (seconds)
+oeis combo "5,17,103,1011,10042" --preset max --triples 10 --total-max-time 600
 ```
 
-### What the presets mean (plain English)
-- **fast** – quickest skim. Single-step transforms, small candidate/combination pools, short timeouts. Good for “is there an obvious hit?” moments.
-- **deep** – broader but still everyday-friendly. Two-step transforms, wider scale/shift ranges, decimation/reverse/etc., modest combo/triple search with multi-second caps.
-- **max** – exhaustive mode. Deep transforms plus combo/triple search with large candidate pools and long (~minutes) time budgets. Use when you really need to dredge everything up and don’t mind waiting.
+## Self-check (regressions + random sanity)
+
+If you want a quick “did I build the DB correctly?” check:
 
 ```bash
+# Runs `docs/regressions.json` (fast, deterministic)
+oeis selfcheck --db data/processed/oeis.db
 
-# Two-sequence integer combinations and pointwise/convolution operations (experimental)
-oeis combo "3,5,7,9,11" --coeffs "1,2" --candidates 40 --max-shift 1 --max-shift-back 0 --max-checks 200000
-oeis combo "2,3,4,5" --rational  # solve coefficients over rationals (pairs)
-oeis combo "2,10,100,1004,9991" --coeffs "1,1" --combo-unfiltered  # wider candidate pool for mismatched prefixes
-# Pointwise ops (products, gcd, lcm)
-oeis combo "2,6,12,20" --pointwise-ops "mul,gcd,lcm" --max-shift 1 --candidates 40
-# Convolutions (Cauchy/Dirichlet) under strong caps
-oeis combo "1,3,6,10" --convolution-ops "cauchy" --candidates 40 --max-checks 50000
+# Also run random combo recovery trials (deterministic given --seed)
+oeis selfcheck --db data/processed/oeis.db --random-trials 20 --seed 1
+```
 
-# Full pipeline (exact + transforms) with JSON output
-oeis analyze "1,2,3,4,5" --json
+Notes:
+- Random trials need a reasonably sized DB; for very small/custom DBs, pass `--min-length` lower.
+- For custom DBs that don’t include the regression A-numbers, use `--no-regressions`.
 
-# Full pipeline including combination search (experimental)
-oeis analyze "3,5,7,9,11" --combos 5 --combo-coeffs "1,2" --combo-max-shift 1 --combo-max-checks 200000
-oeis analyze "3,5,7,9,11" --combos 5 --combo-max-shift 1 --combo-max-shift-back 1 --timings
-oeis analyze "3,5,7,9,11" --combos 5 --combo-min-score 1.0  # filter low-confidence combos
-oeis analyze "1,2,3,4,5" --transform-max-time 2.0  # cap transform stage
-# Pointwise + convolution combos in the analyze pipeline
-oeis analyze "2,6,12,20" --preset max --combos 3 --pointwise-ops "mul,gcd" --pointwise-limit 3
-oeis analyze "1,3,6,10" --preset max --convolution-ops "cauchy,dirichlet" --convolution-limit 3
+## Presets
 
-# Three-sequence combinations (experimental, slower)
-oeis analyze "2,1,0,-1,-2" --triples 3 --combo-coeffs "1,-1" --triple-max-checks 200000
+Presets are `fast`, `deep`, `max`.
 
-# Per-component transforms in combos (diff/partial_sum)
-oeis combo "1,1,1,1" --coeffs "1,0" --component-transforms "diff,id"
+Important: presets are implemented by expanding `--preset NAME` into explicit flags inserted before your flags, so anything you pass explicitly afterwards overrides the preset. Example:
 
-# Presets (fast|deep|max) include combo/time caps
-oeis analyze "2,1,0,-1,-2" --preset fast --triples 0
-oeis analyze "2,1,0,-1,-2" --preset deep
-oeis analyze "2,10,100,1004,9991" --preset max --combo-unfiltered   # exhaustive search including mismatched prefixes
+```bash
+# preset max normally enables combos/triples/expanded fallback
+oeis analyze "5,17,103,1011,10042" --preset max --combos 0 --triples 0 --no-combo-expanded
+```
 
-# Include similarity-ranked candidates
-oeis match "1,2,3,4,5" --similar 5 --min-corr 0.9 --variance-band 20 --growth-band 3 --json
+### What they mean (plain English)
+- **fast**: quick skim (small search space, short timeouts).
+- **deep**: broader, still “everyday” friendly.
+- **max**: “find everything” mode. Long total budget (up to ~1 hour by default), large candidate pools, expanded DB-wide combo fallback, and streaming output by default.
 
-# Python library usage (see `src/oeis_matcher/api.py`)
->>> from oeis_matcher.api import analyze_sequence
->>> analyze_sequence("0,1,1,2", combos=0, similarity=3)["exact_matches"][0]["id"]
-'A000045'
->>> analyze_sequence("0,1,1,2", as_dataclass=True).exact_matches[0].id
-'A000045'
+## Combination Search
 
-# Transform explanations now include human readable text
-oeis tsearch "1,2,3,4,5" --json | jq '.matches[0].explanation'
+### Candidate-pool search (fast path)
+`oeis combo` and `oeis analyze` primarily work by building a candidate bucket (exact-ish + similarity-ish sequences), then trying combinations within that bucket. This is the only approach that’s remotely practical for triples in general.
 
-# LaTeX-ish transform renderings
-oeis tsearch "1,2,3,4,5" --json | jq '.matches[0].latex'
+Note: the candidate bucket is also automatically seeded with a small set of “building block” sequences (zeros, ones, n, n+1, squares). This helps the tool discover explanations like `n^2 + n` or `n*(n+1)` even when those components don’t resemble the query’s prefix.
 
-# Show terms for matches (transforms include transformed terms; combos include component/result)
-oeis analyze "2,10,100,1004,9991" --combos 3 --combo-unfiltered --show-terms 10
+Also note: two-sequence combo search can reuse the *same* OEIS sequence more than once (with different shifts and/or per-component transforms). This lets it discover “self-shift” identities like:
+- `Lucas(n) = Fibonacci(n-1) + Fibonacci(n+1)`
+
+Under `--preset max`, combo/pointwise/convolution searches also enable simple per-component transforms (`id,diff,partial_sum`) and allow a small backward-shift window. This is slower, but can uncover more “explanation-style” decompositions.
+
+For pointwise and convolution matches, the tool also avoids redundant commutative duplicates when streaming (e.g. it won’t print both `A(n)*diff(A(n))` and `diff(A(n))*A(n)` for the same underlying self-pair).
+
+Ordering note: in streaming mode, triple search is scheduled after pair/pointwise/convolution searches to improve time-to-first-hit (triple search can be much more expensive).
+
+Triple search note: even when you enable shifts/transforms, the triple solver starts with a fast, shift=0 + transform=id prefix-hash pass to surface “plain” decompositions early, then falls back to the slower general search for shifted/transformed triples.
+
+### Expanded DB-wide fallback (slower, catches mismatched components)
+Sometimes the components don’t resemble the target query at all. In those cases, `--expanded` (or `--preset max`) enables an expanded fallback that uses the DB-wide prefix index to search pairs/triples without needing you to know the component A-numbers.
+
+Note: the expanded fallback builds an in-memory prefix index from your SQLite DB (typically sub-second on a full snapshot). It requires at least 5 query terms, and it is bounded by `--expanded-max-time` and the global `--total-max-time`.
+In streaming mode, expanded pair fallback is deferred until after the regular candidate-bucket stages (including triples/pointwise/convolution) to improve time-to-first-hit.
+
+Examples:
+
+```bash
+# Two/three-sequence combos
+oeis combo "5,17,103,1011,10042" --triples 10
+
+# Stream combo hits as they’re found (enabled by `--preset max`)
+oeis combo "5,17,103,1011,10042" --preset max --triples 10
+
+# Expanded fallback if regular search finds nothing
+oeis combo "5,17,103,1011,10042" --triples 10 --expanded --expanded-max-time 30
+
+# Full pipeline with expanded fallback (enabled by preset max)
+oeis analyze "5,17,103,1011,10042" --preset max
+```
+
+### Reality check: exhaustive triples
+Exhaustively testing “all triples of all OEIS sequences” is not feasible.
+
+Pairs are *much* more tractable: the expanded pair fallback is close to an exhaustive scan (for shift=0, transform=id)
+because the prefix index turns “find A + B = Q” into a mostly linear pass with fast lookups (still bounded by time caps).
+
+The tool keeps triples reasonable by:
+- Using candidate-bucket search first (strong pruning).
+- Using strict caps (`--max-checks`, `--*-max-time`, `--total-max-time`).
+- Only attempting expanded DB-wide fallback under `max` (and still time-capped).
+
+## Useful Flags
+
+```bash
+# Show per-stage timing
+oeis analyze "1,2,3,4,5" --preset deep --timings
+
+# Cap the whole pipeline runtime
+oeis analyze "1,2,3,4,5" --preset max --total-max-time 120
+
+# Timings for combo-only runs
+oeis combo "1,2,3,4,5" --preset max --timings --total-max-time 120
+
+# Disable expanded combo fallback (faster)
+oeis analyze "1,2,3,4,5" --preset max --no-combo-expanded
+
+# Disable the very-wide candidate pool used in max
+oeis analyze "1,2,3,4,5" --preset max --no-combo-unfiltered
+
+# Stream transform hits as they are found (enabled by `--preset max`)
+oeis tsearch "1,2,3,4,5" --preset max --stream
+
+# Machine-readable output
+oeis analyze "1,2,3,4,5" --preset max --json > out.json
+# Schemas: docs/schemas/analyze.schema.json, docs/schemas/combo.schema.json
 ```
 
 ## Architecture
 See `docs/architecture.md` for the current data flow, storage schema, and key structures.
 
 ## FAQ
-See `docs/FAQ.md` for common questions, limits, and performance tips.
+See `docs/FAQ.md` for limits and performance tips.
 
-## Benchmark
-Run `scripts/bench.py` (after building the DB) to time common query paths on your machine. You can tweak presets/limits if it's too slow.
-Run `scripts/bench_build.py --stripped data/raw/stripped.gz --names data/raw/names.gz --keywords data/raw/keywords.txt --db /tmp/oeis_bench.db` to measure build time/size.
-Use `scripts/profile_matchers.py --profile out.pstats --sort tottime` to capture hotspots for a specific case (`--case "Transform naturals"`).
+## Benchmarks / Profiling
+- `scripts/bench.py` times a few common cases (after building the DB).
+- `scripts/bench_sweep.py --repeats 5` runs small sweeps (transform families/depth, combo bucket size/shift ranges).
+- `scripts/bench_build.py --stripped data/raw/stripped.gz --names data/raw/names.gz --keywords data/raw/keywords.txt --db /tmp/oeis_bench.db` measures build time/size.
+- `scripts/profile_matchers.py --profile out.pstats --sort tottime` helps identify hotspots for specific cases.
+- `scripts/validate_random_combos.py --db data/processed/oeis.db --trials 20` runs random sanity checks for pair/triple combo recovery (requires a built DB).
+- `scripts/validate_random_combos.py --db data/processed/oeis.db --trials 20 --pointwise-trials 20 --convolution-trials 20` also checks pointwise and convolution combos.
+- `oeis selfcheck --db data/processed/oeis.db --random-trials 20` runs regressions + random combo trials in one command.
+- `oeis selfcheck --db data/processed/oeis.db --pointwise-trials 20 --convolution-trials 20` adds random pointwise/convolution sanity checks.
+- `docs/notebook_regressions.ipynb` runs `docs/regressions.json` as a full-pipeline regression check (requires a built DB).
+- Bench numbers live in `docs/benchmarks.md`.
 
-## Notebook quickstart (optional)
-If you prefer notebooks, create `.venv`, install `jupyter`, then:
-```bash
-python -m venv .venv
-. .venv/bin/activate
-pip install -e .
-pip install jupyter
-jupyter notebook
-```
-Use the Python examples from above inside a notebook cell to explore results.
-
-## Attribution
-OEIS content © The OEIS Foundation Inc., distributed under CC BY-SA 4.0. Include proper attribution and share-alike when redistributing derived outputs.
-
-## Mini test fixture
-For quick offline checks, see `tests/data/mini_oeis` with stripped/names/keywords plus `tests/test_integration_mini_oeis.py` that exercises exact/transform/combo paths.
 ## Configuration
 - Optional `config.toml` (see `config.example.toml`) controls default paths and limits.
 - Environment overrides:
   - `OEIS_STRIPPED_PATH`, `OEIS_NAMES_PATH`, `OEIS_DB_PATH`
   - `OEIS_MAX_TERMS`, `OEIS_MAX_RESULTS`
   - `OEIS_MATCHER_CONFIG` to point at an alternate TOML file
-  - Wildcards: parser allows `?/*` but caps wildcards to avoid overbroad queries.
-  - Offsets/formulas: if you clone `oeisdata`, the builder will ingest `seq/OFFSET` and `seq/FORMULA` for ranking bonuses.
 
-## Design Notes
-- Language: Python 3.11+
-- Data lives in `data/raw` (downloaded `stripped.gz`, `names.gz`) and `data/processed` (parsed/indexed artifacts).
-- Configuration: `config.toml` (optional) plus env overrides for paths/limits.
-- Storage: simple SQLite with invariants (prefix5 hash, min/max, gcd, monotonic flags, sign pattern, nonzero count, first-diff sign). Easy to evolve later.
-
-## License Notice
-OEIS data is licensed under CC BY-SA 4.0. Keep attribution and share-alike when redistributing data or outputs derived from OEIS content. See <https://oeis.org/LICENSE> and `LICENSE_OEIS.md`.
+## Attribution / License Notice
+OEIS data is CC BY-SA 4.0. Include proper attribution and share-alike when redistributing data or outputs derived from OEIS content. See `LICENSE_OEIS.md`.

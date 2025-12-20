@@ -5,6 +5,7 @@ from oeis_matcher.combination_search import (
     search_two_sequence_combinations,
     search_pointwise_two_sequence_combinations,
     search_convolution_two_sequence_combinations,
+    resolve_component_transforms,
 )
 from oeis_matcher.query import parse_query
 from oeis_matcher.storage import iter_sequences
@@ -327,7 +328,6 @@ def test_real_combo_lucas_from_fibonacci(tmp_path: Path):
         "\n".join(
             [
                 "A000045 0,1,1,2,3,5,8,13",
-                "A999011 0,1,1,2,3,5,8,13",  # fib copy to allow two-sequence combo
                 "A000204 2,1,3,4,7,11,18,29",  # Lucas numbers
             ]
         ),
@@ -337,7 +337,6 @@ def test_real_combo_lucas_from_fibonacci(tmp_path: Path):
         "\n".join(
             [
                 "A000045 Fibonacci",
-                "A999011 Fibonacci copy",
                 "A000204 Lucas",
             ]
         ),
@@ -352,8 +351,8 @@ def test_real_combo_lucas_from_fibonacci(tmp_path: Path):
     combos = search_two_sequence_combinations(
         query,
         candidates,
-        coeffs=(-3, -2, -1, 1, 2, 3),
-        max_shift=0,
+        coeffs=(1,),
+        max_shift=1,
         max_shift_back=1,
         limit=5,
     )
@@ -361,9 +360,10 @@ def test_real_combo_lucas_from_fibonacci(tmp_path: Path):
     hits = [
         c
         for c in combos
-        if c.ids == ("A000045", "A999011")
-        and set(c.coeffs) == {1, 2}
-        and (c.shifts in {(0, -1), (-1, 0)})
+        if c.ids == ("A000045", "A000045")
+        and set(c.coeffs) == {1}
+        and c.shifts == (-1, 1)
+        and c.length == 5
     ]
     assert hits
 def test_rational_coefficients_found(tmp_path: Path):
@@ -423,6 +423,70 @@ def test_pointwise_product_combo(tmp_path: Path):
     assert combos
     match = next(m for m in combos if set(m.ids) == {"A600000", "A600001"})
     assert "*" in match.expression
+
+
+def test_pointwise_gcd_combo(tmp_path: Path):
+    stripped = tmp_path / "stripped_gcd.txt"
+    names = tmp_path / "names_gcd.txt"
+    stripped.write_text(
+        "\n".join(
+            [
+                "A650000 1,2,3,4,5,6",  # n
+                "A650001 2,4,6,8,10,12",  # 2n
+            ]
+        ),
+        encoding="utf-8",
+    )
+    names.write_text("A650000 Naturals\nA650001 Evens\n", encoding="utf-8")
+    db = tmp_path / "oeis_gcd.db"
+    build_index(stripped, names, None, db, max_terms=8)
+
+    # gcd(n, 2n) = n
+    query = parse_query("1,2,3,4,5")
+    candidates = list(iter_sequences(db))
+
+    combos = search_pointwise_two_sequence_combinations(
+        query,
+        candidates,
+        ops=("gcd",),
+        max_shift=0,
+        limit=10,
+        max_candidates=4,
+        max_checks=1000,
+    )
+    assert any(set(m.ids) == {"A650000", "A650001"} and "gcd(" in m.expression for m in combos)
+
+
+def test_pointwise_lcm_combo(tmp_path: Path):
+    stripped = tmp_path / "stripped_lcm.txt"
+    names = tmp_path / "names_lcm.txt"
+    stripped.write_text(
+        "\n".join(
+            [
+                "A660000 1,2,3,4,5,6",  # n
+                "A660001 2,4,6,8,10,12",  # 2n
+            ]
+        ),
+        encoding="utf-8",
+    )
+    names.write_text("A660000 Naturals\nA660001 Evens\n", encoding="utf-8")
+    db = tmp_path / "oeis_lcm.db"
+    build_index(stripped, names, None, db, max_terms=8)
+
+    # lcm(n, 2n) = 2n
+    query = parse_query("2,4,6,8,10")
+    candidates = list(iter_sequences(db))
+
+    combos = search_pointwise_two_sequence_combinations(
+        query,
+        candidates,
+        ops=("lcm",),
+        max_shift=0,
+        limit=10,
+        max_candidates=4,
+        max_checks=1000,
+    )
+    assert any(set(m.ids) == {"A660000", "A660001"} and "lcm(" in m.expression for m in combos)
 
 
 def test_cauchy_convolution_combo(tmp_path: Path):
@@ -491,3 +555,157 @@ def test_dirichlet_convolution_combo(tmp_path: Path):
     assert combos
     ids_pairs = [set(m.ids) for m in combos]
     assert {"A620000", "A620001"} in ids_pairs
+
+
+def test_cauchy_convolution_allows_self_pair(tmp_path: Path):
+    stripped = tmp_path / "stripped_self_cauchy.txt"
+    names = tmp_path / "names_self_cauchy.txt"
+    stripped.write_text(
+        "\n".join(
+            [
+                "A630000 1,1,1,1,1,1,1,1",  # ones
+            ]
+        ),
+        encoding="utf-8",
+    )
+    names.write_text("A630000 Ones\n", encoding="utf-8")
+    db = tmp_path / "oeis_self_cauchy.db"
+    build_index(stripped, names, None, db, max_terms=16)
+
+    # ones * ones (Cauchy) gives 1,2,3,4,...
+    query = parse_query("1,2,3,4,5")
+    candidates = list(iter_sequences(db))
+
+    combos = search_convolution_two_sequence_combinations(
+        query,
+        candidates,
+        ops=("cauchy",),
+        max_length=16,
+        limit=10,
+        max_candidates=2,
+        max_checks=1000,
+    )
+    assert any(m.ids == ("A630000", "A630000") for m in combos)
+
+
+def test_pointwise_mul_allows_self_pair(tmp_path: Path):
+    stripped = tmp_path / "stripped_self_mul.txt"
+    names = tmp_path / "names_self_mul.txt"
+    stripped.write_text(
+        "\n".join(
+            [
+                "A640000 1,2,3,4,5,6,7,8",  # naturals
+            ]
+        ),
+        encoding="utf-8",
+    )
+    names.write_text("A640000 Naturals\n", encoding="utf-8")
+    db = tmp_path / "oeis_self_mul.db"
+    build_index(stripped, names, None, db, max_terms=16)
+
+    # n*n gives squares
+    query = parse_query("1,4,9,16,25")
+    candidates = list(iter_sequences(db))
+
+    combos = search_pointwise_two_sequence_combinations(
+        query,
+        candidates,
+        ops=("mul",),
+        max_shift=0,
+        limit=10,
+        max_candidates=2,
+        max_checks=1000,
+    )
+    assert any(m.ids == ("A640000", "A640000") for m in combos)
+
+
+def test_pointwise_mul_self_pair_dedupes_commutative_transform_swaps(tmp_path: Path):
+    stripped = tmp_path / "stripped_self_mul_dedup.txt"
+    names = tmp_path / "names_self_mul_dedup.txt"
+    stripped.write_text(
+        "\n".join(
+            [
+                "A641000 1,2,3,4,5,6,7,8,9,10,11,12",  # naturals
+            ]
+        ),
+        encoding="utf-8",
+    )
+    names.write_text("A641000 Naturals\n", encoding="utf-8")
+    db = tmp_path / "oeis_self_mul_dedup.db"
+    build_index(stripped, names, None, db, max_terms=32)
+
+    # n * diff(n) == n (because diff(n)=1). Ensure we don't emit both
+    # id(A)*diff(A) and diff(A)*id(A) as separate streamed matches.
+    query = parse_query("1,2,3,4,5")
+    candidates = list(iter_sequences(db))
+    transforms = resolve_component_transforms(["id", "diff"])
+
+    streamed: list[tuple] = []
+
+    def _on_match(m) -> None:
+        streamed.append((m.ids, m.component_transforms, m.shifts, m.expression))
+
+    combos = search_pointwise_two_sequence_combinations(
+        query,
+        candidates,
+        ops=("mul",),
+        max_shift=0,
+        limit=10,
+        max_candidates=2,
+        max_checks=10_000,
+        component_transforms=transforms,
+        on_match=_on_match,
+    )
+    assert combos
+    commutative_swaps = [
+        s
+        for s in streamed
+        if s[0] == ("A641000", "A641000") and set(s[1] or ()) == {"id", "diff"}
+    ]
+    assert len(commutative_swaps) == 1, streamed
+
+
+def test_cauchy_convolution_self_pair_dedupes_commutative_transform_swaps_and_shows_transforms(tmp_path: Path):
+    stripped = tmp_path / "stripped_self_conv_dedup.txt"
+    names = tmp_path / "names_self_conv_dedup.txt"
+    stripped.write_text(
+        "\n".join(
+            [
+                "A642000 1,2,3,4,5,6,7,8,9,10,11,12",  # naturals
+            ]
+        ),
+        encoding="utf-8",
+    )
+    names.write_text("A642000 Naturals\n", encoding="utf-8")
+    db = tmp_path / "oeis_self_conv_dedup.db"
+    build_index(stripped, names, None, db, max_terms=32)
+
+    # Cauchy convolution of naturals with ones gives triangular numbers.
+    query = parse_query("1,3,6,10,15")
+    candidates = list(iter_sequences(db))
+    transforms = resolve_component_transforms(["id", "diff"])
+
+    streamed: list[tuple] = []
+
+    def _on_match(m) -> None:
+        streamed.append((m.ids, m.component_transforms, m.expression))
+
+    combos = search_convolution_two_sequence_combinations(
+        query,
+        candidates,
+        ops=("cauchy",),
+        max_length=16,
+        limit=10,
+        max_candidates=2,
+        max_checks=10_000,
+        component_transforms=transforms,
+        on_match=_on_match,
+    )
+    assert combos
+    commutative_swaps = [
+        s
+        for s in streamed
+        if s[0] == ("A642000", "A642000") and set(s[1] or ()) == {"id", "diff"}
+    ]
+    assert len(commutative_swaps) == 1, streamed
+    assert "diff(" in combos[0].expression

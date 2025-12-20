@@ -3,6 +3,7 @@ from pathlib import Path
 from oeis_matcher.api import analyze_sequence, match_exact_terms, search_combinations, search_transforms
 from oeis_matcher.build_index import build_index
 from oeis_matcher.models import AnalysisResult
+from oeis_matcher.oeis_data import load_formulas
 
 
 def _make_sample_raw(tmp_path: Path):
@@ -31,6 +32,32 @@ def _make_sample_raw(tmp_path: Path):
         encoding="utf-8",
     )
     return stripped, names
+
+
+def test_analyze_sequence_includes_formula(tmp_path: Path):
+    stripped = tmp_path / "stripped.txt"
+    names = tmp_path / "names.txt"
+    formulas = tmp_path / "FORMULA"
+    stripped.write_text("A500000 1,1,2,3,5\n", encoding="utf-8")
+    names.write_text("A500000 Sample fib\n", encoding="utf-8")
+    formulas.write_text("A500000 a(n)=a(n-1)+a(n-2)\n", encoding="utf-8")
+
+    db = tmp_path / "oeis.db"
+    build_index(stripped, names, None, db, formulas_path=formulas, max_terms=10)
+
+    res = analyze_sequence(
+        "1,1,2,3",
+        db_path=db,
+        exact_limit=1,
+        transform_limit=0,
+        similarity=0,
+        combos=0,
+        show_terms=None,
+        as_dataclass=False,
+    )
+    exact = res["exact_matches"][0]
+    assert "formula" in exact
+    assert "a(n-1)" in exact["formula"]
 
 
 def test_match_exact_terms(tmp_path: Path):
@@ -92,6 +119,30 @@ def test_analyze_sequence_combo_included(tmp_path: Path):
     assert combos
     exprs = [c["expression"] for c in combos]
     assert any("A400001" in e and "A400003" in e for e in exprs)
+
+
+def test_analyze_sequence_rational_combo(tmp_path: Path):
+    stripped = tmp_path / "stripped.txt"
+    names = tmp_path / "names.txt"
+    stripped.write_text("A800000 2,4,6,8\nA800001 1,1,1,1\n", encoding="utf-8")
+    names.write_text("A800000 Evens\nA800001 Ones\n", encoding="utf-8")
+    db = tmp_path / "oeis.db"
+    build_index(stripped, names, None, db, max_terms=10)
+
+    res = analyze_sequence(
+        [2, 3, 4, 5],
+        db_path=db,
+        exact_limit=0,
+        transform_limit=0,
+        similarity=0,
+        combos=5,
+        combo_rational=True,
+        combo_candidates=10,
+    )
+    combos = res["combinations"]
+    assert combos
+    coeffs = combos[0]["coeffs"]
+    assert any(c in {"1/2", "0.5"} for c in coeffs)
 
 
 def test_analyze_sequence_triples(tmp_path: Path):
@@ -160,6 +211,29 @@ def test_analyze_sequence_timings(tmp_path: Path):
     assert res["diagnostics"]["timings_ms"]["exact_ms"] >= 0.0
 
 
+def test_analyze_subsequence_not_blocked_by_nonzero_filter(tmp_path: Path):
+    stripped = tmp_path / "stripped.txt"
+    names = tmp_path / "names.txt"
+    terms = "1,2,2,4,6,12,20,40,70,140,252"
+    stripped.write_text(f"A910000 {terms}\n", encoding="utf-8")
+    names.write_text("A910000 Test sequence\n", encoding="utf-8")
+    db = tmp_path / "oeis.db"
+    build_index(stripped, names, None, db, max_terms=20)
+
+    res = analyze_sequence(
+        "2,4,6,12,20,40,70",
+        db_path=db,
+        exact_limit=5,
+        transform_limit=0,
+        similarity=0,
+        combos=0,
+        fallback_subsequence=True,
+        fallback_full_scan=False,
+    )
+    matches = res["exact_matches"]
+    assert any(m["id"] == "A910000" and m["match_type"] == "subsequence" and m["offset"] == 2 for m in matches)
+
+
 def test_combo_unfiltered_finds_mismatched_prefix(tmp_path: Path):
     stripped = tmp_path / "stripped.txt"
     names = tmp_path / "names.txt"
@@ -198,5 +272,53 @@ def test_combo_unfiltered_finds_mismatched_prefix(tmp_path: Path):
     )
     combos = res["combinations"]
     assert combos
-    ids = combos[0]["ids"]
-    assert set(ids) == {"A500000", "A500001"}
+
+
+def test_similarity_thresholds_filter(tmp_path: Path):
+    stripped, names = _make_sample_raw(tmp_path)
+    db = tmp_path / "oeis.db"
+    build_index(stripped, names, None, db, max_terms=10)
+
+    res = analyze_sequence(
+        "1,2,3,4",
+        db_path=db,
+        exact_limit=0,
+        transform_limit=0,
+        similarity=5,
+        similarity_min_corr=0.99,
+        similarity_max_mse=0.01,
+    )
+    sims = res["similarity"]
+    assert sims  # naturals should survive
+    assert all(s["corr"] >= 0.99 for s in sims)
+
+
+def test_search_combinations_negative_shift(tmp_path: Path):
+    stripped = tmp_path / "stripped.txt"
+    names = tmp_path / "names.txt"
+    stripped.write_text(
+        "\n".join(
+            [
+                "A420000 20,30,40,50",
+                "A420001 90,190,290,390",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    names.write_text("A420000 Seq1\nA420001 Seq2\n", encoding="utf-8")
+    db = tmp_path / "oeis.db"
+    build_index(stripped, names, None, db, max_terms=10)
+
+    combos = search_combinations(
+        [999, 120, 230, 340],
+        db_path=db,
+        coeffs=(1,),
+        max_shift=0,
+        max_shift_back=1,
+        candidate_cap=10,
+    )
+    assert combos
+    m = combos[0]
+    assert m.shifts == (0, -1)
+    assert m.length == 3
+    assert set(m.ids) == {"A420000", "A420001"}

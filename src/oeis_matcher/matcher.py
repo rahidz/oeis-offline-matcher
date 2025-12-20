@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sqlite3
+from pathlib import Path
 from typing import Iterable, List, Optional
 from .config import load_config
 from .similarity import growth_rate
@@ -116,6 +118,8 @@ def candidate_sequences(
     loosen_nonzero: bool = False,
     variance_band: float | None = None,
     growth_band: float | None = None,
+    order_by_length_distance_to: int | None = None,
+    limit: int | None = None,
 ) -> Iterable[SequenceRecord]:
     """
     Select an iterator over sequences using prefix index when possible,
@@ -125,8 +129,13 @@ def candidate_sequences(
     if any(t is None for t in terms):
         # Wildcards present: fall back to full scan to avoid over-filtering.
         return iter_sequences(db_path)
-    if use_prefix_index and (not query.allow_subsequence) and len(terms) >= 5:
-        return iter_sequences_by_prefix(db_path, terms)
+    if use_prefix_index and (not query.allow_subsequence) and len(terms) >= 4:
+        seqs = iter_sequences_by_prefix(db_path, terms)
+        if limit is not None:
+            from itertools import islice
+
+            return islice(seqs, int(limit))
+        return seqs
 
     cfg = load_config()
     # Subsequence searches should not filter on absolute nonzero counts, since
@@ -148,6 +157,12 @@ def candidate_sequences(
     # changes). Skip this filter for subsequence searches to avoid false
     # negatives like A063886/A182027-style offsets.
     if query.allow_subsequence:
+        fd = None
+    # "Loosened" candidate selection is used for combo candidate buckets and other
+    # exploratory searches. In these contexts, filtering on the global first-diff
+    # sign often causes false negatives (e.g., Lucas vs Fibonacci in a shifted
+    # self-pair identity), so disable it when loosened.
+    if loosen_nonzero:
         fd = None
     nz = sum(1 for t in terms if t != 0)
     # variance bands (guard against zero/near-zero variance)
@@ -173,6 +188,22 @@ def candidate_sequences(
     if growth_q and growth_q > 0 and growth_band:
         growth_min = growth_q / growth_band
         growth_max = growth_q * growth_band
+    # When running "loosened" searches (subsequence, combo candidate pools, etc.),
+    # avoid applying *lower bounds* on these coarse invariants.
+    #
+    # Rationale:
+    # - Many useful building-block sequences have smaller variance/diff-variance/growth
+    #   than the query (e.g., linear sequences inside a quadratic combo).
+    # - growth_rate in particular is length-dependent for short queries: long stored
+    #   sequences can have much smaller growth_rate even when they share the same
+    #   qualitative growth.
+    #
+    # Keeping only the upper bounds still provides some pruning without the sharp
+    # false-negative behavior.
+    if loosen_nonzero:
+        var_min = None
+        diff_var_min = None
+        growth_min = None
     # nonzero band: allow +/- 50% to avoid over-filtering on short queries
     if loosen_nonzero:
         nz_min = 0
@@ -194,6 +225,8 @@ def candidate_sequences(
         diff_var_max=diff_var_max,
         growth_min=growth_min,
         growth_max=growth_max,
+        order_by_length_distance_to=order_by_length_distance_to,
+        limit=limit,
     )
 
 
@@ -268,3 +301,233 @@ def match_subsequence(query: SequenceQuery, db_path) -> List[Match]:
     q = SequenceQuery(terms=query.terms, min_match_length=query.min_match_length, allow_subsequence=True)
     seq_iter = candidate_sequences(db_path, q)
     return match_exact(q, seq_iter)
+
+
+def _db_has_column(conn: sqlite3.Connection, column: str) -> bool:
+    cur = conn.execute("PRAGMA table_info(sequences)")
+    return any(row[1] == column for row in cur.fetchall())
+
+
+def _parse_terms_prefix(terms_text: str | None, n: int | None) -> list[int] | None:
+    if n is None:
+        return None
+    if not terms_text:
+        return []
+    if n <= 0:
+        return []
+    parts = terms_text.split(",", n)
+    out: list[int] = []
+    for p in parts[:n]:
+        try:
+            out.append(int(p))
+        except ValueError:
+            break
+    return out
+
+
+def _row_to_match(
+    row: sqlite3.Row,
+    *,
+    match_type: str,
+    offset: int,
+    length: int,
+    snippet_len: int | None,
+    score: float,
+    has_kw: bool,
+    has_off: bool,
+    has_formula_flag: bool,
+    has_formula_text: bool,
+) -> Match:
+    kw = None
+    if has_kw and row["keywords"]:
+        kw = str(row["keywords"]).split(",")
+    seq_off = None
+    if has_off and row["offset0"] is not None:
+        seq_off = (
+            int(row["offset0"]),
+            int(row["offset1"]) if ("offset1" in row.keys() and row["offset1"] is not None) else None,
+        )
+    formula_val = row["formula"] if has_formula_text else None
+    has_formula_val = None
+    if has_formula_flag and "has_formula" in row.keys() and row["has_formula"] is not None:
+        has_formula_val = bool(row["has_formula"])
+    elif formula_val:
+        has_formula_val = True
+    snippet = _parse_terms_prefix(row["terms"], snippet_len)
+    return Match(
+        id=row["id"],
+        name=row["name"],
+        keywords=kw,
+        seq_offset=seq_off,
+        formula=formula_val,
+        has_formula=has_formula_val,
+        match_type=match_type,
+        offset=int(offset),
+        length=int(length),
+        snippet=snippet,
+        score=float(score),
+    )
+
+
+class DBExactMatcher:
+    """
+    Reusable exact prefix/subsequence matcher backed by a single SQLite connection.
+
+    This is the same logic as `match_exact_db`, but avoids reconnecting and
+    re-checking schema columns for every call (useful for transform searches).
+    """
+
+    def __init__(self, conn: sqlite3.Connection):
+        self._conn = conn
+        self._conn.row_factory = sqlite3.Row
+        self._has_kw = _db_has_column(conn, "keywords")
+        self._has_off = _db_has_column(conn, "offset0")
+        self._has_formula_flag = _db_has_column(conn, "has_formula")
+        self._has_formula_text = _db_has_column(conn, "formula")
+
+        select_fields = ["id", "terms", "length", "name"]
+        if self._has_formula_text:
+            select_fields.append("formula")
+        if self._has_kw:
+            select_fields.append("keywords")
+        if self._has_off:
+            select_fields.extend(["offset0", "offset1"])
+        if self._has_formula_flag:
+            select_fields.append("has_formula")
+        self._select = ", ".join(select_fields)
+
+    def match(
+        self,
+        query: SequenceQuery,
+        *,
+        limit: int | None = None,
+        snippet_len: int | None = None,
+    ) -> list[Match]:
+        qterms = query.terms
+        qlen = len(qterms)
+        if qlen < query.min_match_length:
+            return []
+        if any(t is None for t in qterms):
+            raise ValueError("DBExactMatcher does not support wildcards (None terms)")
+
+        pattern = ",".join(str(int(t)) for t in qterms)
+        results: list[Match] = []
+
+        def _maybe_limit(sql: str) -> str:
+            return (sql + " LIMIT ?") if limit is not None else sql
+
+        # Prefix matches
+        prefix_where: list[str] = ["length >= ?"]
+        prefix_params: list[object] = [qlen]
+        if qlen >= 5:
+            prefix5 = ",".join(str(int(t)) for t in qterms[:5])
+            prefix_where.append("prefix5 = ?")
+            prefix_params.append(prefix5)
+        else:
+            # Prevent false positives like query "1" matching prefix "10,..."
+            start = pattern + ","
+            end = pattern + ",\uffff"
+            prefix_where.append("(prefix5 = ? OR (prefix5 >= ? AND prefix5 < ?))")
+            prefix_params.extend([pattern, start, end])
+        prefix_where.append("(terms = ? OR terms LIKE ?)")
+        prefix_params.extend([pattern, pattern + ",%"])
+
+        prefix_sql = _maybe_limit(f"SELECT {self._select} FROM sequences WHERE " + " AND ".join(prefix_where))
+        prefix_rows = (
+            self._conn.execute(prefix_sql, prefix_params + ([limit] if limit is not None else [])).fetchall()
+            if limit is not None
+            else self._conn.execute(prefix_sql, prefix_params).fetchall()
+        )
+        for row in prefix_rows:
+            results.append(
+                _row_to_match(
+                    row,
+                    match_type="prefix",
+                    offset=0,
+                    length=qlen,
+                    snippet_len=snippet_len,
+                    score=float(qlen),
+                    has_kw=self._has_kw,
+                    has_off=self._has_off,
+                    has_formula_flag=self._has_formula_flag,
+                    has_formula_text=self._has_formula_text,
+                )
+            )
+
+        if (not query.allow_subsequence) or (limit is not None and len(results) >= limit):
+            return results[:limit] if limit is not None else results
+
+        remaining = None if limit is None else max(0, limit - len(results))
+        if remaining == 0:
+            return results[:limit] if limit is not None else results
+
+        # Subsequence matches (exclude ids already returned as prefix)
+        subseq_where: list[str] = [
+            "length >= ?",
+            "instr(',' || terms || ',', ',' || ? || ',') > 0",
+        ]
+        subseq_params: list[object] = [qlen, pattern]
+        prefix_ids = [m.id for m in results if m.match_type == "prefix"]
+        if prefix_ids:
+            placeholders = ",".join("?" for _ in prefix_ids)
+            subseq_where.append(f"id NOT IN ({placeholders})")
+            subseq_params.extend(prefix_ids)
+
+        subseq_sql = _maybe_limit(f"SELECT {self._select} FROM sequences WHERE " + " AND ".join(subseq_where))
+        if remaining is not None:
+            subseq_params2 = subseq_params + [remaining]
+        else:
+            subseq_params2 = subseq_params
+        subseq_rows = self._conn.execute(subseq_sql, subseq_params2).fetchall()
+        for row in subseq_rows:
+            terms_text = row["terms"] or ""
+            hay = "," + terms_text + ","
+            needle = "," + pattern + ","
+            pos = hay.find(needle)
+            if pos == -1:
+                continue
+            # With a leading comma, the number of commas before the match equals the 0-based term offset.
+            offset = hay[:pos].count(",")
+            results.append(
+                _row_to_match(
+                    row,
+                    match_type="subsequence",
+                    offset=offset,
+                    length=qlen,
+                    snippet_len=snippet_len,
+                    score=float(qlen) - 0.5,
+                    has_kw=self._has_kw,
+                    has_off=self._has_off,
+                    has_formula_flag=self._has_formula_flag,
+                    has_formula_text=self._has_formula_text,
+                )
+            )
+
+        results.sort(key=lambda m: (0 if m.match_type == "prefix" else 1, -m.length, m.offset))
+        return results[:limit] if limit is not None else results
+
+
+def match_exact_db(
+    query: SequenceQuery,
+    db_path: str | Path,
+    *,
+    limit: int | None = None,
+    snippet_len: int | None = None,
+) -> list[Match]:
+    """
+    Exact prefix/subsequence matching using SQLite string predicates.
+
+    This avoids heuristic candidate filtering for correctness, and avoids
+    parsing every stored sequence into integer lists (faster for subsequence
+    matches on large snapshots).
+    """
+    qterms = query.terms
+    qlen = len(qterms)
+    if qlen < query.min_match_length:
+        return []
+    if any(t is None for t in qterms):
+        # Wildcards: fall back to the original matcher.
+        return match_exact(query, iter_sequences(Path(db_path)), limit=limit, snippet_len=snippet_len)
+
+    with sqlite3.connect(str(Path(db_path))) as conn:
+        return DBExactMatcher(conn).match(query, limit=limit, snippet_len=snippet_len)
