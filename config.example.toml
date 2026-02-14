@@ -7,3 +7,14 @@ db = "data/processed/oeis.db"
 [limits]
 max_terms = 128
 max_results = 10
+variance_band = 50.0
+growth_band = 4.0
+
+[freshness]
+max_age_days = 30.0
+metadata_path = "data/processed/freshness.json"
+warn_on_stale = true
+
+[startup]
+show_status = true
+refresh_if_stale = false

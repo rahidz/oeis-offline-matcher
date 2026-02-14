@@ -19,6 +19,15 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "variance_band": 50.0,
         "growth_band": 4.0,
     },
+    "freshness": {
+        "max_age_days": 30.0,
+        "metadata_path": "data/processed/freshness.json",
+        "warn_on_stale": True,
+    },
+    "startup": {
+        "show_status": True,
+        "refresh_if_stale": False,
+    },
 }
 
 
@@ -61,6 +70,15 @@ def load_config(config_path: Path | None = None) -> Dict[str, Any]:
             "variance_band": _parse_float(os.environ.get("OEIS_VARIANCE_BAND")),
             "growth_band": _parse_float(os.environ.get("OEIS_GROWTH_BAND")),
         },
+        "freshness": {
+            "max_age_days": _parse_float(os.environ.get("OEIS_FRESHNESS_MAX_AGE_DAYS")),
+            "metadata_path": os.environ.get("OEIS_FRESHNESS_METADATA_PATH"),
+            "warn_on_stale": _parse_bool(os.environ.get("OEIS_WARN_ON_STALE_DATA")),
+        },
+        "startup": {
+            "show_status": _parse_bool(os.environ.get("OEIS_STARTUP_SHOW_STATUS")),
+            "refresh_if_stale": _parse_bool(os.environ.get("OEIS_STARTUP_REFRESH_IF_STALE")),
+        },
     }
     _deep_update(cfg, {k: {kk: vv for kk, vv in v.items() if vv is not None} for k, v in overrides.items()})
 
@@ -83,3 +101,14 @@ def _parse_float(val: str | None) -> float | None:
         return float(val)
     except ValueError:
         return None
+
+
+def _parse_bool(val: str | None) -> bool | None:
+    if val is None:
+        return None
+    txt = val.strip().lower()
+    if txt in {"1", "true", "yes", "on"}:
+        return True
+    if txt in {"0", "false", "no", "off"}:
+        return False
+    return None

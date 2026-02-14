@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+VENV_DIR="${OEIS_VENV_DIR:-${ROOT_DIR}/.venv}"
+PY_BOOTSTRAP="${PYTHON:-python3}"
+
+usage() {
+  cat <<'USAGE'
+Usage: scripts/oeis-start [options] [--] [command ...]
+
+Options:
+  --no-status             Skip the startup `oeis status` check.
+  --refresh-if-stale      Force `oeis status --refresh-if-stale` at startup.
+  --no-refresh-if-stale   Force-disable stale refresh at startup.
+  -h, --help              Show this help.
+
+If no command is provided, launches an interactive shell with the project venv active.
+USAGE
+}
+
+if [[ ! -x "${VENV_DIR}/bin/python" ]]; then
+  echo "[oeis-start] creating virtualenv at ${VENV_DIR}"
+  "${PY_BOOTSTRAP}" -m venv "${VENV_DIR}"
+fi
+
+PY_BIN="${VENV_DIR}/bin/python"
+PIP_BIN="${VENV_DIR}/bin/pip"
+
+PKG_INSTALLED=1
+if ! "${PY_BIN}" -m pip show oeis-matcher >/dev/null 2>&1; then
+  PKG_INSTALLED=0
+fi
+if [[ ${PKG_INSTALLED} -eq 0 ]]; then
+  echo "[oeis-start] installing project in editable mode"
+  "${PIP_BIN}" install -e "${ROOT_DIR}"
+fi
+
+mapfile -t STARTUP_DEFAULTS < <("${PY_BIN}" - <<'PY'
+from oeis_matcher.config import load_config
+cfg = load_config()
+startup = cfg.get("startup", {})
+print("1" if bool(startup.get("show_status", True)) else "0")
+print("1" if bool(startup.get("refresh_if_stale", False)) else "0")
+PY
+)
+
+SHOW_STATUS="${STARTUP_DEFAULTS[0]:-1}"
+REFRESH_IF_STALE="${STARTUP_DEFAULTS[1]:-0}"
+
+CMD=()
+while (($#)); do
+  case "$1" in
+    --no-status)
+      SHOW_STATUS="0"
+      shift
+      ;;
+    --refresh-if-stale)
+      REFRESH_IF_STALE="1"
+      shift
+      ;;
+    --no-refresh-if-stale)
+      REFRESH_IF_STALE="0"
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      CMD=("$@")
+      break
+      ;;
+    *)
+      CMD=("$@")
+      break
+      ;;
+  esac
+done
+
+PY_VER="$("${PY_BIN}" -c 'import platform; print(platform.python_version())')"
+echo "[oeis-start] root=${ROOT_DIR}"
+echo "[oeis-start] venv=${VENV_DIR}"
+echo "[oeis-start] python=${PY_VER}"
+echo "[oeis-start] package=$(if [[ ${PKG_INSTALLED} -eq 1 ]]; then echo installed; else echo installed_now; fi)"
+
+export VIRTUAL_ENV="${VENV_DIR}"
+export PATH="${VENV_DIR}/bin:${PATH}"
+
+if [[ "${SHOW_STATUS}" == "1" ]]; then
+  STATUS_CMD=("${PY_BIN}" -m oeis_matcher.cli status)
+  if [[ "${REFRESH_IF_STALE}" == "1" ]]; then
+    STATUS_CMD+=(--refresh-if-stale)
+  fi
+  if ! "${STATUS_CMD[@]}"; then
+    echo "[oeis-start] status check returned non-zero" >&2
+  fi
+fi
+
+if [[ ${#CMD[@]} -gt 0 ]]; then
+  exec "${CMD[@]}"
+fi
+
+exec "${SHELL:-/bin/bash}" -i

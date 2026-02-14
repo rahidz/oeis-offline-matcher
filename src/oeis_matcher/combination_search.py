@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from fractions import Fraction
 from dataclasses import dataclass
-from itertools import combinations, combinations_with_replacement
+from itertools import combinations, combinations_with_replacement, product
 import heapq
 import math
 import sqlite3
@@ -38,6 +38,140 @@ class PrefixIndex:
 
 
 _PREFIX_INDEX_CACHE: dict[tuple[str, int], PrefixIndex] = {}
+
+
+def _prefix_col_name(prefix_len: int, shift: int) -> str:
+    """
+    Return the SQLite column name for the `prefix_len`-term prefix at `shift`.
+
+    Current storage schema uses:
+      - prefix5      : terms[0:5]
+      - prefix5_k    : terms[k:k+5] for k>=1 (optional, created via optimize-db --add-prefix-shifts)
+    """
+    if int(prefix_len) != 5:
+        raise ValueError("Only prefix_len=5 is supported by the current DB schema.")
+    shift = int(shift)
+    if shift < 0:
+        raise ValueError("prefix shift must be >= 0")
+    return "prefix5" if shift == 0 else f"prefix5_{shift}"
+
+
+@dataclass
+class ShiftedPrefixIndex:
+    """
+    Like PrefixIndex, but supports multiple fixed forward shifts (k<=5).
+
+    This shares the base `ids/id_nums/lengths` arrays across shifts so that
+    expanded shifted searches don't need to build multiple full PrefixIndex
+    objects (which can be memory-heavy on a full OEIS snapshot).
+    """
+
+    prefix_len: int
+    max_shift: int
+    shifts: tuple[int, ...]
+    ids: list[str]
+    id_nums: list[int]
+    lengths: list[int]
+    prefixes_by_shift: dict[int, list[str]]
+    by_prefix_by_shift: dict[int, dict[str, list[int]]]
+    complete: bool = False
+    last_id: str | None = None
+
+
+_SHIFTED_PREFIX_INDEX_CACHE: dict[tuple[str, int, int], ShiftedPrefixIndex] = {}
+
+
+def _get_shifted_prefix_index(
+    db_path: Path,
+    prefix_len: int,
+    max_shift: int,
+    *,
+    deadline_s: float | None = None,
+    time_fn: Callable[[], float] = time.perf_counter,
+) -> ShiftedPrefixIndex:
+    """
+    Build (or incrementally extend) a DB-wide shifted prefix index.
+
+    The returned index may be partially built when `deadline_s` is provided
+    and the deadline is reached. Callers should treat `index.complete == False`
+    as "best effort" and either stop or fall back to non-expanded methods.
+    """
+    prefix_len = int(prefix_len)
+    max_shift = max(0, int(max_shift))
+    key = (str(Path(db_path).resolve()), prefix_len, max_shift)
+    cached = _SHIFTED_PREFIX_INDEX_CACHE.get(key)
+    if cached is not None:
+        if cached.complete or deadline_s is None:
+            return cached
+        if time_fn() >= deadline_s:
+            return cached
+        index = cached
+    else:
+        # Detect which shift columns exist (older DBs won't have prefix5_k).
+        with sqlite3.connect(db_path) as conn:
+            cols = {row[1] for row in conn.execute("PRAGMA table_info(sequences)").fetchall()}
+        shifts_avail: list[int] = []
+        for s in range(0, max_shift + 1):
+            col = _prefix_col_name(prefix_len, s)
+            if col in cols:
+                shifts_avail.append(s)
+        if 0 not in shifts_avail:
+            shifts_avail = [0]
+
+        index = ShiftedPrefixIndex(
+            prefix_len=prefix_len,
+            max_shift=max_shift,
+            shifts=tuple(shifts_avail),
+            ids=[],
+            id_nums=[],
+            lengths=[],
+            prefixes_by_shift={s: [] for s in shifts_avail},
+            by_prefix_by_shift={s: {} for s in shifts_avail},
+            complete=False,
+            last_id=None,
+        )
+        _SHIFTED_PREFIX_INDEX_CACHE[key] = index
+
+    if index.complete:
+        return index
+
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        # Select only the columns we actually have.
+        prefix_cols = [_prefix_col_name(prefix_len, s) for s in index.shifts]
+        select_cols = ["id", "length", *prefix_cols]
+        params: list[object] = [int(prefix_len)]
+        sql = f"SELECT {', '.join(select_cols)} FROM sequences WHERE length >= ?"
+        if index.last_id is not None:
+            sql += " AND id > ?"
+            params.append(str(index.last_id))
+        sql += " ORDER BY id"
+
+        for row in conn.execute(sql, params):
+            if deadline_s is not None and time_fn() >= deadline_s:
+                return index
+            seq_id = row["id"]
+            index.last_id = seq_id
+
+            idx = len(index.ids)
+            index.ids.append(seq_id)
+            try:
+                index.id_nums.append(int(str(seq_id)[1:]))
+            except Exception:
+                index.id_nums.append(-1)
+            index.lengths.append(int(row["length"]))
+
+            for s in index.shifts:
+                col = _prefix_col_name(prefix_len, s)
+                key_txt = row[col] if col in row.keys() else None
+                if not key_txt:
+                    index.prefixes_by_shift[s].append("")
+                    continue
+                index.prefixes_by_shift[s].append(key_txt)
+                index.by_prefix_by_shift[s].setdefault(key_txt, []).append(idx)
+
+    index.complete = True
+    return index
 
 
 def _get_prefix_index(
@@ -203,6 +337,55 @@ def _shift_str(k: int) -> str:
         return "n"
     sign = "+" if k > 0 else "-"
     return f"n{sign}{abs(k)}"
+
+
+def _format_modclass_expr(modulus: int, ids: Sequence[str], shifts: Sequence[int], t_names: Sequence[str]) -> str:
+    """
+    Format a mod-class decomposition like:
+      a(2n) = Axxxxxx(n+1); a(2n+1) = Ayyyyyy(n)
+
+    Notes:
+    - Ordering matters: `ids[i]` is residue class i (r=i).
+    - `shifts[i]` is a forward shift on the *component* sequence index, i.e. A(n+shift).
+    """
+    m = int(modulus)
+    parts: list[str] = []
+
+    def _tn(tn: str, id_: str, shift: int) -> str:
+        if tn == "id":
+            return f"{id_}({_shift_str(shift)})"
+        return f"{tn}({id_}({_shift_str(shift)}) )".replace(") )", ")")
+
+    for r, (id_, s, tn) in enumerate(zip(ids, shifts, t_names)):
+        lhs = f"a({m}n)" if r == 0 else f"a({m}n+{r})"
+        parts.append(f"{lhs} = {_tn(tn, id_, int(s))}")
+    return "; ".join(parts)
+
+
+def _format_modclass_latex(modulus: int, ids: Sequence[str], shifts: Sequence[int], t_names: Sequence[str]) -> str:
+    m = int(modulus)
+
+    def shift_to_tex(k: int) -> str:
+        if k == 0:
+            return "n"
+        sign = "+" if k > 0 else "-"
+        return f"n{sign}{abs(k)}"
+
+    def t_tex(name: str, id_: str, s: int) -> str:
+        base = f"\\mathrm{{{id_}}}({shift_to_tex(s)})"
+        if name == "id":
+            return base
+        if name == "diff":
+            return f"\\Delta\\,{base}"
+        if name == "partial_sum":
+            return f"\\mathrm{{psum}}\\,{base}"
+        return f"\\mathrm{{{name}}}\\,{base}"
+
+    parts: list[str] = []
+    for r, (id_, s, tn) in enumerate(zip(ids, shifts, t_names)):
+        lhs = f"a_{{{m}n}}" if r == 0 else f"a_{{{m}n+{r}}}"
+        parts.append(f"{lhs} = {t_tex(tn, id_, int(s))}")
+    return "; ".join(parts)
 
 
 @dataclass(frozen=True)
@@ -1349,6 +1532,255 @@ def search_pointwise_two_sequence_combinations(
     return _sorted_and_trim(results, limit)
 
 
+def search_pointwise_two_sequence_combinations_expanded(
+    query: SequenceQuery,
+    db_path: Path,
+    *,
+    ops: Sequence[str] = ("mul",),
+    max_shift: int = 0,
+    limit: int = 20,
+    scan_strides: Sequence[int] = (100, 50, 20, 10, 5, 2, 1),
+    max_time_s: float | None = None,
+    time_fn: Callable[[], float] = time.perf_counter,
+    snippet_len: int | None = None,
+    min_score: float | None = None,
+    max_complexity: float | None = None,
+    dedupe_family: bool = True,
+    on_match: Callable[[CombinationMatch], None] | None = None,
+) -> list[CombinationMatch]:
+    """
+    Expanded DB-wide pointwise search for combinations like:
+      a(n) = Axxxxxx(n+k1) * Ayyyyyy(n+k2)
+
+    Current scope/limits:
+    - only supports op=mul (gcd/lcm are not invertible in the same way),
+    - only supports per-component transform=id,
+    - only supports forward shifts in [0..max_shift] (k <= 5 recommended).
+
+    Uses a shifted prefix index (prefix5, prefix5_1..prefix5_k) to avoid scanning
+    all (A,B) pairs. Instead, it:
+      - anchors on A, derives the required B prefix by exact division,
+      - looks up candidate Bs via the DB-wide prefix index,
+      - verifies the full query length.
+    """
+    q = query.terms
+    qlen = len(q)
+    if qlen < max(query.min_match_length, 5) or qlen == 0:
+        return []
+    if any(t is None for t in q):
+        return []
+
+    ops = [o for o in ops if o == "mul"]
+    if not ops:
+        return []
+
+    max_shift = max(0, int(max_shift))
+    if max_shift <= 0:
+        shifts = (0,)
+    else:
+        shifts = tuple(range(0, max_shift + 1))
+
+    t_start = time_fn()
+    if max_time_s is not None and max_time_s <= 0:
+        return []
+    deadline_s = (t_start + float(max_time_s)) if max_time_s is not None else None
+
+    prefix_len = 5
+    index = _get_shifted_prefix_index(Path(db_path), prefix_len, max_shift, deadline_s=deadline_s, time_fn=time_fn)
+    if deadline_s is not None and time_fn() >= deadline_s:
+        return []
+
+    # Only consider shifts that are actually available in the DB schema/index.
+    shifts = tuple(s for s in shifts if s in index.shifts)
+    if not shifts:
+        return []
+
+    q_prefix = tuple(int(q[i]) for i in range(prefix_len))
+
+    stride_order = [int(s) for s in scan_strides if int(s) > 0]
+    if 1 not in stride_order:
+        stride_order.append(1)
+
+    scan_cache: dict[int, list[int]] = {}
+
+    def _scan_indices(stride: int) -> list[int]:
+        cached = scan_cache.get(stride)
+        if cached is not None:
+            return cached
+        out: list[int] = []
+        for i, (num, length) in enumerate(zip(index.id_nums, index.lengths)):
+            if length < qlen:
+                continue
+            if num != -1 and stride != 1 and (num % stride) != 0:
+                continue
+            out.append(i)
+        scan_cache[stride] = out
+        return out
+
+    # Same progressive scan order idea as the expanded linear-combo solvers:
+    scan_order: list[int] = []
+    seen_idx: set[int] = set()
+    for stride in stride_order:
+        for idx in _scan_indices(stride):
+            if idx in seen_idx:
+                continue
+            seen_idx.add(idx)
+            scan_order.append(idx)
+
+    if snippet_len is None:
+        snippet_len = len(query.terms)
+
+    fetcher = _SequenceFetcher(Path(db_path))
+    results: list[CombinationMatch] = []
+    seen: set[tuple] = set()
+
+    try:
+        for idx1 in scan_order:
+            if max_time_s is not None and (time_fn() - t_start) > max_time_s:
+                break
+            id1 = index.ids[idx1]
+            len1 = index.lengths[idx1]
+
+            rec1: SequenceRecord | None = None
+            bad_rec1 = False
+
+            for s1 in shifts:
+                if bad_rec1:
+                    break
+                if len1 < qlen + s1:
+                    continue
+                key_txt = index.prefixes_by_shift[s1][idx1]
+                if not key_txt:
+                    continue
+                pref1 = _parse_prefix_key(key_txt, prefix_len)
+                if pref1 is None:
+                    continue
+
+                # Derive the needed B prefix by division. If A has a zero where
+                # the query also has a zero, B is unconstrained there, so we
+                # can't form a key => skip this anchor/shift.
+                needed_vals: list[int] = []
+                ambiguous = False
+                for qv, av in zip(q_prefix, pref1):
+                    if av == 0:
+                        if qv != 0:
+                            ambiguous = True
+                            break
+                        ambiguous = True
+                        break
+                    if qv % av != 0:
+                        ambiguous = True
+                        break
+                    needed_vals.append(qv // av)
+                if ambiguous:
+                    continue
+                needed_key = ",".join(str(v) for v in needed_vals)
+
+                # Fetch rec1 lazily only once we have a plausible prefix hit.
+                if rec1 is None:
+                    rec1 = fetcher.get(id1)
+                    if not rec1 or len(rec1.terms) < (qlen + s1):
+                        bad_rec1 = True
+                        break
+
+                for s2 in shifts:
+                    if max_time_s is not None and (time_fn() - t_start) > max_time_s:
+                        return _sorted_and_trim(results, limit, dedupe_family=dedupe_family)
+                    idxs2 = index.by_prefix_by_shift[s2].get(needed_key) or []
+                    if not idxs2:
+                        continue
+                    for idx2 in idxs2:
+                        if max_time_s is not None and (time_fn() - t_start) > max_time_s:
+                            return _sorted_and_trim(results, limit, dedupe_family=dedupe_family)
+                        id2 = index.ids[idx2]
+                        len2 = index.lengths[idx2]
+                        if len2 < qlen + s2:
+                            continue
+
+                        rec2 = fetcher.get(id2)
+                        if not rec2 or len(rec2.terms) < (qlen + s2):
+                            continue
+
+                        # Verify full match quickly (first/last guards).
+                        if qlen:
+                            if rec1.terms[s1] * rec2.terms[s2] != q[0]:
+                                continue
+                            if qlen > 1 and (rec1.terms[s1 + 1] * rec2.terms[s2 + 1] != q[1]):
+                                continue
+                            if qlen > 2 and (rec1.terms[s1 + qlen - 1] * rec2.terms[s2 + qlen - 1] != q[-1]):
+                                continue
+                        ok = True
+                        for j in range(qlen):
+                            if rec1.terms[s1 + j] * rec2.terms[s2 + j] != q[j]:
+                                ok = False
+                                break
+                        if not ok:
+                            continue
+
+                        if snippet_len is None:
+                            comp_terms_in = None
+                            combined_terms = None
+                        else:
+                            snip = min(int(snippet_len), qlen)
+                            comp_terms_in = (
+                                rec1.terms[s1 : s1 + snip],
+                                rec2.terms[s2 : s2 + snip],
+                            )
+                            combined_terms = q[:snip]
+
+                        ids_c, names_c, coeffs_c, shifts_c, tnames_c, comp_terms_c = _canonicalize_components(
+                            ids=(rec1.id, rec2.id),
+                            names=(rec1.name, rec2.name),
+                            coeffs=(1, 1),
+                            shifts=(s1, s2),
+                            t_names=("id", "id"),
+                            component_terms=comp_terms_in,
+                        )
+                        # Canonicalize + dedupe after verifying, so we don't miss
+                        # cases where only one anchor orientation is "solvable"
+                        # due to zeros in the prefix.
+                        key = ("mul", ids_c, shifts_c, tnames_c)
+                        if key in seen:
+                            continue
+                        seen.add(key)
+
+                        t_weights = (0.0, 0.0)
+                        comp_val = _combo_complexity(coeffs_c, shifts_c, t_weights=t_weights)
+                        if max_complexity is not None and comp_val > max_complexity:
+                            continue
+                        pop_bonus = _popularity_bonus((rec1, rec2))
+                        score = _combo_score(qlen, coeffs_c, shifts_c, t_weights=t_weights, pop_bonus=pop_bonus)
+                        if min_score is not None and score < min_score:
+                            continue
+
+                        expr = _format_pointwise_expr("mul", ids_c, shifts_c, tnames_c)
+                        latex = _format_pointwise_latex("mul", ids_c, shifts_c, tnames_c)
+
+                        results.append(
+                            (m := CombinationMatch(
+                                ids=ids_c,
+                                names=names_c,
+                                coeffs=coeffs_c,
+                                shifts=shifts_c,
+                                length=qlen,
+                                score=score,
+                                expression=expr,
+                                latex_expression=latex,
+                                component_transforms=tnames_c,
+                                component_terms=comp_terms_c,
+                                combined_terms=combined_terms,
+                            ))
+                        )
+                        if on_match is not None:
+                            on_match(m)
+                        if limit and len(results) >= int(limit):
+                            return _sorted_and_trim(results, limit, dedupe_family=dedupe_family)
+
+        return _sorted_and_trim(results, limit, dedupe_family=dedupe_family)
+    finally:
+        fetcher.close()
+
+
 def search_convolution_two_sequence_combinations(
     query: SequenceQuery,
     candidates: Sequence[SequenceRecord] | Iterable[SequenceRecord],
@@ -2013,6 +2445,7 @@ def search_two_sequence_combinations_expanded(
     *,
     coeffs: Sequence[int] = (-2, -1, 1, 2),
     limit: int = 20,
+    max_shift: int = 0,
     scan_strides: Sequence[int] = (100, 50, 20, 10, 5, 2, 1),
     max_time_s: float | None = None,
     time_fn: Callable[[], float] = time.perf_counter,
@@ -2031,7 +2464,8 @@ def search_two_sequence_combinations_expanded(
     even when individual components don't resemble the query.
 
     Current scope/limits:
-    - shift=0 only (no forward/back shifts),
+    - forward shifts up to `max_shift` (requires DB columns prefix5_1..prefix5_k),
+    - no backward shifts,
     - per-component transform=id only,
     - uses the first 5 query terms as a key (requires len(query) >= 5),
       then verifies the full query.
@@ -2053,7 +2487,8 @@ def search_two_sequence_combinations_expanded(
     deadline_s = (t_start + float(max_time_s)) if max_time_s is not None else None
 
     prefix_len = 5
-    index = _get_prefix_index(Path(db_path), prefix_len, deadline_s=deadline_s, time_fn=time_fn)
+    max_shift = max(0, int(max_shift))
+    index = _get_shifted_prefix_index(Path(db_path), prefix_len, max_shift, deadline_s=deadline_s, time_fn=time_fn)
     if deadline_s is not None and time_fn() >= deadline_s:
         return []
     q_prefix = tuple(int(q[i]) for i in range(prefix_len))
@@ -2099,125 +2534,141 @@ def search_two_sequence_combinations_expanded(
         for idx1 in scan_order:
             if max_time_s is not None and (time_fn() - t_start) > max_time_s:
                 break
-            id1 = index.ids[idx1]
-            pref1_key = index.prefixes[idx1]
-            pref1 = _parse_prefix_key(pref1_key, prefix_len)
-            if pref1 is None:
-                continue
             rec1: SequenceRecord | None = None
             bad_rec1 = False
-            s1: list[int] | None = None
 
-            for a in coeff_order:
+            id1 = index.ids[idx1]
+            len1 = index.lengths[idx1]
+
+            # Shifts: only forward shifts, and only those supported by the DB schema.
+            shifts = [s for s in range(0, max_shift + 1) if s in index.shifts]
+            if not shifts:
+                shifts = [0]
+
+            for s1_shift in shifts:
                 if bad_rec1:
                     break
                 if max_time_s is not None and (time_fn() - t_start) > max_time_s:
                     break
-                for b in coeff_order:
+                if len1 < qlen + s1_shift:
+                    continue
+                pref1_key = index.prefixes_by_shift[s1_shift][idx1]
+                if not pref1_key:
+                    continue
+                pref1 = _parse_prefix_key(pref1_key, prefix_len)
+                if pref1 is None:
+                    continue
+
+                for a in coeff_order:
+                    if bad_rec1:
+                        break
                     if max_time_s is not None and (time_fn() - t_start) > max_time_s:
                         break
-                    if a == 0 and b == 0:
-                        continue
-                    comp_val = _combo_complexity((a, b), (0, 0), t_weights=(0.0, 0.0))
-                    if max_complexity is not None and comp_val > max_complexity:
-                        continue
-
-                    needed_key = _needed_prefix_key(q_prefix, a, pref1, b)
-                    if needed_key is None:
-                        continue
-                    idxs2 = index.by_prefix.get(needed_key)
-                    if not idxs2:
-                        continue
-
-                    # Fetch rec1 lazily only on a potential hit.
-                    if rec1 is None:
-                        rec1 = fetcher.get(id1)
-                        if not rec1 or len(rec1.terms) < qlen:
-                            bad_rec1 = True
+                    for b in coeff_order:
+                        if max_time_s is not None and (time_fn() - t_start) > max_time_s:
                             break
-                        s1 = rec1.terms[:qlen]
-
-                    for idx2 in idxs2:
-                        if idx2 == idx1:
-                            continue
-                        if idx2 < idx1:
-                            continue
-                        if index.lengths[idx2] < qlen:
-                            continue
-                        id2 = index.ids[idx2]
-
-                        key = (id1, id2, a, b)
-                        if key in seen:
-                            continue
-                        seen.add(key)
-
-                        rec2 = fetcher.get(id2)
-                        if not rec2 or len(rec2.terms) < qlen:
-                            continue
-
-                        if s1 is None:
-                            continue
-                        s2 = rec2.terms[:qlen]
-                        if qlen:
-                            if a * s1[0] + b * s2[0] != q[0]:
+                        for s2_shift in shifts:
+                            if max_time_s is not None and (time_fn() - t_start) > max_time_s:
+                                break
+                            comp_val = _combo_complexity((a, b), (s1_shift, s2_shift), t_weights=(0.0, 0.0))
+                            if max_complexity is not None and comp_val > max_complexity:
                                 continue
-                            if qlen > 1 and (a * s1[1] + b * s2[1] != q[1]):
+                            needed_key = _needed_prefix_key(q_prefix, a, pref1, b)
+                            if needed_key is None:
                                 continue
-                            if qlen > 2 and (a * s1[-1] + b * s2[-1] != q[-1]):
+                            idxs2 = index.by_prefix_by_shift[s2_shift].get(needed_key)
+                            if not idxs2:
                                 continue
-                        if not all((a * x + b * y) == qv for x, y, qv in zip(s1, s2, q)):
-                            continue
 
-                        coeff_tuple = (a, b)
-                        shift_tuple = (0, 0)
-                        t_names = ("id", "id")
-                        t_weights = (0.0, 0.0)
+                            # Fetch rec1 lazily only on a potential hit.
+                            if rec1 is None:
+                                rec1 = fetcher.get(id1)
+                                if not rec1 or len(rec1.terms) < (qlen + s1_shift):
+                                    bad_rec1 = True
+                                    break
 
-                        pop_bonus = _popularity_bonus((rec1, rec2))
-                        score = _combo_score(qlen, coeff_tuple, shift_tuple, t_weights=t_weights, pop_bonus=pop_bonus)
-                        if min_score is not None and score < min_score:
-                            continue
+                            s1_terms = rec1.terms[s1_shift : s1_shift + qlen]
 
-                        if snippet_len is None:
-                            comp_terms = None
-                            combined_terms = None
-                        else:
-                            snip = min(snippet_len, qlen)
-                            comp_terms = (rec1.terms[:snip], rec2.terms[:snip])
-                            combined_terms = q[:snip]
+                            for idx2 in idxs2:
+                                if idx2 < idx1:
+                                    continue
+                                if idx2 == idx1:
+                                    continue
+                                id2 = index.ids[idx2]
+                                len2 = index.lengths[idx2]
+                                if len2 < qlen + s2_shift:
+                                    continue
 
-                        ids_c, names_c, coeffs_c, shifts_c, tnames_c, comp_terms_c = _canonicalize_components(
-                            ids=(id1, id2),
-                            names=(rec1.name, rec2.name),
-                            coeffs=coeff_tuple,
-                            shifts=shift_tuple,
-                            t_names=t_names,
-                            component_terms=comp_terms,
-                        )
-                        expr = _format_expr(ids_c, coeffs_c, shifts_c, tnames_c)
-                        latex = _format_latex(ids_c, coeffs_c, shifts_c, tnames_c)
+                                key = (id1, id2, a, b, s1_shift, s2_shift)
+                                if key in seen:
+                                    continue
+                                seen.add(key)
 
-                        results.append(
-                            (m := CombinationMatch(
-                                ids=ids_c,
-                                names=names_c,
-                                coeffs=coeffs_c,
-                                shifts=shifts_c,
-                                length=qlen,
-                                score=score,
-                                expression=expr,
-                                latex_expression=latex,
-                                component_transforms=tnames_c,
-                                component_terms=comp_terms_c,
-                                combined_terms=combined_terms,
-                            )
-                        )
-                        )
-                        if on_match is not None:
-                            on_match(m)
+                                rec2 = fetcher.get(id2)
+                                if not rec2 or len(rec2.terms) < (qlen + s2_shift):
+                                    continue
 
-                        if limit and len(results) >= limit:
-                            return _sorted_and_trim(results, limit, dedupe_family=dedupe_family)
+                                s2_terms = rec2.terms[s2_shift : s2_shift + qlen]
+                                if qlen:
+                                    if a * s1_terms[0] + b * s2_terms[0] != q[0]:
+                                        continue
+                                    if qlen > 1 and (a * s1_terms[1] + b * s2_terms[1] != q[1]):
+                                        continue
+                                    if qlen > 2 and (a * s1_terms[-1] + b * s2_terms[-1] != q[-1]):
+                                        continue
+                                if not all((a * x + b * y) == qv for x, y, qv in zip(s1_terms, s2_terms, q)):
+                                    continue
+
+                                coeff_tuple = (a, b)
+                                shift_tuple = (s1_shift, s2_shift)
+                                t_names = ("id", "id")
+                                t_weights = (0.0, 0.0)
+
+                                pop_bonus = _popularity_bonus((rec1, rec2))
+                                score = _combo_score(qlen, coeff_tuple, shift_tuple, t_weights=t_weights, pop_bonus=pop_bonus)
+                                if min_score is not None and score < min_score:
+                                    continue
+
+                                if snippet_len is None:
+                                    comp_terms = None
+                                    combined_terms = None
+                                else:
+                                    snip = min(snippet_len, qlen)
+                                    comp_terms = (s1_terms[:snip], s2_terms[:snip])
+                                    combined_terms = q[:snip]
+
+                                ids_c, names_c, coeffs_c, shifts_c, tnames_c, comp_terms_c = _canonicalize_components(
+                                    ids=(id1, id2),
+                                    names=(rec1.name, rec2.name),
+                                    coeffs=coeff_tuple,
+                                    shifts=shift_tuple,
+                                    t_names=t_names,
+                                    component_terms=comp_terms,
+                                )
+                                expr = _format_expr(ids_c, coeffs_c, shifts_c, tnames_c)
+                                latex = _format_latex(ids_c, coeffs_c, shifts_c, tnames_c)
+
+                                results.append(
+                                    (m := CombinationMatch(
+                                        ids=ids_c,
+                                        names=names_c,
+                                        coeffs=coeffs_c,
+                                        shifts=shifts_c,
+                                        length=qlen,
+                                        score=score,
+                                        expression=expr,
+                                        latex_expression=latex,
+                                        component_transforms=tnames_c,
+                                        component_terms=comp_terms_c,
+                                        combined_terms=combined_terms,
+                                    )
+                                )
+                                )
+                                if on_match is not None:
+                                    on_match(m)
+
+                                if limit and len(results) >= limit:
+                                    return _sorted_and_trim(results, limit, dedupe_family=dedupe_family)
 
         return _sorted_and_trim(results, limit, dedupe_family=dedupe_family)
     finally:
@@ -2541,5 +2992,221 @@ def search_three_sequence_combinations_expanded(
                                 if limit and len(results) >= limit:
                                     return _sorted_and_trim(results, limit)
         return _sorted_and_trim(results, limit)
+    finally:
+        fetcher.close()
+
+
+def search_mod_class_combinations(
+    query: SequenceQuery,
+    db_path: Path,
+    *,
+    moduli: Sequence[int] = (2, 3),
+    limit: int = 20,
+    max_shift: int = 0,
+    per_class_limit: int = 12,
+    max_combinations: int | None = 2000,
+    max_time_s: float | None = None,
+    time_fn: Callable[[], float] = time.perf_counter,
+    snippet_len: int | None = None,
+    min_score: float | None = None,
+    max_complexity: float | None = None,
+    on_match: Callable[[CombinationMatch], None] | None = None,
+) -> list[CombinationMatch]:
+    """
+    Search "mod-class" decompositions of the form:
+
+      a(mn+r) = X_r(n+s_r)
+
+    where r=0..m-1 indexes residue classes, and each X_r is an OEIS sequence id.
+    The special case m=2 corresponds to an interleaving:
+
+      a(2n)   = X_0(n+s_0)
+      a(2n+1) = X_1(n+s_1)
+
+    Current scope/limits:
+    - exact matching only (no wildcards),
+    - forward shifts only (s_r >= 0), up to `max_shift`,
+    - per-component transform=id only (no diff/psum).
+    - uses the first 5 terms of each residue-class subsequence as a key, then
+      verifies the full residue-class match.
+    """
+    q = query.terms
+    qlen = len(q)
+    if qlen < max(query.min_match_length, 5) or qlen == 0:
+        return []
+    if any(t is None for t in q):
+        return []
+    if limit is not None and int(limit) <= 0:
+        return []
+
+    t_start = time_fn()
+    if max_time_s is not None and max_time_s <= 0:
+        return []
+    deadline_s = (t_start + float(max_time_s)) if max_time_s is not None else None
+
+    prefix_len = 5
+    max_shift = max(0, int(max_shift))
+    per_class_limit = max(1, int(per_class_limit))
+    max_combinations_n = int(max_combinations) if max_combinations is not None else None
+
+    # Build (or reuse) the shifted prefix index once.
+    index = _get_shifted_prefix_index(Path(db_path), prefix_len, max_shift, deadline_s=deadline_s, time_fn=time_fn)
+    if deadline_s is not None and time_fn() >= deadline_s:
+        return []
+
+    fetcher = _SequenceFetcher(Path(db_path))
+    try:
+        results: list[CombinationMatch] = []
+        seen: set[tuple[int, tuple[str, ...], tuple[int, ...]]] = set()
+
+        for m in moduli:
+            if deadline_s is not None and time_fn() >= deadline_s:
+                break
+            try:
+                modulus = int(m)
+            except (TypeError, ValueError):
+                continue
+            if modulus <= 1:
+                continue
+            if modulus > qlen:
+                continue
+
+            # Split query into residue classes.
+            classes: list[list[int]] = []
+            for r in range(modulus):
+                cls = [int(q[i]) for i in range(r, qlen, modulus)]
+                classes.append(cls)
+            if any(len(cls) < prefix_len for cls in classes):
+                continue
+
+            # Candidate sequences for each residue class, as (idx_in_index, shift).
+            cand_by_r: list[list[tuple[int, int]]] = []
+            for r, cls in enumerate(classes):
+                key_txt = ",".join(str(v) for v in cls[:prefix_len])
+                found: list[tuple[int, int]] = []
+                for s in index.shifts:
+                    if deadline_s is not None and time_fn() >= deadline_s:
+                        break
+                    if int(s) > max_shift:
+                        continue
+                    for idx in index.by_prefix_by_shift.get(int(s), {}).get(key_txt, []):
+                        if index.lengths[idx] < int(s) + len(cls):
+                            continue
+                        seq_id = index.ids[idx]
+                        rec = fetcher.get(seq_id)
+                        if not rec or len(rec.terms) < int(s) + len(cls):
+                            continue
+                        if rec.terms[int(s) : int(s) + len(cls)] != cls:
+                            continue
+                        found.append((idx, int(s)))
+                # Deterministic ordering: simplest shifts first, then low A-number.
+                found.sort(key=lambda t: (abs(t[1]), t[1], index.id_nums[t[0]], index.ids[t[0]]))
+                # De-dupe exact (id,shift) in case the same row is reachable via multiple shifts keys.
+                uniq: list[tuple[int, int]] = []
+                seen_pair: set[tuple[str, int]] = set()
+                for idx, s in found:
+                    k = (index.ids[idx], int(s))
+                    if k in seen_pair:
+                        continue
+                    seen_pair.add(k)
+                    uniq.append((idx, int(s)))
+                    if len(uniq) >= per_class_limit:
+                        break
+                cand_by_r.append(uniq)
+
+            if any(not lst for lst in cand_by_r):
+                continue
+
+            # Cartesian product across residue classes.
+            scanned = 0
+            for combo in product(*cand_by_r):
+                if deadline_s is not None and time_fn() >= deadline_s:
+                    break
+                scanned += 1
+                if max_combinations_n is not None and scanned > max_combinations_n:
+                    break
+
+                ids = tuple(index.ids[idx] for idx, _s in combo)
+                shifts = tuple(int(s) for _idx, s in combo)
+                key = (modulus, ids, shifts)
+                if key in seen:
+                    continue
+                seen.add(key)
+
+                recs: list[SequenceRecord] = []
+                names: list[str | None] = []
+                ok = True
+                for (idx, s), cls in zip(combo, classes):
+                    rec = fetcher.get(index.ids[idx])
+                    if not rec or len(rec.terms) < int(s) + len(cls):
+                        ok = False
+                        break
+                    # Safety: re-check match (classes are small; keeps logic robust to caching/mutations).
+                    if rec.terms[int(s) : int(s) + len(cls)] != cls:
+                        ok = False
+                        break
+                    recs.append(rec)
+                    names.append(rec.name)
+                if not ok:
+                    continue
+
+                coeff_tuple = tuple(1 for _ in ids)
+                t_names = tuple("id" for _ in ids)
+                t_weights = tuple(0.0 for _ in ids)
+                comp_val = _combo_complexity(coeff_tuple, shifts, t_weights=t_weights)
+                if max_complexity is not None and comp_val > max_complexity:
+                    continue
+                pop_bonus = _popularity_bonus(tuple(recs))
+                score = _combo_score(qlen, coeff_tuple, shifts, t_weights=t_weights, pop_bonus=pop_bonus)
+                if min_score is not None and score < min_score:
+                    continue
+
+                expr = _format_modclass_expr(modulus, ids, shifts, t_names)
+                latex = _format_modclass_latex(modulus, ids, shifts, t_names)
+
+                if snippet_len is None:
+                    comp_terms = None
+                    combined_terms = None
+                else:
+                    snip_total = min(int(snippet_len), qlen)
+                    combined_terms = [int(x) for x in q[:snip_total]]
+                    comp_terms_parts: list[list[int]] = []
+                    for r, ((idx, s), cls) in enumerate(zip(combo, classes)):
+                        need = len(q[r:snip_total:modulus])
+                        comp_terms_parts.append(indexed_terms := recs[r].terms[int(s) : int(s) + need])
+                        # Defensive: ensure we never emit out-of-sync component snippets.
+                        if indexed_terms != cls[:need]:
+                            comp_terms_parts[-1] = cls[:need]
+                    comp_terms = tuple(comp_terms_parts)
+
+                results.append(
+                    (match := CombinationMatch(
+                        ids=ids,
+                        names=tuple(names),
+                        coeffs=coeff_tuple,
+                        shifts=shifts,
+                        length=qlen,
+                        score=score,
+                        expression=expr,
+                        latex_expression=latex,
+                        component_transforms=t_names,
+                        component_terms=comp_terms,
+                        combined_terms=combined_terms,
+                    ))
+                )
+                if on_match is not None:
+                    on_match(match)
+
+        results.sort(
+            key=lambda m: (
+                -m.score,
+                _combo_complexity(m.coeffs, m.shifts),
+                -(m.latex_expression is not None),
+                -m.length,
+                m.ids,
+                m.shifts,
+            )
+        )
+        return results[:limit] if limit else results
     finally:
         fetcher.close()

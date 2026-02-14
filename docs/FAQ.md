@@ -4,7 +4,10 @@
 No. After the initial download (`oeis sync` or `scripts/fetch_oeis_data.sh`) everything runs locally against the SQLite snapshot.
 
 **How fresh is the data?**  
-Only as recent as your last `oeis sync`/`fetch_oeis_data.sh` + `oeis build-index` run. Re-run to refresh.
+Use `oeis status` to see last-sync age and DB health.  
+`oeis status --refresh-if-stale` can refresh non-interactively (sync + rebuild) when age exceeds your threshold (default 30 days).
+
+If you are offline or OEIS is rate-limited, the refresh step fails cleanly, reports the error, and leaves your existing local files as-is.
 
 **How do I sanity-check my local DB?**  
 Use `oeis selfcheck` to run a small regression set and (optionally) a few random combo recovery trials:

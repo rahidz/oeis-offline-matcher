@@ -9,6 +9,11 @@ Currently uses a simple SQLite file with one table:
             formula TEXT,                   -- optional combined FORMULA text
             keywords TEXT,                  -- comma-separated keywords (optional)
             prefix5 TEXT,                   -- first 5 terms comma-joined
+            prefix5_1 TEXT,                 -- terms[1:6] comma-joined (optional)
+            prefix5_2 TEXT,                 -- terms[2:7] comma-joined (optional)
+            prefix5_3 TEXT,                 -- terms[3:8] comma-joined (optional)
+            prefix5_4 TEXT,                 -- terms[4:9] comma-joined (optional)
+            prefix5_5 TEXT,                 -- terms[5:10] comma-joined (optional)
             min_val TEXT,
             max_val TEXT,
             gcd_val TEXT,
@@ -100,6 +105,14 @@ def _first_diff_sign(values: list[int]) -> str:
 def _record_to_row(rec: SequenceRecord) -> tuple:
     terms_text = ",".join(str(t) for t in rec.terms)
     prefix5 = ",".join(str(t) for t in rec.terms[:5])
+    # Shifted prefixes support "start at index k" expanded combo searches.
+    # Keep them small (5 terms) and fixed-shift (k<=5) so the DB stays portable
+    # and query-time logic can remain fully offline and deterministic.
+    prefix5_1 = ",".join(str(t) for t in rec.terms[1:6]) if len(rec.terms) >= 6 else None
+    prefix5_2 = ",".join(str(t) for t in rec.terms[2:7]) if len(rec.terms) >= 7 else None
+    prefix5_3 = ",".join(str(t) for t in rec.terms[3:8]) if len(rec.terms) >= 8 else None
+    prefix5_4 = ",".join(str(t) for t in rec.terms[4:9]) if len(rec.terms) >= 9 else None
+    prefix5_5 = ",".join(str(t) for t in rec.terms[5:10]) if len(rec.terms) >= 10 else None
     min_val = str(min(rec.terms)) if rec.terms else None
     max_val = str(max(rec.terms)) if rec.terms else None
     gcd_val = str(_compute_gcd(rec.terms)) if rec.terms else None
@@ -125,6 +138,11 @@ def _record_to_row(rec: SequenceRecord) -> tuple:
         offset1,
         has_formula,
         prefix5,
+        prefix5_1,
+        prefix5_2,
+        prefix5_3,
+        prefix5_4,
+        prefix5_5,
         min_val,
         max_val,
         gcd_val,
@@ -156,6 +174,11 @@ def init_db(db_path: Path) -> None:
                 offset1 INTEGER,
                 has_formula INTEGER,
                 prefix5 TEXT,
+                prefix5_1 TEXT,
+                prefix5_2 TEXT,
+                prefix5_3 TEXT,
+                prefix5_4 TEXT,
+                prefix5_5 TEXT,
                 min_val TEXT,
                 max_val TEXT,
                 gcd_val TEXT,
@@ -291,6 +314,95 @@ def missing_recommended_indexes(db_path: Path) -> list[str]:
     return missing
 
 
+def ensure_prefix_shifts(db_path: Path, *, max_shift: int = 5, batch_size: int = 5000) -> dict[str, object]:
+    """
+    Ensure shifted prefix columns (prefix5_1..prefix5_k) exist and are populated.
+
+    Why:
+    Expanded "DB-wide" searches rely on an in-memory prefix index. For shifted
+    pointwise/linear combinations ("use A starting at index k"), we need the
+    ability to index terms[k:k+5] efficiently without parsing full term lists
+    at query time.
+
+    This is safe to run repeatedly:
+    - Missing columns are added via ALTER TABLE.
+    - Newly added columns are populated from the existing `terms` text.
+
+    Notes:
+    - Only supports 5-term prefix windows (matches the existing `prefix5` design).
+    - Intended maximum shift is small (k<=5) to keep DB bloat modest.
+    """
+    db_path = Path(db_path)
+    if max_shift <= 0:
+        return {"db": str(db_path), "added_columns": [], "updated_rows": 0, "max_shift": int(max_shift)}
+
+    max_shift = int(max_shift)
+    cols_needed = [f"prefix5_{k}" for k in range(1, max_shift + 1)]
+
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(sequences)").fetchall()}
+
+        added: list[str] = []
+        for col in cols_needed:
+            if col in cols:
+                continue
+            conn.execute(f"ALTER TABLE sequences ADD COLUMN {col} TEXT")
+            added.append(col)
+            cols.add(col)
+
+        updated_rows = 0
+        if added:
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=OFF")
+
+            # Only compute the small prefix window we need: up to (max_shift+5) terms.
+            max_needed = max_shift + 5
+
+            def _first_terms(terms_text: str) -> list[int]:
+                if not terms_text:
+                    return []
+                # Split only enough commas to get the first `max_needed` terms.
+                parts = [p for p in terms_text.split(",", max_needed)[:max_needed] if p != ""]
+                out: list[int] = []
+                for p in parts:
+                    try:
+                        out.append(int(p))
+                    except ValueError:
+                        break
+                return out
+
+            update_cols = [c for c in cols_needed if c in cols]
+            set_clause = ", ".join(f"{c} = ?" for c in update_cols)
+            sql = f"UPDATE sequences SET {set_clause} WHERE id = ?"
+
+            batch: list[tuple] = []
+            for row in conn.execute("SELECT id, terms FROM sequences ORDER BY id ASC"):
+                seq_id = str(row["id"])
+                terms = _first_terms(row["terms"])
+                values: list[str | None] = []
+                for k in range(1, max_shift + 1):
+                    if f"prefix5_{k}" not in update_cols:
+                        continue
+                    values.append(",".join(str(t) for t in terms[k : k + 5]) if len(terms) >= k + 5 else None)
+                batch.append(tuple(values + [seq_id]))
+                if len(batch) >= int(batch_size):
+                    conn.executemany(sql, batch)
+                    updated_rows += len(batch)
+                    batch.clear()
+            if batch:
+                conn.executemany(sql, batch)
+                updated_rows += len(batch)
+            conn.commit()
+
+        return {
+            "db": str(db_path),
+            "added_columns": added,
+            "updated_rows": updated_rows,
+            "max_shift": max_shift,
+        }
+
+
 def write_records(records: Iterable[SequenceRecord], db_path: Path, *, batch_size: int = 5000) -> int:
     """
     Insert SequenceRecord items into SQLite. Returns count inserted.
@@ -320,10 +432,14 @@ def write_records(records: Iterable[SequenceRecord], db_path: Path, *, batch_siz
 def _insert_batch(conn: sqlite3.Connection, rows: list[tuple]) -> None:
     conn.executemany(
         """
-        INSERT INTO sequences (id, length, terms, name, formula, keywords, offset0, offset1, has_formula, prefix5, min_val, max_val, gcd_val,
-                               is_nondecreasing, is_nonincreasing, sign_pattern, nonzero_count, first_diff_sign, growth_rate,
-                               var, diff_var)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO sequences (id, length, terms, name, formula, keywords, offset0, offset1, has_formula, prefix5,
+                               prefix5_1, prefix5_2, prefix5_3, prefix5_4, prefix5_5,
+                               min_val, max_val, gcd_val, is_nondecreasing, is_nonincreasing, sign_pattern, nonzero_count,
+                               first_diff_sign, growth_rate, var, diff_var)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
             length=excluded.length,
             terms=excluded.terms,
@@ -334,6 +450,11 @@ def _insert_batch(conn: sqlite3.Connection, rows: list[tuple]) -> None:
             offset1=excluded.offset1,
             has_formula=excluded.has_formula,
             prefix5=excluded.prefix5,
+            prefix5_1=excluded.prefix5_1,
+            prefix5_2=excluded.prefix5_2,
+            prefix5_3=excluded.prefix5_3,
+            prefix5_4=excluded.prefix5_4,
+            prefix5_5=excluded.prefix5_5,
             min_val=excluded.min_val,
             max_val=excluded.max_val,
             gcd_val=excluded.gcd_val,

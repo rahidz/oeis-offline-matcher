@@ -24,24 +24,27 @@ PRESETS = {
         "combo_coeffs": "-2,-1,1,2",
         "combo_max_shift": 0,
         "combo_max_checks": 100000,
-        "combo_max_time": 0.8,
-        "transform_max_time": 0.8,
-        "total_max_time": 2.0,
+        "combo_max_time": 2.0,
+        "transform_max_time": 2.0,
+        "total_max_time": 10.0,
         # combo subcommand aliases
         "coeffs": "-2,-1,1,2",
         "candidates": 20,
         "max_shift": 0,
         "max_shift_back": 0,
         "max_checks": 100000,
-        "max_time": 0.8,
+        "max_time": 2.0,
         "triples": 0,
         "triple_candidates": 15,
         "triple_max_checks": 120000,
-        "triple_max_time": 0.8,
+        "triple_max_time": 2.0,
         "combo_unfiltered": False,
         "combo_expanded": False,
         "combo_expanded_max_time": 0.0,
         "combo_expanded_anchors": 0,
+        "modclass": 0,
+        "modclass_moduli": "2,3",
+        "modclass_max_time": 0.0,
         # combo subcommand expanded triple/pair fallback
         "expanded": False,
         "expanded_max_time": 0.0,
@@ -65,24 +68,27 @@ PRESETS = {
         "combo_coeffs": "-3,-2,-1,1,2,3",
         "combo_max_shift": 2,
         "combo_max_checks": 400000,
-        "combo_max_time": 3.0,
-        "transform_max_time": 3.0,
-        "total_max_time": 30.0,
+        "combo_max_time": 30.0,
+        "transform_max_time": 30.0,
+        "total_max_time": 120.0,
         # combo subcommand aliases
         "coeffs": "-3,-2,-1,1,2,3",
         "candidates": 60,
         "max_shift": 2,
         "max_shift_back": 0,
         "max_checks": 400000,
-        "max_time": 3.0,
+        "max_time": 30.0,
         "triples": 4,
         "triple_candidates": 30,
         "triple_max_checks": 350000,
-        "triple_max_time": 3.0,
+        "triple_max_time": 30.0,
         "combo_unfiltered": False,
         "combo_expanded": False,
         "combo_expanded_max_time": 0.0,
         "combo_expanded_anchors": 0,
+        "modclass": 0,
+        "modclass_moduli": "2,3",
+        "modclass_max_time": 0.0,
         # combo subcommand expanded triple/pair fallback
         "expanded": False,
         "expanded_max_time": 0.0,
@@ -105,7 +111,7 @@ PRESETS = {
         "transform_max_complexity": 7.0,
         "combo_candidates": 250,
         "combo_coeffs": "-5,-4,-3,-2,-1,1,2,3,4,5",
-        "combo_max_shift": 3,
+        "combo_max_shift": 5,
         # Allow a small amount of backward shift for combo discovery (enables
         # identities like Lucas from shifted Fibonacci without exploding search).
         "combo_max_shift_back": 1,
@@ -116,7 +122,7 @@ PRESETS = {
         # combo subcommand aliases
         "coeffs": "-5,-4,-3,-2,-1,1,2,3,4,5",
         "candidates": 250,
-        "max_shift": 3,
+        "max_shift": 5,
         "max_shift_back": 1,
         "max_checks": 2_000_000,
         "max_time": 1800.0,
@@ -136,6 +142,10 @@ PRESETS = {
         "combo_expanded": True,
         "combo_expanded_max_time": 1800.0,
         "combo_expanded_anchors": 800,
+        # Mod-class (interleave) decompositions a(mn+r)=X_r(n+s_r).
+        "modclass": 10,
+        "modclass_moduli": "2,3",
+        "modclass_max_time": 3.0,
         # combo subcommand expanded triple/pair fallback
         "expanded": True,
         "expanded_max_time": 1800.0,
@@ -175,6 +185,44 @@ def _warn_if_db_missing_indexes(db_path: Path, *, as_json: bool) -> None:
     print(
         f"Tip: DB is missing recommended index(es) ({shown}{extra}). "
         f"Run: oeis optimize-db --db {db}",
+        file=sys.stderr,
+    )
+
+
+def _warn_if_data_stale(
+    *,
+    stripped_path: Path,
+    names_path: Path,
+    keywords_path: Path,
+    db_path: Path,
+    metadata_path: Path,
+    max_age_days: float,
+    warn_on_stale: bool,
+    as_json: bool,
+) -> None:
+    if as_json or not warn_on_stale:
+        return
+    try:
+        report = build_status_report(
+            stripped_path=Path(stripped_path),
+            names_path=Path(names_path),
+            keywords_path=Path(keywords_path),
+            db_path=Path(db_path),
+            metadata_path=Path(metadata_path),
+            max_age_days=float(max_age_days),
+            include_db_checks=False,
+        )
+    except Exception:
+        return
+    freshness = report.get("freshness") or {}
+    if not bool(freshness.get("is_stale")):
+        return
+    age_days = freshness.get("age_days")
+    age_txt = f"{float(age_days):.1f} days" if age_days is not None else "unknown age"
+    last_sync = freshness.get("last_sync_utc") or "unknown"
+    print(
+        f"Warning: local OEIS snapshot is stale ({age_txt}; last sync: {last_sync}). "
+        f"Run: oeis status --refresh-if-stale",
         file=sys.stderr,
     )
 
@@ -343,7 +391,9 @@ from .combination_search import (
     search_two_sequence_combinations_expanded,
     search_three_sequence_combinations,
     search_three_sequence_combinations_expanded,
+    search_mod_class_combinations,
     search_pointwise_two_sequence_combinations,
+    search_pointwise_two_sequence_combinations_expanded,
     search_convolution_two_sequence_combinations,
     resolve_component_transforms,
 )
@@ -357,6 +407,7 @@ from .transform_search import search_transform_matches
 from .transforms import default_transforms
 from .sync import DEFAULT_NAMES_URL, DEFAULT_OEISDATA_REPO, DEFAULT_STRIPPED_URL, sync_data
 from .storage import ensure_db_indexes, get_sequence_by_id
+from .freshness import build_status_report, update_build_metadata, update_sync_metadata
 
 
 def _main(argv=None):
@@ -369,6 +420,12 @@ def _main(argv=None):
     default_db = cfg["paths"]["db"]
     default_max_terms = cfg["limits"]["max_terms"]
     default_limit = cfg["limits"]["max_results"]
+    freshness_cfg = cfg.get("freshness", {})
+    startup_cfg = cfg.get("startup", {})
+    default_metadata_path = freshness_cfg.get("metadata_path", "data/processed/freshness.json")
+    default_freshness_max_age_days = float(freshness_cfg.get("max_age_days", 30.0))
+    default_warn_on_stale = bool(freshness_cfg.get("warn_on_stale", True))
+    default_startup_refresh_if_stale = bool(startup_cfg.get("refresh_if_stale", False))
 
     parser = argparse.ArgumentParser(prog="oeis", description="Offline OEIS matcher")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -382,6 +439,7 @@ def _main(argv=None):
     p_build.add_argument("--db", default=default_db, help="Output SQLite path")
     p_build.add_argument("--oeisdata", default="data/raw/oeisdata", help="Optional path to oeisdata clone for keywords/metadata")
     p_build.add_argument("--max-terms", type=int, default=default_max_terms, help="Max terms to store per sequence")
+    p_build.add_argument("--metadata", default=default_metadata_path, help="Path to freshness metadata JSON (updated on success)")
 
     p_sync = sub.add_parser("sync", help="Download OEIS exports into data/raw.")
     p_sync.add_argument("--stripped-url", default=DEFAULT_STRIPPED_URL, help="URL for stripped.gz")
@@ -394,10 +452,44 @@ def _main(argv=None):
     p_sync.add_argument("--clone-oeisdata", action="store_true", help="Also clone oeisdata mirror for metadata/keywords")
     p_sync.add_argument("--oeisdata-url", default=DEFAULT_OEISDATA_REPO, help="Repo URL for oeisdata clone")
     p_sync.add_argument("--oeisdata", default="data/raw/oeisdata", help="Destination path for oeisdata clone")
+    p_sync.add_argument("--metadata", default=default_metadata_path, help="Path to freshness metadata JSON (updated on success)")
+
+    p_status = sub.add_parser("status", help="Report local environment/data/index freshness and health.")
+    p_status.add_argument("--stripped", default=default_stripped, help="Path to stripped OEIS export")
+    p_status.add_argument("--names", default=default_names, help="Path to names OEIS export")
+    p_status.add_argument("--keywords", default=default_keywords, help="Path to keywords export (optional)")
+    p_status.add_argument("--db", default=default_db, help="SQLite index path")
+    p_status.add_argument("--metadata", default=default_metadata_path, help="Path to freshness metadata JSON")
+    p_status.add_argument("--max-age-days", type=float, default=default_freshness_max_age_days, help="Staleness threshold in days")
+    p_status.add_argument(
+        "--refresh-if-stale",
+        action=argparse.BooleanOptionalAction,
+        default=default_startup_refresh_if_stale,
+        help="If stale, run sync + build-index non-interactively before printing final status.",
+    )
+    p_status.add_argument("--stripped-url", default=DEFAULT_STRIPPED_URL, help="Refresh source URL/path for stripped export")
+    p_status.add_argument("--names-url", default=DEFAULT_NAMES_URL, help="Refresh source URL/path for names export")
+    p_status.add_argument("--keywords-url", default="", help="Optional refresh source URL/path for keywords export")
+    p_status.add_argument("--clone-oeisdata", action="store_true", help="Also refresh oeisdata clone during --refresh-if-stale")
+    p_status.add_argument("--oeisdata-url", default=DEFAULT_OEISDATA_REPO, help="Repo URL for oeisdata clone during refresh")
+    p_status.add_argument("--oeisdata", default="data/raw/oeisdata", help="Destination path for oeisdata clone during refresh")
+    p_status.add_argument("--max-terms", type=int, default=default_max_terms, help="Max terms to store when rebuilding after refresh")
+    p_status.add_argument("--json", action="store_true", dest="as_json", help="Output JSON")
 
     p_opt = sub.add_parser("optimize-db", help="Create missing SQLite indexes for faster searches (one-time).")
     p_opt.add_argument("--db", default=default_db, help="SQLite index path")
     p_opt.add_argument("--analyze", action="store_true", help="Run SQLite ANALYZE after creating indexes (optional)")
+    p_opt.add_argument(
+        "--add-prefix-shifts",
+        action="store_true",
+        help="Add and backfill shifted prefix columns (prefix5_1..prefix5_k) needed for expanded shifted combo searches.",
+    )
+    p_opt.add_argument(
+        "--max-prefix-shift",
+        type=int,
+        default=5,
+        help="Maximum forward shift k for prefix5_k columns (only used with --add-prefix-shifts).",
+    )
     p_opt.add_argument("--json", action="store_true", dest="as_json", help="Output JSON")
 
     p_match = sub.add_parser("match", help="Match a sequence against OEIS.")
@@ -505,6 +597,18 @@ def _main(argv=None):
         help="Max wall time (seconds) for expanded pair/triple search (only applies with --expanded).",
     )
     p_combo.add_argument(
+        "--expanded-pointwise",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Enable expanded (DB-wide prefix index) pointwise mul fallback. Defaults to --expanded.",
+    )
+    p_combo.add_argument(
+        "--expanded-pointwise-max-time",
+        type=float,
+        default=None,
+        help="Max wall time (seconds) for expanded pointwise fallback (defaults to --expanded-max-time).",
+    )
+    p_combo.add_argument(
         "--expanded-anchors",
         type=int,
         default=400,
@@ -518,6 +622,9 @@ def _main(argv=None):
     p_combo.set_defaults(combo_unfiltered=False)
     p_combo.add_argument("--pointwise-ops", default="", help="Comma-separated pointwise ops: mul,gcd,lcm")
     p_combo.add_argument("--convolution-ops", default="", help="Comma-separated convolution ops: cauchy,dirichlet")
+    p_combo.add_argument("--modclass", type=int, default=0, help="Return up to N mod-class/interleave decompositions (a(mn+r)=...).")
+    p_combo.add_argument("--modclass-moduli", default="2,3", help="Comma-separated moduli to try for --modclass (e.g., 2,3,4).")
+    p_combo.add_argument("--modclass-max-time", type=float, default=None, help="Max wall time (seconds) for --modclass stage.")
     p_combo.add_argument("--stream", action="store_true", help="Print matches as they are found (text mode only)")
     p_combo.add_argument("--no-stream", dest="stream", action="store_false", help="Disable streaming output (text mode).")
     p_combo.set_defaults(stream=False)
@@ -595,6 +702,18 @@ def _main(argv=None):
         help="Max wall time (seconds) for expanded combo fallback (0 = no fallback time cap).",
     )
     p_analyze.add_argument(
+        "--combo-expanded-pointwise",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Enable expanded (DB-wide) pointwise mul fallback (defaults to --combo-expanded).",
+    )
+    p_analyze.add_argument(
+        "--combo-expanded-pointwise-max-time",
+        type=float,
+        default=None,
+        help="Max wall time (seconds) for expanded pointwise fallback (defaults to --combo-expanded-max-time).",
+    )
+    p_analyze.add_argument(
         "--combo-expanded-anchors",
         type=int,
         default=400,
@@ -605,6 +724,9 @@ def _main(argv=None):
     p_analyze.add_argument("--pointwise-limit", type=int, default=0, help="Return up to N pointwise combinations (experimental)")
     p_analyze.add_argument("--convolution-ops", default="", help="Comma-separated convolution ops: cauchy,dirichlet")
     p_analyze.add_argument("--convolution-limit", type=int, default=0, help="Return up to N convolution combinations (experimental)")
+    p_analyze.add_argument("--modclass", type=int, default=0, help="Return up to N mod-class/interleave decompositions (a(mn+r)=...).")
+    p_analyze.add_argument("--modclass-moduli", default="2,3", help="Comma-separated moduli to try for --modclass (e.g., 2,3,4).")
+    p_analyze.add_argument("--modclass-max-time", type=float, default=None, help="Max wall time (seconds) for --modclass stage.")
     p_analyze.add_argument("--preset", choices=list(PRESETS.keys()), help="Preset for search depth/limits (fast|deep|max)")
     p_analyze.add_argument("--stream", action="store_true", help="Print results as stages complete (text mode only)")
     p_analyze.add_argument("--no-stream", dest="stream", action="store_false", help="Disable streaming output (text mode).")
@@ -655,34 +777,79 @@ def _main(argv=None):
 
     if args.cmd in {"match", "tsearch", "combo", "analyze", "selfcheck"}:
         _warn_if_db_missing_indexes(Path(args.db), as_json=bool(getattr(args, "as_json", False)))
+        _warn_if_data_stale(
+            stripped_path=Path(default_stripped),
+            names_path=Path(default_names),
+            keywords_path=Path(default_keywords),
+            db_path=Path(args.db),
+            metadata_path=Path(default_metadata_path),
+            max_age_days=default_freshness_max_age_days,
+            warn_on_stale=default_warn_on_stale,
+            as_json=bool(getattr(args, "as_json", False)),
+        )
 
     if args.cmd == "build-index":
+        stripped_path = Path(args.stripped)
+        names_path = Path(args.names)
+        keywords_path = Path(args.keywords)
+        db_path = Path(args.db)
         stats = build_index(
-            Path(args.stripped),
-            Path(args.names),
-            Path(args.keywords),
-            Path(args.db),
+            stripped_path,
+            names_path,
+            keywords_path,
+            db_path,
             max_terms=args.max_terms,
             oeisdata_root=Path(args.oeisdata),
             offsets_path=Path(args.offsets) if args.offsets else None,
             formulas_path=Path(args.formulas) if args.formulas else None,
         )
+        try:
+            update_build_metadata(
+                Path(args.metadata),
+                db_path=db_path,
+                stripped_path=stripped_path,
+                names_path=names_path,
+                keywords_path=keywords_path,
+                max_terms=args.max_terms,
+                build_stats=stats,
+            )
+        except Exception as exc:
+            print(f"Warning: failed to update freshness metadata: {exc}", file=sys.stderr)
         print(f"Inserted {stats['inserted']} sequences into {stats['db']}")
         return 0
 
     if args.cmd == "sync":
+        stripped_path = Path(args.stripped)
+        names_path = Path(args.names)
+        keywords_path = Path(args.keywords)
+        oeisdata_path = Path(args.oeisdata)
         stats = sync_data(
             stripped_url=args.stripped_url,
             names_url=args.names_url,
             keywords_url=args.keywords_url or None,
-            stripped_path=Path(args.stripped),
-            names_path=Path(args.names),
-            keywords_path=Path(args.keywords),
+            stripped_path=stripped_path,
+            names_path=names_path,
+            keywords_path=keywords_path,
             force=args.force,
             clone_oeisdata=args.clone_oeisdata,
-            oeisdata_path=Path(args.oeisdata),
+            oeisdata_path=oeisdata_path,
             oeisdata_url=args.oeisdata_url,
         )
+        try:
+            update_sync_metadata(
+                Path(args.metadata),
+                stripped_source=args.stripped_url,
+                names_source=args.names_url,
+                keywords_source=args.keywords_url or None,
+                oeisdata_source=args.oeisdata_url if args.clone_oeisdata else None,
+                stripped_path=stripped_path,
+                names_path=names_path,
+                keywords_path=keywords_path,
+                oeisdata_path=oeisdata_path if args.clone_oeisdata else None,
+                sync_stats=stats,
+            )
+        except Exception as exc:
+            print(f"Warning: failed to update freshness metadata: {exc}", file=sys.stderr)
         for label in ("stripped", "names", "keywords", "oeisdata"):
             if label in stats:
                 s = stats[label]
@@ -691,9 +858,157 @@ def _main(argv=None):
         print("Note: OEIS data is CC BY-SA 4.0; include attribution when redistributing.")
         return 0
 
+    if args.cmd == "status":
+        report = build_status_report(
+            stripped_path=Path(args.stripped),
+            names_path=Path(args.names),
+            keywords_path=Path(args.keywords),
+            db_path=Path(args.db),
+            metadata_path=Path(args.metadata),
+            max_age_days=float(args.max_age_days),
+        )
+        refresh_result: dict[str, object] | None = None
+        exit_code = 0
+
+        if bool(args.refresh_if_stale) and bool((report.get("freshness") or {}).get("is_stale")):
+            refresh_result = {"attempted": True, "ok": False}
+            stripped_path = Path(args.stripped)
+            names_path = Path(args.names)
+            keywords_path = Path(args.keywords)
+            oeisdata_path = Path(args.oeisdata)
+            db_path = Path(args.db)
+            try:
+                sync_stats = sync_data(
+                    stripped_url=args.stripped_url,
+                    names_url=args.names_url,
+                    keywords_url=args.keywords_url or None,
+                    stripped_path=stripped_path,
+                    names_path=names_path,
+                    keywords_path=keywords_path,
+                    force=True,
+                    clone_oeisdata=bool(args.clone_oeisdata),
+                    oeisdata_path=oeisdata_path,
+                    oeisdata_url=args.oeisdata_url,
+                )
+                update_sync_metadata(
+                    Path(args.metadata),
+                    stripped_source=args.stripped_url,
+                    names_source=args.names_url,
+                    keywords_source=args.keywords_url or None,
+                    oeisdata_source=args.oeisdata_url if args.clone_oeisdata else None,
+                    stripped_path=stripped_path,
+                    names_path=names_path,
+                    keywords_path=keywords_path,
+                    oeisdata_path=oeisdata_path if args.clone_oeisdata else None,
+                    sync_stats=sync_stats,
+                )
+                build_stats = build_index(
+                    stripped_path,
+                    names_path,
+                    keywords_path,
+                    db_path,
+                    max_terms=int(args.max_terms),
+                    oeisdata_root=oeisdata_path if args.clone_oeisdata else None,
+                )
+                update_build_metadata(
+                    Path(args.metadata),
+                    db_path=db_path,
+                    stripped_path=stripped_path,
+                    names_path=names_path,
+                    keywords_path=keywords_path,
+                    max_terms=int(args.max_terms),
+                    build_stats=build_stats,
+                )
+                refresh_result.update(
+                    {
+                        "ok": True,
+                        "sync": sync_stats,
+                        "build": build_stats,
+                    }
+                )
+            except Exception as exc:
+                refresh_result["error"] = str(exc)
+                exit_code = 2
+            report = build_status_report(
+                stripped_path=Path(args.stripped),
+                names_path=Path(args.names),
+                keywords_path=Path(args.keywords),
+                db_path=Path(args.db),
+                metadata_path=Path(args.metadata),
+                max_age_days=float(args.max_age_days),
+            )
+        elif bool(args.refresh_if_stale):
+            refresh_result = {"attempted": False, "reason": "not_stale"}
+
+        if refresh_result is not None:
+            report["refresh"] = refresh_result
+
+        if args.as_json:
+            print(json.dumps(report, indent=2, default=str))
+            return exit_code
+
+        freshness = report.get("freshness") or {}
+        age_days = freshness.get("age_days")
+        age_txt = f"{float(age_days):.1f}d" if age_days is not None else "unknown"
+        freshness_state = "stale" if freshness.get("is_stale") else "fresh"
+        print(f"Status: {'ready' if report.get('ready') else 'degraded'}")
+        print(
+            "Freshness: "
+            f"{freshness_state} (age={age_txt}, threshold={float(freshness.get('max_age_days') or 0.0):.1f}d, "
+            f"last_sync={freshness.get('last_sync_utc') or 'unknown'})"
+        )
+
+        paths = report.get("paths") or {}
+        for label in ("stripped", "names", "keywords"):
+            marker = paths.get(label) or {}
+            state = "ok" if marker.get("exists") else "missing"
+            size = f"{int(marker.get('bytes'))} bytes" if marker.get("bytes") is not None else "n/a"
+            mtime = marker.get("mtime_utc") or "n/a"
+            print(f"{label}: {state} ({size}, mtime={mtime}) -> {marker.get('path')}")
+
+        db_info = paths.get("db") or {}
+        db_state = "ok" if db_info.get("exists") else "missing"
+        db_seq = db_info.get("sequence_count")
+        seq_txt = f", sequences={db_seq}" if db_seq is not None else ""
+        print(f"db: {db_state}{seq_txt} -> {db_info.get('path')}")
+        missing_indexes = db_info.get("missing_recommended_indexes") or []
+        if missing_indexes:
+            preview = ", ".join(missing_indexes[:5])
+            suffix = "" if len(missing_indexes) <= 5 else f", ... (+{len(missing_indexes) - 5} more)"
+            print(f"db indexes: missing {preview}{suffix}")
+            print(f"Tip: oeis optimize-db --db {db_info.get('path')}")
+        else:
+            print("db indexes: ok")
+
+        if refresh_result is not None:
+            if refresh_result.get("attempted") and refresh_result.get("ok"):
+                print("Refresh: completed (sync + build-index).")
+            elif refresh_result.get("attempted") and not refresh_result.get("ok"):
+                print(f"Refresh: failed ({refresh_result.get('error')})")
+            else:
+                print("Refresh: skipped (not stale).")
+
+        for warning in report.get("warnings") or []:
+            print(f"Warning: {warning}")
+        return exit_code
+
     if args.cmd == "optimize-db":
         db_path = Path(args.db)
         stats = ensure_db_indexes(db_path, analyze=bool(args.analyze))
+        if getattr(args, "add_prefix_shifts", False):
+            try:
+                from .storage import ensure_prefix_shifts
+
+                shift_stats = ensure_prefix_shifts(db_path, max_shift=int(getattr(args, "max_prefix_shift", 5)))
+                stats.update(
+                    {
+                        "prefix_shift_columns_added": shift_stats.get("added_columns") or [],
+                        "prefix_shift_rows_updated": int(shift_stats.get("updated_rows") or 0),
+                        "prefix_shift_max_shift": int(shift_stats.get("max_shift") or 0),
+                    }
+                )
+            except Exception as e:
+                stats["prefix_shift_error"] = str(e)
         if args.as_json:
             print(json.dumps(stats, indent=2))
             return 0
@@ -701,6 +1016,9 @@ def _main(argv=None):
         created = stats.get("created") or []
         missing_cols = stats.get("missing_columns") or []
         analyzed = bool(stats.get("analyzed"))
+        prefix_added = stats.get("prefix_shift_columns_added") or []
+        prefix_rows = int(stats.get("prefix_shift_rows_updated") or 0)
+        prefix_err = stats.get("prefix_shift_error") or ""
 
         print(f"DB: {db_path}")
         if created:
@@ -709,6 +1027,13 @@ def _main(argv=None):
                 print(f"  - {name}")
         else:
             print("No new indexes created (already optimized).")
+        if prefix_added:
+            print(f"\nAdded {len(prefix_added)} shifted prefix column(s):")
+            for name in prefix_added:
+                print(f"  - {name}")
+            print(f"Backfilled shifted prefixes for {prefix_rows} row(s).")
+        if prefix_err:
+            print(f"\nWarning: failed to add/backfill shifted prefixes: {prefix_err}")
         if missing_cols:
             print("\nNote: DB is missing some optional columns, so some indexes were skipped:")
             for col in missing_cols:
@@ -1098,6 +1423,7 @@ def _main(argv=None):
             return f"  {m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}"
 
         combos = []
+        modclass_matches = []
         need_expanded_pairs = False
         if not time_budget_exhausted:
             t1 = time.perf_counter()
@@ -1143,11 +1469,39 @@ def _main(argv=None):
                 print("  (none)", flush=True)
             if args.total_max_time is not None and _remaining_s() == 0:
                 time_budget_exhausted = True
+
+        if args.modclass and int(args.modclass) > 0 and not time_budget_exhausted and (args.total_max_time is None or _remaining_s() > 0):
+            t_mc = time.perf_counter()
+            if stream_text:
+                print("\nMod-class combinations:", flush=True)
+            mc_time = _cap_by_total(getattr(args, "modclass_max_time", None))
+            if mc_time is None or mc_time > 0:
+                moduli = _parse_int_list(str(getattr(args, "modclass_moduli", "2,3")).replace(" ", ","))
+                moduli = [m for m in moduli if m > 1]
+                modclass_matches = search_mod_class_combinations(
+                    query,
+                    db_path,
+                    moduli=tuple(moduli) if moduli else (2, 3),
+                    limit=int(args.modclass),
+                    max_shift=args.max_shift,
+                    max_time_s=mc_time,
+                    snippet_len=snip,
+                    min_score=args.min_score,
+                    max_complexity=args.max_complexity,
+                    on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=False), flush=True)) if stream_text else None,
+                )
+            if args.timings:
+                timings["modclass_ms"] = 1000 * (time.perf_counter() - t_mc)
+            if stream_text and not modclass_matches:
+                print("  (none)", flush=True)
+            if args.total_max_time is not None and _remaining_s() == 0:
+                time_budget_exhausted = True
         pointwise_matches = []
         conv_matches: list = []
         pw_ops = _parse_pointwise_ops(args.pointwise_ops)
         if pw_ops:
             if not time_budget_exhausted:
+                expanded_pointwise = args.expanded if getattr(args, "expanded_pointwise", None) is None else bool(getattr(args, "expanded_pointwise"))
                 t_pw = time.perf_counter()
                 if stream_text:
                     print("\nPointwise combinations:", flush=True)
@@ -1167,6 +1521,39 @@ def _main(argv=None):
                     max_complexity=args.max_complexity,
                     on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=False), flush=True)) if stream_text else None,
                 )
+                # Expanded DB-wide fallback for pointwise multiplication. This is
+                # important for cases where the multiplicative "mask" component
+                # (0/1/2-valued, sparse, etc.) does not resemble the product.
+                if (
+                    expanded_pointwise
+                    and ("mul" in pw_ops)
+                    and (not pointwise_matches)
+                    and (args.total_max_time is None or _remaining_s() > 0)
+                    and len(query.terms) >= 5
+                ):
+                    raw_cap = getattr(args, "expanded_pointwise_max_time", None)
+                    if raw_cap is None:
+                        raw_cap = args.expanded_max_time
+                    exp_time = raw_cap if raw_cap and raw_cap > 0 else None
+                    exp_time = _cap_by_total(exp_time)
+                    if exp_time is None or exp_time > 0:
+                        t_pwe = time.perf_counter()
+                        if stream_text:
+                            print("  (no in-bucket mul hits; trying expanded DB-wide mul…)", flush=True)
+                        pointwise_matches = search_pointwise_two_sequence_combinations_expanded(
+                            query,
+                            db_path,
+                            ops=("mul",),
+                            max_shift=args.max_shift,
+                            limit=args.limit,
+                            max_time_s=exp_time,
+                            snippet_len=snip,
+                            min_score=args.min_score,
+                            max_complexity=args.max_complexity,
+                            on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=False), flush=True)) if stream_text else None,
+                        )
+                        if args.timings:
+                            timings["expanded_pointwise_ms"] = 1000 * (time.perf_counter() - t_pwe)
                 if args.timings:
                     timings["pointwise_ms"] = 1000 * (time.perf_counter() - t_pw)
                 if stream_text and not pointwise_matches:
@@ -1273,6 +1660,7 @@ def _main(argv=None):
                         db_path,
                         coeffs=coeffs,
                         limit=args.limit,
+                        max_shift=args.max_shift,
                         max_time_s=exp_time,
                         snippet_len=snip,
                         min_score=args.min_score,
@@ -1318,6 +1706,21 @@ def _main(argv=None):
                 }
                 for m in triples
             ]
+            out_modclass = [
+                {
+                    "ids": list(m.ids),
+                    "names": list(m.names),
+                    "coeffs": [_fmt_coeff_json(c) for c in m.coeffs],
+                    "shifts": list(m.shifts),
+                    "length": m.length,
+                    "score": m.score,
+                    "expression": m.expression,
+                    **({"component_transforms": list(m.component_transforms)} if m.component_transforms else {}),
+                    **({"component_terms": [list(t) for t in m.component_terms]} if m.component_terms else {}),
+                    **({"combined_terms": m.combined_terms} if m.combined_terms else {}),
+                }
+                for m in modclass_matches
+            ]
             out_pw = [
                 {
                     "ids": list(m.ids),
@@ -1354,6 +1757,7 @@ def _main(argv=None):
                         "query": query.terms,
                         "combinations": out,
                         "triple_combinations": out3,
+                        "modclass_combinations": out_modclass,
                         "pointwise_combinations": out_pw,
                         "convolution_combinations": out_conv,
                         "diagnostics": {
@@ -1375,13 +1779,13 @@ def _main(argv=None):
                     print("\nTimings (ms):", flush=True)
                     for k, v in timings.items():
                         print(f"  {k}: {v:.1f}", flush=True)
-                if not combos and not triples and not pointwise_matches and not conv_matches:
+                if not combos and not triples and not modclass_matches and not pointwise_matches and not conv_matches:
                     if not args.expanded:
                         print("\nNo combinations found. Tip: try --expanded or --preset max.", flush=True)
                     else:
                         print("\nNo combinations found.", flush=True)
                 return 0
-            if not combos and not triples and not pointwise_matches and not conv_matches:
+            if not combos and not triples and not modclass_matches and not pointwise_matches and not conv_matches:
                 if not args.expanded:
                     print("No combinations found. Tip: try --expanded or --preset max.")
                 else:
@@ -1397,6 +1801,16 @@ def _main(argv=None):
                 if m.combined_terms:
                     extra += f" result={_fmt_terms(m.combined_terms)}"
                 print(f"{m.expression} len={m.length} score={m.score:.2f} [{m.ids[0]}{n1}; {m.ids[1]}{n2}]{extra}")
+            if modclass_matches:
+                print("\nMod-class combinations:")
+                for m in modclass_matches:
+                    name_parts = [f"{id_}{f' - {nm}' if nm else ''}" for id_, nm in zip(m.ids, m.names)]
+                    extra = ""
+                    if m.component_terms:
+                        extra = " " + " ".join(f"terms{i+1}={_fmt_terms(ts)}" for i, ts in enumerate(m.component_terms))
+                    if m.combined_terms:
+                        extra += f" result={_fmt_terms(m.combined_terms)}"
+                    print(f"{m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}")
             if triples:
                 print("\nTriple combinations:")
                 for m in triples:
@@ -1750,6 +2164,37 @@ def _main(argv=None):
                 )
         if args.total_max_time is not None and _remaining_s() == 0:
             time_budget_exhausted = True
+        modclass_matches: list = []
+        if args.modclass and int(args.modclass) > 0 and (_remaining_s() is None or _remaining_s() > 0):
+            mc_start = time.perf_counter()
+            mc_time_cap = _cap_by_total(args.modclass_max_time)
+            if mc_time_cap is not None and mc_time_cap <= 0:
+                modclass_matches = []
+                if args.total_max_time is not None and _remaining_s() == 0:
+                    time_budget_exhausted = True
+            else:
+                if stream_text:
+                    print("\nMod-class combinations:", flush=True)
+                moduli = _parse_int_list(str(getattr(args, "modclass_moduli", "2,3")).replace(" ", ","))
+                moduli = [m for m in moduli if m > 1]
+                modclass_matches = search_mod_class_combinations(
+                    query,
+                    db_path,
+                    moduli=tuple(moduli) if moduli else (2, 3),
+                    limit=int(args.modclass),
+                    max_shift=args.combo_max_shift,
+                    max_time_s=mc_time_cap,
+                    snippet_len=combo_snip,
+                    min_score=args.combo_min_score,
+                    max_complexity=args.combo_max_complexity,
+                    on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=False), flush=True)) if stream_text else None,
+                )
+                if stream_text and not modclass_matches:
+                    print("  (none)", flush=True)
+                if args.timings:
+                    timings["modclass_ms"] = 1000 * (time.perf_counter() - mc_start)
+                if args.total_max_time is not None and _remaining_s() == 0:
+                    time_budget_exhausted = True
         combo_matches: list = []
         triple_matches: list = []
         pointwise_matches: list = []
@@ -1857,6 +2302,11 @@ def _main(argv=None):
                 else:
                     if stream_text:
                         print("\nPointwise combination matches:", flush=True)
+                    combo_expanded_pointwise = (
+                        args.combo_expanded
+                        if getattr(args, "combo_expanded_pointwise", None) is None
+                        else bool(getattr(args, "combo_expanded_pointwise"))
+                    )
                     pointwise_matches = search_pointwise_two_sequence_combinations(
                         query,
                         bucket.records,
@@ -1873,6 +2323,39 @@ def _main(argv=None):
                         max_complexity=args.combo_max_complexity,
                         on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=False), flush=True)) if stream_text else None,
                     )
+                    # Expanded DB-wide fallback for pointwise multiplication (mul).
+                    # This helps recover factor-style explanations even when a
+                    # multiplicative component doesn't resemble the product.
+                    if (
+                        combo_expanded_pointwise
+                        and ("mul" in pw_ops)
+                        and (not pointwise_matches)
+                        and (_remaining_s() is None or _remaining_s() > 0)
+                        and len(query.terms) >= 5
+                    ):
+                        raw_cap = getattr(args, "combo_expanded_pointwise_max_time", None)
+                        if raw_cap is None:
+                            raw_cap = args.combo_expanded_max_time
+                        exp_time = raw_cap if raw_cap and raw_cap > 0 else None
+                        exp_time = _cap_by_total(exp_time)
+                        if exp_time is None or exp_time > 0:
+                            t_pwe = time.perf_counter()
+                            if stream_text:
+                                print("  (no in-bucket mul hits; trying expanded DB-wide mul…)", flush=True)
+                            pointwise_matches = search_pointwise_two_sequence_combinations_expanded(
+                                query,
+                                db_path,
+                                ops=("mul",),
+                                max_shift=args.combo_max_shift,
+                                limit=args.pointwise_limit,
+                                max_time_s=exp_time,
+                                snippet_len=combo_snip,
+                                min_score=args.combo_min_score,
+                                max_complexity=args.combo_max_complexity,
+                                on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=False), flush=True)) if stream_text else None,
+                            )
+                            if args.timings:
+                                timings["expanded_pointwise_ms"] = 1000 * (time.perf_counter() - t_pwe)
                     if stream_text and not pointwise_matches:
                         print("  (none)", flush=True)
                 pw_end = time.perf_counter()
@@ -1988,6 +2471,7 @@ def _main(argv=None):
                         db_path,
                         coeffs=combo_coeffs,
                         limit=args.combos,
+                        max_shift=args.combo_max_shift,
                         max_time_s=exp_time,
                         snippet_len=combo_snip,
                         min_score=args.combo_min_score,
@@ -2091,6 +2575,21 @@ def _main(argv=None):
                     }
                     for m in triple_matches
                 ],
+                "modclass_combinations": [
+                    {
+                        "ids": list(m.ids),
+                        "names": list(m.names),
+                        "coeffs": [_fmt_coeff_json(c) for c in m.coeffs],
+                        "shifts": list(m.shifts),
+                        "length": m.length,
+                        "score": m.score,
+                        "expression": m.expression,
+                        **({"component_transforms": list(m.component_transforms)} if m.component_transforms else {}),
+                        **({"component_terms": [list(t) for t in m.component_terms]} if m.component_terms else {}),
+                        **({"combined_terms": m.combined_terms} if m.combined_terms else {}),
+                    }
+                    for m in modclass_matches
+                ],
                 "pointwise_combinations": [
                     {
                         "ids": list(m.ids),
@@ -2190,6 +2689,16 @@ def _main(argv=None):
                     print(
                         f"  {m.expression} len={m.length} coeffs={coeffs_disp} score={m.score:.2f} [{m.ids[0]}{n1}; {m.ids[1]}{n2}]{extra}"
                     )
+            if modclass_matches:
+                print("\nMod-class combinations:")
+                for m in modclass_matches:
+                    name_parts = [f"{id_}{f' - {nm}' if nm else ''}" for id_, nm in zip(m.ids, m.names)]
+                    extra = ""
+                    if m.component_terms:
+                        extra = " " + " ".join(f"terms{i+1}={_fmt_terms(ts)}" for i, ts in enumerate(m.component_terms))
+                    if m.combined_terms:
+                        extra += f" result={_fmt_terms(m.combined_terms)}"
+                    print(f"  {m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}")
             if triple_matches:
                 print("\nTriple combination matches:")
                 for m in triple_matches:

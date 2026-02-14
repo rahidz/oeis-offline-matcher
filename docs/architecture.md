@@ -16,6 +16,7 @@ This snapshot describes the current v0/v1 pipeline.
 5) **Similarity**: `rank_candidates_for_query` fits scale/offset (MSE + correlation) on filtered candidates.
 6) **Combinations (experimental)**: `get_candidate_bucket` (capped, optional fill) → `search_two_sequence_combinations` / `search_three_sequence_combinations` brute-force small integer coeffs and forward shifts, with optional per-component transforms (id/diff/partial_sum) → `CombinationMatch` with expression.
 7) **Aggregate**: `analyze_sequence` bundles exact, transform, similarity, combos (+ diagnostics) as dict or `AnalysisResult`.
+8) **Health/Freshness**: `oeis status` reads freshness metadata + file/DB health checks, and can optionally run `--refresh-if-stale` (sync + rebuild) for power workflows.
 
 ## Key Data Structures
 - `SequenceRecord`: id, terms, length, name, metadata.
@@ -26,7 +27,9 @@ This snapshot describes the current v0/v1 pipeline.
 
 ## Config & Presets
 - Defaults: see `config.py` (paths, max_results/terms).
-- Presets: CLI `--preset fast|deep` adjusts depth, limits, coeffs, candidate caps, combo checks.
+- Presets: CLI `--preset fast|deep|max` adjusts depth, limits, coeffs, candidate caps, and time/check budgets.
+- Freshness config: `freshness.max_age_days`, `freshness.metadata_path`, `freshness.warn_on_stale`.
+- Startup defaults: `startup.show_status`, `startup.refresh_if_stale` (used by `scripts/oeis-start`).
 
 ## Storage
 - SQLite table `sequences(id TEXT PRIMARY KEY, length INT, terms TEXT, name TEXT, formula TEXT, prefix5 TEXT, min_val, max_val, gcd_val, is_nondecreasing, is_nonincreasing, sign_pattern, nonzero_count, first_diff_sign, growth_rate REAL, var REAL, diff_var REAL)`.

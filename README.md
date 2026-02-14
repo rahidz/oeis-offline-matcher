@@ -14,11 +14,18 @@ It downloads an OEIS snapshot once, builds a local SQLite index, then lets you p
 After the initial `oeis sync` + `oeis build-index`, analysis runs fully offline.
 
 ## Status
-Works end-to-end; still actively tuning scoring and performance heuristics. See `TODO.md` for the roadmap.
+Core pipeline is implemented end-to-end. Current work is the v1.0 roadmap: broader explanation coverage, better ranking diversity/depth, startup and data-freshness UX, and stronger regression/performance gates. See `TODO.md`.
 
 ## Quick Start
 
 ```bash
+# One-liner bootstrap helper (creates .venv, installs editable package, opens a venv shell)
+scripts/oeis-start
+
+# Or run a command directly inside the prepared env:
+scripts/oeis-start -- oeis status
+
+# Manual setup path:
 python -m venv .venv
 . .venv/bin/activate
 pip install -e .
@@ -32,12 +39,23 @@ oeis sync
 # Build SQLite index in data/processed/oeis.db
 oeis build-index
 
+# Health + freshness report (read-only):
+oeis status
+
+# Power-user refresh flow: if stale, refresh data + rebuild index non-interactively
+oeis status --refresh-if-stale
+
 # If you built your DB with an older version, you can add newer performance
 # indexes in-place (one-time, safe to re-run):
 oeis optimize-db --db data/processed/oeis.db
 # If you see a CLI warning like "DB is missing recommended index(es)", run the command above.
 
-# Full pipeline (exact + transforms + similarity + combos), “find everything”
+# If you want expanded (DB-wide) pointwise multiplication to support
+# "start at index k" (e.g. A(n+2)*B(n+5)), older DBs also need shifted prefix
+# columns (one-time, safe to re-run):
+oeis optimize-db --db data/processed/oeis.db --add-prefix-shifts --max-prefix-shift 5
+
+# Full pipeline (exact + transforms + similarity + combos), exhaustive-ceiling mode
 # - Streams results as they are found
 # - Includes expanded DB-wide combo fallback
 # - Uses a long total runtime budget (see --total-max-time)
@@ -49,8 +67,8 @@ oeis analyze "5,17,103,1011,10042" --preset max --no-stream
 # Hard cap the entire pipeline runtime (seconds)
 oeis analyze "5,17,103,1011,10042" --preset max --total-max-time 600
 
-# Combo-only mode (pairs/triples/pointwise/convolution), “find combinations”
-# Note: `--preset max` enables streaming + expanded fallback + a long total budget (default ~1 hour).
+# Combo-only mode (pairs/triples/pointwise/convolution), exhaustive-ceiling mode
+# Note: `--preset max` enables streaming + expanded fallback + a long total budget (default ~1 hour, user-overridable).
 oeis combo "5,17,103,1011,10042" --preset max --triples 10
 
 # Hard cap the entire combo pipeline runtime (seconds)
@@ -72,6 +90,7 @@ oeis selfcheck --db data/processed/oeis.db --random-trials 20 --seed 1
 Notes:
 - Random trials need a reasonably sized DB; for very small/custom DBs, pass `--min-length` lower.
 - For custom DBs that don’t include the regression A-numbers, use `--no-regressions`.
+- `oeis status --refresh-if-stale` is best-effort: if offline/rate-limited, it reports the failure and keeps current local files untouched.
 
 ## Presets
 
@@ -85,9 +104,11 @@ oeis analyze "5,17,103,1011,10042" --preset max --combos 0 --triples 0 --no-comb
 ```
 
 ### What they mean (plain English)
-- **fast**: quick skim (small search space, short timeouts).
-- **deep**: broader, still “everyday” friendly.
-- **max**: “find everything” mode. Long total budget (up to ~1 hour by default), large candidate pools, expanded DB-wide combo fallback, and streaming output by default.
+- **fast**: exact-first quick check with a small extra search budget; intended to stay short (v1.0 target is usually around 10 seconds or less).
+- **deep**: broader transform/combo search for “give it more time” runs (v1.0 target is typically around 1-2 minutes).
+- **max**: exhaustive ceiling mode (no `ultra` tier), with the widest search families, large candidate pools, expanded DB-wide combo fallback, and streaming output by default.
+
+`--total-max-time` is the hard wall-time cap for `analyze`/`combo`, and explicit flags always override preset defaults.
 
 ## Combination Search
 
@@ -113,6 +134,8 @@ Sometimes the components don’t resemble the target query at all. In those case
 Note: the expanded fallback builds an in-memory prefix index from your SQLite DB (typically sub-second on a full snapshot). It requires at least 5 query terms, and it is bounded by `--expanded-max-time` and the global `--total-max-time`.
 In streaming mode, expanded pair fallback is deferred until after the regular candidate-bucket stages (including triples/pointwise/convolution) to improve time-to-first-hit.
 
+Shift note: expanded pair search supports small forward shifts (e.g. `A(n+2) + B(n+5)`) when your DB includes shifted prefix columns (`prefix5_1..prefix5_5`). For older DBs, run `oeis optimize-db --add-prefix-shifts` once.
+
 Examples:
 
 ```bash
@@ -124,6 +147,9 @@ oeis combo "5,17,103,1011,10042" --preset max --triples 10
 
 # Expanded fallback if regular search finds nothing
 oeis combo "5,17,103,1011,10042" --triples 10 --expanded --expanded-max-time 30
+
+# Expanded pointwise multiplication without expanded pair/triple fallback
+oeis combo "0,20,210,1540,8855,85008" --pointwise-ops mul --no-expanded --expanded-pointwise --expanded-pointwise-max-time 30
 
 # Full pipeline with expanded fallback (enabled by preset max)
 oeis analyze "5,17,103,1011,10042" --preset max
@@ -189,6 +215,8 @@ See `docs/FAQ.md` for limits and performance tips.
 - Environment overrides:
   - `OEIS_STRIPPED_PATH`, `OEIS_NAMES_PATH`, `OEIS_DB_PATH`
   - `OEIS_MAX_TERMS`, `OEIS_MAX_RESULTS`
+  - `OEIS_FRESHNESS_MAX_AGE_DAYS`, `OEIS_FRESHNESS_METADATA_PATH`, `OEIS_WARN_ON_STALE_DATA`
+  - `OEIS_STARTUP_SHOW_STATUS`, `OEIS_STARTUP_REFRESH_IF_STALE`
   - `OEIS_MATCHER_CONFIG` to point at an alternate TOML file
 
 ## Attribution / License Notice

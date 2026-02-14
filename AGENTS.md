@@ -1,31 +1,42 @@
 # AGENTS
 
 ## Vision
-Build a local tool that downloads a snapshot of the OEIS once, then helps a user input a numeric sequence and:
-- Find direct matches to OEIS entries.
-- Discover composite transformations (e.g., `2 * A013546` starting at `n=3` plus `A132950`).
+Build a local, offline-first OEIS analysis tool for power-user sequence research.
+Given a numeric sequence, the tool should surface:
+- Direct OEIS matches (exact/prefix/subsequence).
+- Transform-based explanations.
+- Multi-sequence decompositions (linear, pointwise, convolution, and related structured matches).
 
-## First Milestone
-1) Script to fetch and cache the full OEIS data set locally (one-time download with an easy refresh flag).  
-2) CLI that accepts a sequence (comma or space separated) and returns:
-   - Exact entry matches.
-   - Top-ranked transformation matches with human-readable formulas and offsets.
-3) Deterministic, testable matching logic: pure functions for parsing, normalization, and scoring.
+## Current State
+- v0.5-era core pipeline is implemented end-to-end (offline sync/build, match, transform search, combo search, analyze, selfcheck).
+- Current focus is the v1.0 roadmap in `TODO.md`.
+- Archived roadmap lives in `TODO_v0.5.md`.
 
 ## Workstyle Principles
 - Keep everything reproducible and documented; prefer small, composable modules.
 - Optimize for fast local iteration (no network calls at query time after initial download).
 - Log decisions and assumptions in code comments or small docs near the code they affect.
 - Add tests alongside new logic; value correctness over micro-optimizations early on.
+- Please work autonomously unless you encounter any issues, and mark items off your `TODO.md` as you go through.
 
-## Open Questions To Resolve Soon
-- Which OEIS export format to store locally (full `stripped.gz` vs. JSON mirror vs. custom SQLite import)?
-- Minimum required metadata for transformations (offsets, formulae, cross-references).
-- Scoring rubric for transformation matches (exact prefix vs. best partial, penalty for complexity).
-- Limits on search depth for composed transformations to keep runtime acceptable.
+## v1.0 Direction (Locked)
+- Priority: broaden feature coverage while preserving quality, reproducibility, and performance.
+- User profile: single-user, power-user CLI/API workflow.
+- Presets: `max` is the exhaustive ceiling; no `ultra` tier for v1.0.
+- Output preference: prioritize diverse plausible explanations and deep/exhaustive search modes.
+- Dependencies: heavier optional stacks are acceptable when they produce clear wins (`numpy`/`numba` first, optional Rust/native later).
+- Compatibility: additive-only JSON/schema changes in `v1.x`; breaking schema changes defer to `v2.0`.
+- UX: add a dedicated `oeis status` command and data freshness guardrails.
 
-## Immediate Next Steps
-- Decide the local data shape (likely SQLite with precomputed indexes for speed).
-- Draft the downloader/bootstrap script interface (e.g., `oeis sync --force`).
-- Define sequence input normalization rules (whitespace, +/- signs, leading zeros).
-- Sketch the transformation operators to support first (scale, shift, add, concatenate?).
+## Execution Rules
+- Treat `TODO.md` as the source of truth for roadmap tasks.
+- When implementing roadmap items, update `TODO.md` checkboxes in the same change set.
+- Keep deterministic behavior as default (seeded/randomized modes must be reproducible).
+- Prefer bounded search with explicit time/check limits; avoid unbounded exhaustive loops.
+- Keep CLI/API behavior and JSON schemas stable unless a roadmap item explicitly changes them.
+
+## Immediate Next Steps (v0.6 Focus)
+- Implement startup helper script (`scripts/oeis-start` or equivalent) to reduce manual venv/setup friction.
+- Implement freshness metadata + stale-data warning path.
+- Add `oeis status` for read-only environment/data/index health checks.
+- Translate documented `fast/deep/max` runtime contracts into concrete preset defaults and tests.

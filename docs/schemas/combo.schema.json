@@ -6,6 +6,7 @@
     "query",
     "combinations",
     "triple_combinations",
+    "modclass_combinations",
     "pointwise_combinations",
     "convolution_combinations"
   ],
@@ -19,6 +20,10 @@
       "items": { "$ref": "#/$defs/combination" }
     },
     "triple_combinations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/combination" }
+    },
+    "modclass_combinations": {
       "type": "array",
       "items": { "$ref": "#/$defs/combination" }
     },

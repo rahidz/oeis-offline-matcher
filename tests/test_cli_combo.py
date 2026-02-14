@@ -159,6 +159,7 @@ def test_combo_total_max_time_caps_pipeline_json(tmp_path: Path):
     assert payload["query"] == [1, 2, 3, 4, 5, 6]
     assert isinstance(payload["combinations"], list)
     assert isinstance(payload["triple_combinations"], list)
+    assert isinstance(payload["modclass_combinations"], list)
     assert isinstance(payload["pointwise_combinations"], list)
     assert isinstance(payload["convolution_combinations"], list)
 
