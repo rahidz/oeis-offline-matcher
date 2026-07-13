@@ -29,6 +29,28 @@ Archived roadmap: `TODO_v0.5.md`
 
 ---
 
+## Consolidation Gate (Ordered)
+
+Complete this gate before declaring the feature-complete phases or milestones done.
+
+- [x] Preserve the current v1 feature tranche on a dedicated consolidation branch and baseline commit.
+- [x] Make data refresh atomic: failed downloads must preserve the last known-good snapshot, and skipped downloads must not reset freshness age.
+- [ ] Keep the default search CLI preset-first and concise while restoring expert access through `--help-advanced` and hidden-but-supported advanced flags.
+- [ ] Ensure `--max` actually enables every intended exhaustive transform/search family, including newly added advanced transforms.
+- [ ] Restore a fully green test suite after the CLI contract migration.
+- [ ] Establish one shared analysis orchestration path for CLI and API, including streaming/stage events, budgets, ranking, and result serialization.
+- [ ] Break up the monolithic CLI command dispatcher and combination-search hotspots only where extraction removes duplication or materially reduces complexity.
+- [ ] Remove dead/shadowed code and generated repository artifacts (`$DB`, tracked `*.egg-info`).
+- [ ] Repair CLI/API/JSON schema parity and add explicit additive `schema_version` contracts.
+- [ ] Refresh README, FAQ, architecture, preset guidance, reproducibility guidance, changelog, and benchmark results against the consolidated implementation.
+- [ ] Expand real-snapshot regressions, diversity assertions, transform inverse/property tests, fuzz replay seeds, and machine-readable command contract tests.
+- [ ] Profile current workloads, optimize measured Python/SQLite bottlenecks, and add repeatable performance envelopes before introducing native complexity.
+- [ ] Add deterministic local parallelism and optional acceleration only where benchmarks demonstrate a material end-to-end win.
+- [ ] Audit full-corpus b-file indexing/search for duplicate auxiliary files, resumability, storage cost, and useful result ranking; then build and smoke-test the local b-file index.
+- [ ] Complete an end-to-end v1.0 release audit with the full suite, selfcheck, representative preset runs, schemas, docs, and packaging verified.
+
+---
+
 ## Phase 0 - Workflow UX (Power User CLI)
 
 ### 0.1 Startup helper script

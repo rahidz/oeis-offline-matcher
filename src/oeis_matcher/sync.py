@@ -57,17 +57,19 @@ def download_file(url: Union[str, Path], dest: Path, *, force: bool = False, chu
         return {"path": dest, "status": "skipped", "bytes": dest.stat().st_size}
 
     local_src = _coerce_local_path(url)
+    tmp = dest.with_suffix(dest.suffix + ".tmp")
+    tmp.unlink(missing_ok=True)
 
     try:
         if local_src and local_src.exists():
-            with local_src.open("rb") as inp, dest.open("wb") as out:
+            with local_src.open("rb") as inp, tmp.open("wb") as out:
                 shutil.copyfileobj(inp, out, length=chunk_size)
         else:
-            with urllib.request.urlopen(str(url)) as resp, dest.open("wb") as out:
+            with urllib.request.urlopen(str(url)) as resp, tmp.open("wb") as out:
                 shutil.copyfileobj(resp, out, length=chunk_size)
+        tmp.replace(dest)
     except Exception as exc:  # pragma: no cover - propagated for caller to handle
-        if dest.exists() and force:
-            dest.unlink(missing_ok=True)
+        tmp.unlink(missing_ok=True)
         raise RuntimeError(f"Failed to download {url}: {exc}") from exc
 
     return {"path": dest, "status": "downloaded", "bytes": dest.stat().st_size}

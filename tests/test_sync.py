@@ -1,9 +1,10 @@
 import subprocess
+import urllib.request
 from pathlib import Path
 
 from oeis_matcher.build_index import build_index
 from oeis_matcher.storage import iter_sequences
-from oeis_matcher.sync import sync_data
+from oeis_matcher.sync import download_file, sync_data
 
 
 def test_sync_downloads_and_skips_existing(tmp_path: Path):
@@ -71,6 +72,25 @@ def test_sync_force_redownload(tmp_path: Path):
     )
     assert stats["stripped"]["status"] == "downloaded"
     assert (out_dir / "stripped.gz").read_text(encoding="utf-8") == "ORIGINAL"
+
+
+def test_failed_force_download_preserves_existing_snapshot(tmp_path: Path, monkeypatch):
+    dest = tmp_path / "snapshot.gz"
+    dest.write_bytes(b"known-good")
+
+    def fail(_url):
+        raise OSError("offline")
+
+    monkeypatch.setattr(urllib.request, "urlopen", fail)
+    try:
+        download_file("https://example.invalid/snapshot.gz", dest, force=True)
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("expected the simulated download to fail")
+
+    assert dest.read_bytes() == b"known-good"
+    assert not dest.with_suffix(".gz.tmp").exists()
 
 
 def test_sync_clone_oeisdata_and_keywords(tmp_path: Path):

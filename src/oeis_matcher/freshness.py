@@ -133,28 +133,32 @@ def update_sync_metadata(
         payload = {}
 
     ts = _to_iso_utc(_utc_now(now))
-    payload.update(
-        {
-            "schema_version": 1,
-            "last_sync_utc": ts,
-            "sync": {
-                "timestamp_utc": ts,
-                "sources": {
-                    "stripped": stripped_source,
-                    "names": names_source,
-                    "keywords": keywords_source,
-                    "oeisdata": oeisdata_source,
-                },
-                "artifacts": {
-                    "stripped": file_marker(stripped_path),
-                    "names": file_marker(names_path),
-                    "keywords": file_marker(keywords_path),
-                    "oeisdata": repo_marker(oeisdata_path),
-                },
-                "results": _json_safe(sync_stats),
-            },
-        }
-    )
+    statuses = {
+        str(result.get("status") or "")
+        for result in sync_stats.values()
+        if isinstance(result, dict)
+    }
+    content_updated = bool(statuses - {"", "skipped"})
+    payload["schema_version"] = 1
+    if content_updated:
+        payload["last_sync_utc"] = ts
+    payload["sync"] = {
+        "timestamp_utc": ts,
+        "content_updated": content_updated,
+        "sources": {
+            "stripped": stripped_source,
+            "names": names_source,
+            "keywords": keywords_source,
+            "oeisdata": oeisdata_source,
+        },
+        "artifacts": {
+            "stripped": file_marker(stripped_path),
+            "names": file_marker(names_path),
+            "keywords": file_marker(keywords_path),
+            "oeisdata": repo_marker(oeisdata_path),
+        },
+        "results": _json_safe(sync_stats),
+    }
     write_metadata(metadata_path, payload)
     return payload
 

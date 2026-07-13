@@ -42,6 +42,45 @@ def test_update_sync_metadata_persists_snapshot_markers(tmp_path: Path):
     assert data["sync"]["artifacts"]["stripped"]["exists"] is True
     assert data["sync"]["artifacts"]["names"]["exists"] is True
     assert data["sync"]["sources"]["stripped"] == "file:///tmp/stripped.txt"
+    assert data["sync"]["content_updated"] is True
+
+
+def test_skipped_sync_does_not_make_old_snapshot_fresh(tmp_path: Path):
+    stripped, names = _mini_inputs(tmp_path)
+    meta_path = tmp_path / "freshness.json"
+    update_sync_metadata(
+        meta_path,
+        stripped_source="dummy",
+        names_source="dummy",
+        keywords_source=None,
+        oeisdata_source=None,
+        stripped_path=stripped,
+        names_path=names,
+        keywords_path=None,
+        oeisdata_path=None,
+        sync_stats={"stripped": {"status": "downloaded"}},
+        now=datetime(2025, 12, 1, tzinfo=timezone.utc),
+    )
+    payload = update_sync_metadata(
+        meta_path,
+        stripped_source="dummy",
+        names_source="dummy",
+        keywords_source=None,
+        oeisdata_source=None,
+        stripped_path=stripped,
+        names_path=names,
+        keywords_path=None,
+        oeisdata_path=None,
+        sync_stats={
+            "stripped": {"status": "skipped"},
+            "names": {"status": "skipped"},
+        },
+        now=datetime(2026, 2, 14, tzinfo=timezone.utc),
+    )
+
+    assert payload["last_sync_utc"] == "2025-12-01T00:00:00Z"
+    assert payload["sync"]["timestamp_utc"] == "2026-02-14T00:00:00Z"
+    assert payload["sync"]["content_updated"] is False
 
 
 def test_build_status_report_flags_stale_from_metadata(tmp_path: Path):
