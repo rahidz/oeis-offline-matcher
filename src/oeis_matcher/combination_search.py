@@ -14,6 +14,26 @@ from .models import CombinationMatch, SequenceQuery, SequenceRecord
 from .transforms import diff_transform, partial_sum_transform
 
 
+PrefixLocations = int | list[int]
+
+
+def _add_prefix_location(index: dict[str, PrefixLocations], key: str, location: int) -> None:
+    current = index.get(key)
+    if current is None:
+        index[key] = location
+    elif isinstance(current, int):
+        index[key] = [current, location]
+    else:
+        current.append(location)
+
+
+def _prefix_locations(index: dict[str, PrefixLocations], key: str) -> tuple[int, ...] | list[int]:
+    current = index.get(key)
+    if current is None:
+        return ()
+    return (current,) if isinstance(current, int) else current
+
+
 @dataclass
 class PrefixIndex:
     """
@@ -32,7 +52,7 @@ class PrefixIndex:
     # Numerical parsing is done lazily for the small subset of prefixes we
     # actually inspect during a time-capped expanded search.
     prefixes: list[str]
-    by_prefix: dict[str, list[int]]
+    by_prefix: dict[str, PrefixLocations]
     complete: bool = False
     last_id: str | None = None
 
@@ -73,7 +93,7 @@ class ShiftedPrefixIndex:
     id_nums: list[int]
     lengths: list[int]
     prefixes_by_shift: dict[int, list[str]]
-    by_prefix_by_shift: dict[int, dict[str, list[int]]]
+    by_prefix_by_shift: dict[int, dict[str, PrefixLocations]]
     complete: bool = False
     last_id: str | None = None
 
@@ -168,7 +188,7 @@ def _get_shifted_prefix_index(
                     index.prefixes_by_shift[s].append("")
                     continue
                 index.prefixes_by_shift[s].append(key_txt)
-                index.by_prefix_by_shift[s].setdefault(key_txt, []).append(idx)
+                _add_prefix_location(index.by_prefix_by_shift[s], key_txt, idx)
 
     index.complete = True
     return index
@@ -265,7 +285,7 @@ def _get_prefix_index(
                 index.id_nums.append(-1)
             index.lengths.append(int(row["length"]))
             index.prefixes.append(key_txt)
-            index.by_prefix.setdefault(key_txt, []).append(idx)
+            _add_prefix_location(index.by_prefix, key_txt, idx)
 
     index.complete = True
     return index
@@ -1891,7 +1911,7 @@ def search_pointwise_two_sequence_combinations_expanded(
                 for s2 in shifts:
                     if max_time_s is not None and (time_fn() - t_start) > max_time_s:
                         return _sorted_and_trim(results, limit, dedupe_family=dedupe_family)
-                    idxs2 = index.by_prefix_by_shift[s2].get(needed_key) or []
+                    idxs2 = _prefix_locations(index.by_prefix_by_shift[s2], needed_key)
                     if not idxs2:
                         continue
                     for idx2 in idxs2:
@@ -2733,7 +2753,7 @@ def search_two_sequence_combinations_expanded(
                             needed_key = _needed_prefix_key(q_prefix, a, pref1, b)
                             if needed_key is None:
                                 continue
-                            idxs2 = index.by_prefix_by_shift[s2_shift].get(needed_key)
+                            idxs2 = _prefix_locations(index.by_prefix_by_shift[s2_shift], needed_key)
                             if not idxs2:
                                 continue
 
@@ -3027,7 +3047,7 @@ def search_three_sequence_combinations_expanded(
                             needed_key = _needed_prefix_key(residual_prefix, a, pref1, b)
                             if needed_key is None:
                                 continue
-                            idxs2 = index.by_prefix.get(needed_key)
+                            idxs2 = _prefix_locations(index.by_prefix, needed_key)
                             if not idxs2:
                                 continue
                             # Fetch rec1 lazily only on a potential hit; reuse across all (a,b).
@@ -3150,11 +3170,16 @@ def search_mod_class_combinations(
     per_class_limit = max(1, int(per_class_limit))
     max_combinations_n = int(max_combinations) if max_combinations is not None else None
 
-    # Build (or reuse) the shifted prefix index once.
-    index = _get_shifted_prefix_index(Path(db_path), prefix_len, max_shift, deadline_s=deadline_s, time_fn=time_fn)
-    if deadline_s is not None and time_fn() >= deadline_s:
-        return []
-
+    lookup = sqlite3.connect(db_path)
+    lookup.row_factory = sqlite3.Row
+    columns = {row[1] for row in lookup.execute("PRAGMA table_info(sequences)")}
+    shifts = tuple(
+        shift
+        for shift in range(max_shift + 1)
+        if _prefix_col_name(prefix_len, shift) in columns
+    ) or (0,)
+    if deadline_s is not None:
+        lookup.set_progress_handler(lambda: int(time_fn() >= deadline_s), 2000)
     fetcher = _SequenceFetcher(Path(db_path))
     try:
         results: list[CombinationMatch] = []
@@ -3180,37 +3205,48 @@ def search_mod_class_combinations(
             if any(len(cls) < prefix_len for cls in classes):
                 continue
 
-            # Candidate sequences for each residue class, as (idx_in_index, shift).
-            cand_by_r: list[list[tuple[int, int]]] = []
+            # Candidate sequences for each residue class, as (OEIS id, shift).
+            # Exact prefix-column lookups avoid materializing the full 400k-row
+            # shifted index for a handful of residue-class keys.
+            cand_by_r: list[list[tuple[str, int]]] = []
             for r, cls in enumerate(classes):
                 key_txt = ",".join(str(v) for v in cls[:prefix_len])
-                found: list[tuple[int, int]] = []
-                for s in index.shifts:
+                found: list[tuple[str, int]] = []
+                for s in shifts:
                     if deadline_s is not None and time_fn() >= deadline_s:
                         break
-                    if int(s) > max_shift:
-                        continue
-                    for idx in index.by_prefix_by_shift.get(int(s), {}).get(key_txt, []):
-                        if index.lengths[idx] < int(s) + len(cls):
-                            continue
-                        seq_id = index.ids[idx]
-                        rec = fetcher.get(seq_id)
-                        if not rec or len(rec.terms) < int(s) + len(cls):
-                            continue
-                        if rec.terms[int(s) : int(s) + len(cls)] != cls:
-                            continue
-                        found.append((idx, int(s)))
+                    col = _prefix_col_name(prefix_len, s)
+                    try:
+                        rows = lookup.execute(
+                            f"SELECT id FROM sequences WHERE {col} = ? AND length >= ? ORDER BY id",
+                            (key_txt, s + len(cls)),
+                        )
+                        for row in rows:
+                            if deadline_s is not None and time_fn() >= deadline_s:
+                                break
+                            seq_id = str(row["id"])
+                            rec = fetcher.get(seq_id)
+                            if rec and rec.terms[s : s + len(cls)] == cls:
+                                found.append((seq_id, s))
+                                if len(found) >= per_class_limit:
+                                    break
+                    except sqlite3.OperationalError as exc:
+                        if "interrupted" not in str(exc).lower():
+                            raise
+                        break
+                    if len(found) >= per_class_limit:
+                        break
                 # Deterministic ordering: simplest shifts first, then low A-number.
-                found.sort(key=lambda t: (abs(t[1]), t[1], index.id_nums[t[0]], index.ids[t[0]]))
+                found.sort(key=lambda item: (abs(item[1]), item[1], item[0]))
                 # De-dupe exact (id,shift) in case the same row is reachable via multiple shifts keys.
-                uniq: list[tuple[int, int]] = []
+                uniq: list[tuple[str, int]] = []
                 seen_pair: set[tuple[str, int]] = set()
-                for idx, s in found:
-                    k = (index.ids[idx], int(s))
+                for seq_id, s in found:
+                    k = (seq_id, int(s))
                     if k in seen_pair:
                         continue
                     seen_pair.add(k)
-                    uniq.append((idx, int(s)))
+                    uniq.append(k)
                     if len(uniq) >= per_class_limit:
                         break
                 cand_by_r.append(uniq)
@@ -3227,9 +3263,9 @@ def search_mod_class_combinations(
                 if max_combinations_n is not None and scanned > max_combinations_n:
                     break
 
-                ids = tuple(index.ids[idx] for idx, _s in combo)
-                shifts = tuple(int(s) for _idx, s in combo)
-                key = (modulus, ids, shifts)
+                ids = tuple(seq_id for seq_id, _s in combo)
+                component_shifts = tuple(int(s) for _seq_id, s in combo)
+                key = (modulus, ids, component_shifts)
                 if key in seen:
                     continue
                 seen.add(key)
@@ -3237,8 +3273,8 @@ def search_mod_class_combinations(
                 recs: list[SequenceRecord] = []
                 names: list[str | None] = []
                 ok = True
-                for (idx, s), cls in zip(combo, classes):
-                    rec = fetcher.get(index.ids[idx])
+                for (seq_id, s), cls in zip(combo, classes):
+                    rec = fetcher.get(seq_id)
                     if not rec or len(rec.terms) < int(s) + len(cls):
                         ok = False
                         break
@@ -3254,16 +3290,16 @@ def search_mod_class_combinations(
                 coeff_tuple = tuple(1 for _ in ids)
                 t_names = tuple("id" for _ in ids)
                 t_weights = tuple(0.0 for _ in ids)
-                comp_val = _combo_complexity(coeff_tuple, shifts, t_weights=t_weights)
+                comp_val = _combo_complexity(coeff_tuple, component_shifts, t_weights=t_weights)
                 if max_complexity is not None and comp_val > max_complexity:
                     continue
                 pop_bonus = _popularity_bonus(tuple(recs))
-                score = _combo_score(qlen, coeff_tuple, shifts, t_weights=t_weights, pop_bonus=pop_bonus)
+                score = _combo_score(qlen, coeff_tuple, component_shifts, t_weights=t_weights, pop_bonus=pop_bonus)
                 if min_score is not None and score < min_score:
                     continue
 
-                expr = _format_modclass_expr(modulus, ids, shifts, t_names)
-                latex = _format_modclass_latex(modulus, ids, shifts, t_names)
+                expr = _format_modclass_expr(modulus, ids, component_shifts, t_names)
+                latex = _format_modclass_latex(modulus, ids, component_shifts, t_names)
 
                 if snippet_len is None:
                     comp_terms = None
@@ -3272,7 +3308,7 @@ def search_mod_class_combinations(
                     snip_total = min(int(snippet_len), qlen)
                     combined_terms = [int(x) for x in q[:snip_total]]
                     comp_terms_parts: list[list[int]] = []
-                    for r, ((idx, s), cls) in enumerate(zip(combo, classes)):
+                    for r, ((_seq_id, s), cls) in enumerate(zip(combo, classes)):
                         need = len(q[r:snip_total:modulus])
                         comp_terms_parts.append(indexed_terms := recs[r].terms[int(s) : int(s) + need])
                         # Defensive: ensure we never emit out-of-sync component snippets.
@@ -3285,7 +3321,7 @@ def search_mod_class_combinations(
                         ids=ids,
                         names=tuple(names),
                         coeffs=coeff_tuple,
-                        shifts=shifts,
+                        shifts=component_shifts,
                         length=qlen,
                         score=score,
                         expression=expr,
@@ -3310,4 +3346,5 @@ def search_mod_class_combinations(
         )
         return results[:limit] if limit else results
     finally:
+        lookup.close()
         fetcher.close()

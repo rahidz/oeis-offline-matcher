@@ -29,8 +29,9 @@ from oeis_matcher.config import load_config
 
 CASES = [
     ("Exact short fib", "0,1,1,2,3,5", dict(transform_limit=0, similarity=0, combos=0)),
-    ("Transform naturals", "1,2,3,4,5,6", dict(transform_limit=20, similarity=0, combos=0)),
+    ("Transform short", "1,2,3,4,5", dict(transform_limit=20, similarity=0, combos=0)),
     ("Combo small coeffs", "3,5,7,9,11", dict(transform_limit=0, similarity=0, combos=5, combo_coeffs=(1, 2), combo_max_shift=1)),
+    ("Mod-class", "0,1,2,3,4,5,6,7,8,9,10,11", dict(transform_limit=0, similarity=0, combos=0, modclass_limit=5, modclass_moduli=(2,))),
 ]
 
 
@@ -43,18 +44,15 @@ def _run_case(label, seq, opts, db):
 
 
 def main():
-    import argparse
-    import cProfile
-    import pstats
-
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--db", help="SQLite DB path (defaults from config)")
     parser.add_argument("--case", help="Run a single case label", choices=[c[0] for c in CASES])
     parser.add_argument("--profile", metavar="OUT.pstats", help="Write cProfile stats to file")
     parser.add_argument("--sort", default="tottime", help="cProfile sort key (default: tottime)")
     args = parser.parse_args()
 
     cfg = load_config()
-    db = Path(cfg["paths"]["db"])
+    db = Path(args.db or cfg["paths"]["db"])
     if not db.exists():
         print(f"DB missing at {db}. Build the index first.")
         return 1

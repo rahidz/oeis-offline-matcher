@@ -22,7 +22,7 @@ from .oeis_data import (
     load_formulas,
     load_formulas_from_oeisdata,
 )
-from .storage import init_db, write_records
+from .storage import ensure_db_indexes, init_db, write_records
 
 
 def build_index(
@@ -62,7 +62,8 @@ def build_index(
     records = attach_offsets(records, offsets)
     records = attach_formulas(records, formulas)
 
-    init_db(db_path)
+    init_db(db_path, create_indexes=False)
     inserted = write_records(records, db_path)
+    ensure_db_indexes(db_path)
 
     return {"inserted": inserted, "db": str(db_path)}

@@ -27,9 +27,11 @@ def test_ensure_prefix_shifts_adds_and_fills_columns(tmp_path: Path):
 
     stats = ensure_prefix_shifts(db, max_shift=2, batch_size=1)
     assert stats.get("added_columns") == ["prefix5_1", "prefix5_2"]
+    assert stats.get("created_indexes") == ["idx_prefix5_1", "idx_prefix5_2"]
     assert stats.get("updated_rows") == 1
 
     with sqlite3.connect(db) as conn:
         row = conn.execute("SELECT prefix5_1, prefix5_2 FROM sequences WHERE id = ?", ("A000001",)).fetchone()
+        indexes = {item[1] for item in conn.execute("PRAGMA index_list(sequences)")}
     assert row == ("2,3,4,5,6", "3,4,5,6,7")
-
+    assert {"idx_prefix5_1", "idx_prefix5_2"} <= indexes

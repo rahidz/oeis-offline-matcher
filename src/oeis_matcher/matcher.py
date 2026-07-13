@@ -480,7 +480,9 @@ class DBExactMatcher:
         prefix_where.append("(terms = ? OR terms LIKE ?)")
         prefix_params.extend([pattern, pattern + ",%"])
 
-        prefix_sql = _maybe_limit(f"SELECT {self._select} FROM sequences WHERE " + " AND ".join(prefix_where))
+        prefix_sql = _maybe_limit(
+            f"SELECT {self._select} FROM sequences WHERE " + " AND ".join(prefix_where) + " ORDER BY id"
+        )
         prefix_rows = _run_query(prefix_sql, prefix_params + ([limit] if limit is not None else []))
         for row in prefix_rows:
             if deadline is not None and time_fn() >= deadline:

@@ -157,7 +157,7 @@ def _record_to_row(rec: SequenceRecord) -> tuple:
     )
 
 
-def init_db(db_path: Path) -> None:
+def init_db(db_path: Path, *, create_indexes: bool = True) -> None:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(db_path) as conn:
         conn.execute("DROP TABLE IF EXISTS sequences")
@@ -193,20 +193,9 @@ def init_db(db_path: Path) -> None:
             )
             """
         )
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_prefix5 ON sequences(prefix5)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_length ON sequences(length)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_gcd ON sequences(gcd_val)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_sign ON sequences(sign_pattern)")
-        # Composite indexes to avoid expensive ORDER BY temp B-trees in broad
-        # invariant-filtered scans (e.g., sign_pattern='nonneg' with ORDER BY id).
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_sign_id ON sequences(sign_pattern, id)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_first_diff ON sequences(first_diff_sign)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_first_diff_id ON sequences(first_diff_sign, id)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_nonzero ON sequences(nonzero_count)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_growth ON sequences(growth_rate)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_var ON sequences(var)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_diff_var ON sequences(diff_var)")
         conn.commit()
+    if create_indexes:
+        ensure_db_indexes(db_path)
 
 
 def ensure_db_indexes(db_path: Path, *, analyze: bool = False) -> dict[str, object]:
@@ -232,6 +221,9 @@ def ensure_db_indexes(db_path: Path, *, analyze: bool = False) -> dict[str, obje
 
         if has_col("prefix5"):
             conn.execute("CREATE INDEX IF NOT EXISTS idx_prefix5 ON sequences(prefix5)")
+        for shift in range(1, 6):
+            if has_col(f"prefix5_{shift}"):
+                conn.execute(f"CREATE INDEX IF NOT EXISTS idx_prefix5_{shift} ON sequences(prefix5_{shift})")
         if has_col("length"):
             conn.execute("CREATE INDEX IF NOT EXISTS idx_length ON sequences(length)")
         if has_col("gcd_val"):
@@ -291,6 +283,9 @@ def missing_recommended_indexes(db_path: Path) -> list[str]:
     required: set[str] = set()
     if "prefix5" in cols:
         required.add("idx_prefix5")
+    for shift in range(1, 6):
+        if f"prefix5_{shift}" in cols:
+            required.add(f"idx_prefix5_{shift}")
     if "length" in cols:
         required.add("idx_length")
     if "gcd_val" in cols:
@@ -395,9 +390,22 @@ def ensure_prefix_shifts(db_path: Path, *, max_shift: int = 5, batch_size: int =
                 updated_rows += len(batch)
             conn.commit()
 
+        before_indexes = {
+            str(row[1]) for row in conn.execute("PRAGMA index_list(sequences)") if row[1]
+        }
+        for k in range(1, max_shift + 1):
+            conn.execute(f"CREATE INDEX IF NOT EXISTS idx_prefix5_{k} ON sequences(prefix5_{k})")
+        conn.commit()
+        created_indexes = sorted(
+            str(row[1])
+            for row in conn.execute("PRAGMA index_list(sequences)")
+            if row[1] and str(row[1]) not in before_indexes
+        )
+
         return {
             "db": str(db_path),
             "added_columns": added,
+            "created_indexes": created_indexes,
             "updated_rows": updated_rows,
             "max_shift": max_shift,
         }

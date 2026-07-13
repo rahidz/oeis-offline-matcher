@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "snapshot_min_sequences": 390000,
+  "notes": "Warm-cache local guardrails, intentionally several times slower than the maintained i7-12700 baseline.",
+  "cases": {
+    "exact_fibonacci": { "max_median_ms": 25 },
+    "transform_short": { "max_median_ms": 250 },
+    "subsequence": { "max_median_ms": 25 },
+    "transform_deep": { "max_median_ms": 250 },
+    "combo_small": { "max_median_ms": 500 },
+    "modclass": { "max_median_ms": 250 }
+  }
+}

@@ -119,11 +119,29 @@ def discover_candidate_ids(
             diagnostics={"enabled": True, "reason": "sympy_disabled", "tools": list(tools)},
         )
 
+    if _time_up():
+        return DiscoveryResult(
+            ids=[],
+            provenance={},
+            diagnostics={"enabled": True, "tools": list(tools), "time_capped": True},
+        )
+
     try:
+        import sys
+
+        # A broken editable Sage installation can register a meta finder that
+        # rebuilds Sage for unrelated lazy imports. SymPy does not need it;
+        # restore the finder after this discovery pass completes.
+        meta_path = sys.meta_path[:]
+        sys.meta_path[:] = [
+            finder for finder in meta_path if type(finder).__module__ != "_sagemath_editable_loader"
+        ]
         from sympy import Function, Symbol, Poly
         from sympy.concrete.guess import find_simple_recurrence, guess
         from sympy.core.function import AppliedUndef
     except Exception as exc:
+        if "meta_path" in locals():
+            sys.meta_path[:] = meta_path
         return DiscoveryResult(
             ids=[],
             provenance={},
@@ -207,7 +225,7 @@ def discover_candidate_ids(
 
     ids = ids[: max(0, int(limit))]
     provenance = {sid: provenance.get(sid, []) for sid in ids}
-    return DiscoveryResult(
+    result = DiscoveryResult(
         ids=ids,
         provenance=provenance,
         diagnostics={
@@ -220,3 +238,5 @@ def discover_candidate_ids(
             "time_capped": bool(_time_up()),
         },
     )
+    sys.meta_path[:] = meta_path
+    return result

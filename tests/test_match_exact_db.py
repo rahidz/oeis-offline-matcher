@@ -52,3 +52,9 @@ def test_match_exact_db_subsequence_offset_computed_correctly(tmp_path: Path):
     q = SequenceQuery(terms=[2, 3], min_match_length=1, allow_subsequence=True)
     hits = match_exact_db(q, db, limit=10)
     assert any(m.id == "A800001" and m.match_type == "subsequence" and m.offset == 1 for m in hits)
+
+
+def test_match_exact_db_prefix_limit_is_deterministic_by_id(tmp_path: Path):
+    db = _build_db(tmp_path)
+    q = SequenceQuery(terms=[1], min_match_length=1, allow_subsequence=False)
+    assert [m.id for m in match_exact_db(q, db, limit=2)] == ["A800001", "A800003"]

@@ -4,6 +4,7 @@ from oeis_matcher.build_index import build_index
 from oeis_matcher.query import parse_query
 from oeis_matcher.transform_search import search_transform_matches
 from oeis_matcher.transforms import (
+    Transform,
     abs_transform,
     cumulative_product_transform,
     diff_transform,
@@ -358,12 +359,13 @@ def test_transform_search_respects_max_time(tmp_path: Path):
     build_index(stripped, names, None, db, max_terms=10)
 
     query = parse_query("1,2,3,4,5")
-    transforms = [make_shift(0), make_scale(2)]  # produces two chains at depth=1
+    clock = {"now": 0.0}
 
-    times = iter([0.0, 0.0, 2.0])  # start, first chain, second chain
+    def advance(seq):
+        clock["now"] = 2.0
+        return [2 * value for value in seq]
 
-    def fake_time():
-        return next(times)
+    transforms = [make_shift(0), Transform("scale_after_deadline", advance)]
 
     matches = search_transform_matches(
         query,
@@ -373,7 +375,7 @@ def test_transform_search_respects_max_time(tmp_path: Path):
         limit=5,
         full_scan=True,
         max_time_s=1.0,
-        time_fn=fake_time,
+        time_fn=lambda: clock["now"],
     )
     # Only first chain processed before time cap triggers
     assert len(matches) == 1

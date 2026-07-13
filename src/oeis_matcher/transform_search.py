@@ -292,6 +292,7 @@ def search_transform_matches(
 
         time_fn = time.perf_counter
     t_start = time_fn()
+    deadline = None if max_time_s is None else t_start + max(0.0, float(max_time_s))
     inv_stats = invariant_stats(Path(db_path))
 
     # For prefix-only transform searches (most common), reuse a single DB connection
@@ -299,7 +300,7 @@ def search_transform_matches(
     # for every transform chain.
     db_conn = None
     db_matcher: DBExactMatcher | None = None
-    if not query.allow_subsequence and len(query.terms) >= 5:
+    if not query.allow_subsequence:
         import sqlite3
 
         db_conn = sqlite3.connect(str(Path(db_path)))
@@ -409,8 +410,14 @@ def search_transform_matches(
                 allow_subsequence=query.allow_subsequence,
             )
 
-            if db_matcher is not None and (not query.allow_subsequence) and len(transformed_terms) >= 5:
-                matches = db_matcher.match(t_query, limit=limit, snippet_len=snippet_len)
+            if db_matcher is not None:
+                matches = db_matcher.match(
+                    t_query,
+                    limit=limit,
+                    snippet_len=snippet_len,
+                    deadline_s=deadline,
+                    time_fn=time_fn,
+                )
             else:
                 seq_iter = _sequence_iter_for_terms(
                     db_path,
@@ -419,7 +426,14 @@ def search_transform_matches(
                     variance_band=variance_band,
                     growth_band=growth_band,
                 )
-                matches = match_exact(t_query, seq_iter, limit=limit, snippet_len=snippet_len)
+                matches = match_exact(
+                    t_query,
+                    seq_iter,
+                    limit=limit,
+                    snippet_len=snippet_len,
+                    deadline_s=deadline,
+                    time_fn=time_fn,
+                )
 
             for m in matches:
                 key = (m.id, desc, m.match_type, m.offset, m.length)
