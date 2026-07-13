@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from oeis_matcher.cli import PRESETS
+from oeis_matcher.cli import PRESETS, _parse_extra_transforms
 
 
 def test_runtime_contracts_for_fast_deep_max_presets():
@@ -32,3 +32,28 @@ def test_max_preset_is_exhaustive_ceiling_defaults():
     assert maxp["combo_expanded"] is True
     assert maxp["candidates"] > PRESETS["deep"]["candidates"]
     assert maxp["combo_max_checks"] > PRESETS["deep"]["combo_max_checks"]
+
+    extras = _parse_extra_transforms(maxp["extra_transforms"])
+    for name in (
+        "alt_sign",
+        "inv_binomial",
+        "euler_ogf",
+        "inv_euler_ogf",
+        "stirling1",
+        "stirling2",
+        "inv_stirling1",
+        "inv_stirling2",
+        "ogf_inverse",
+        "series_reversion",
+        "lpf",
+        "gpf",
+        "rad",
+        "squarefree",
+        "liouville",
+        "ratio_int",
+        "index_triangular",
+        "index_fibonacci",
+    ):
+        assert extras[name] is True
+    assert extras["vp_values"] == (3, 5)
+    assert extras["index_power_values"] == (3, 4)

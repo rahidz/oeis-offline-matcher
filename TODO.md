@@ -35,9 +35,9 @@ Complete this gate before declaring the feature-complete phases or milestones do
 
 - [x] Preserve the current v1 feature tranche on a dedicated consolidation branch and baseline commit.
 - [x] Make data refresh atomic: failed downloads must preserve the last known-good snapshot, and skipped downloads must not reset freshness age.
-- [ ] Keep the default search CLI preset-first and concise while restoring expert access through `--help-advanced` and hidden-but-supported advanced flags.
-- [ ] Ensure `--max` actually enables every intended exhaustive transform/search family, including newly added advanced transforms.
-- [ ] Restore a fully green test suite after the CLI contract migration.
+- [x] Keep the default search CLI preset-first and concise while restoring expert access through `--help-advanced` and hidden-but-supported advanced flags.
+- [x] Ensure `--max` actually enables every intended exhaustive transform/search family, including newly added advanced transforms.
+- [x] Restore a fully green test suite after the CLI contract migration.
 - [ ] Establish one shared analysis orchestration path for CLI and API, including streaming/stage events, budgets, ranking, and result serialization.
 - [ ] Break up the monolithic CLI command dispatcher and combination-search hotspots only where extraction removes duplication or materially reduces complexity.
 - [ ] Remove dead/shadowed code and generated repository artifacts (`$DB`, tracked `*.egg-info`).

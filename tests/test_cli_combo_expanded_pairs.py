@@ -52,6 +52,7 @@ def test_combo_expanded_finds_pair_without_candidate_pool(tmp_path: Path, capsys
         [
             "combo",
             query,
+            "--fast",
             "--db",
             str(db),
             "--coeffs",

@@ -63,28 +63,14 @@ def test_preset_max_analyze_runs_all_stages_by_default(tmp_path: Path):
     assert naturals.get("convolution_combinations"), naturals
 
 
-def test_analyze_rejects_removed_legacy_flag(tmp_path: Path):
+def test_analyze_advanced_no_rerank_flag_supported(tmp_path: Path):
     db = _mini_db(tmp_path)
     repo_root = Path(__file__).resolve().parent.parent
-    env = dict(os.environ)
-    env["PYTHONPATH"] = str((repo_root / "src").resolve())
-    proc = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "oeis_matcher.cli",
-            "analyze",
-            "0,2,6,12,20,30",
-            "--db",
-            str(db),
-            "--max",
-            "--no-rerank",
-        ],
-        cwd=str(repo_root),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        env=env,
+    payload = _run_analyze(
+        repo_root,
+        db=db,
+        query="0,2,6,12,20,30",
+        extra_args=["--no-rerank", "--timings"],
     )
-    assert proc.returncode == 2
-    assert "Unsupported flag for `analyze`: --no-rerank" in proc.stderr
+    assert payload["diagnostics"]["ranking"]["enabled"] is False
+    assert payload["diagnostics"]["ranking"]["mode"] == "explicit_off"

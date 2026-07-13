@@ -117,7 +117,14 @@ PRESETS = {
         "shift_values": "-1,1,2,3,4",
         "beta_values": "-3,-2,-1,1,2,3",
         "decimate": "2,3:1,4:1",
-        "extra_transforms": "diff2,cumprod,reverse,evenodd,movsum2,movsum3,movsum4,binomial,euler,mobius,digitsum10,popcount,mod2,xorindex,rle,rledec,concat,log2,loge,exp2,omega,bigomega,tau,sigma,phi,v2,indexsquare,primeindex,indexpow2,indexfactorial",
+        "extra_transforms": (
+            "diff2,cumprod,altsign,reverse,evenodd,movsum2,movsum3,movsum4,"
+            "binomial,invbinomial,euler,eulerogf,inveulerogf,stirling1,stirling2,"
+            "invstirling1,invstirling2,ogfinv,seriesrev,mobius,digitsum10,popcount,"
+            "mod2,xorindex,rle,rledec,concat,log2,loge,exp2,omega,bigomega,tau,sigma,"
+            "phi,v2,vp3,vp5,lpf,gpf,rad,squarefree,liouville,ratioint,indexsquare,"
+            "primeindex,indexpow2,indexfactorial,indextri,indexfib,indexpowk3,indexpowk4"
+        ),
         "similar": 20,
         "combos": 20,
         "transform_min_score": 0.8,
@@ -391,72 +398,36 @@ def _expand_preset_argv(argv: list[str]) -> list[str]:
 
 _SEARCH_CMDS = {"match", "tsearch", "combo", "analyze"}
 _PROFILE_BY_FLAG = {"--fast": "fast", "--deep": "deep", "--max": "max"}
-_LEAN_ALLOWED_VALUE_FLAGS = {"--db", "--time-cap"}
-_LEAN_ALLOWED_BOOL_FLAGS = {"--json", "--fast", "--deep", "--max"}
-
-
 def _rewrite_search_argv(argv: list[str]) -> tuple[list[str], str | None]:
     """
-    Enforce lean CLI flags for search commands and map shorthand profiles to `--preset`.
+    Map the concise profile flags to the existing preset machinery.
 
-    Accepted search flags:
-    - `--db`
-    - `--json`
-    - `--fast|--deep|--max`
-    - `--time-cap`
+    Advanced flags remain accepted even though normal help keeps them hidden.
     """
     if not argv:
         return argv, None
     cmd = argv[0]
     if cmd not in _SEARCH_CMDS:
         return argv, None
-    if any(tok in {"-h", "--help"} for tok in argv[1:]):
+    if any(tok in {"-h", "--help", "--help-advanced"} for tok in argv[1:]):
         return argv, None
 
-    out: list[str] = [cmd]
+    out: list[str] = []
     profile: str | None = None
-    positionals: list[str] = []
-    i = 1
-    while i < len(argv):
-        tok = argv[i]
+    for tok in argv:
         if tok in _PROFILE_BY_FLAG:
             p = _PROFILE_BY_FLAG[tok]
             if profile is not None and profile != p:
                 return argv, "Choose only one profile: use exactly one of --fast, --deep, --max."
             profile = p
-            i += 1
             continue
-        if tok in _LEAN_ALLOWED_BOOL_FLAGS:
-            out.append(tok)
-            i += 1
-            continue
-        if tok in _LEAN_ALLOWED_VALUE_FLAGS:
-            if i + 1 >= len(argv):
-                return argv, f"Missing value for {tok}."
-            out.extend([tok, argv[i + 1]])
-            i += 2
-            continue
-        if any(tok.startswith(flag + "=") for flag in _LEAN_ALLOWED_VALUE_FLAGS):
-            out.append(tok)
-            i += 1
-            continue
-        if tok.startswith("--"):
-            allowed = sorted(_LEAN_ALLOWED_BOOL_FLAGS | _LEAN_ALLOWED_VALUE_FLAGS)
-            allow_txt = " ".join(allowed)
-            return argv, f"Unsupported flag for `{cmd}`: {tok}. Allowed flags: {allow_txt}"
-        positionals.append(tok)
-        i += 1
+        out.append(tok)
 
-    if positionals:
-        if cmd == "match":
-            # Allow unquoted multi-token fielded queries.
-            out.append(" ".join(positionals))
-        else:
-            if len(positionals) != 1:
-                extra = " ".join(positionals[1:])
-                return argv, f"Unexpected token(s) for `{cmd}`: {extra}"
-            out.append(positionals[0])
-    out.extend(["--preset", profile or "deep"])
+    has_named_preset = "--preset" in out or any(tok.startswith("--preset=") for tok in out)
+    if profile is not None and has_named_preset:
+        return argv, "Choose one profile form: use --fast/--deep/--max or --preset NAME, not both."
+    if not has_named_preset:
+        out[1:1] = ["--preset", profile or "deep"]
     return out, None
 
 
@@ -786,6 +757,7 @@ from .bfiles import build_bfile_index, fetch_bfiles, search_bfile_index
 
 def _main(argv=None):
     argv = argv or sys.argv[1:]
+    advanced_help = "--help-advanced" in argv
 
     cfg = load_config()
     default_stripped = cfg["paths"]["stripped"]
@@ -810,6 +782,7 @@ def _main(argv=None):
         grp.add_argument("--deep", action="store_true", help="Use the deep preset.")
         grp.add_argument("--max", action="store_true", help="Use the max preset (widest/exhaustive search).")
         p.add_argument("--time-cap", type=float, default=None, help="Global wall-time cap in seconds.")
+        p.add_argument("--help-advanced", action="help", help="Show all expert tuning flags.")
 
     p_build = sub.add_parser("build-index", help="Build SQLite index from OEIS raw exports.")
     p_build.add_argument("--stripped", default=default_stripped, help="Path to stripped.gz")
@@ -894,6 +867,7 @@ def _main(argv=None):
     p_match = sub.add_parser("match", help="Match a sequence against OEIS.")
     p_match.add_argument(
         "sequence",
+        nargs="+",
         help='Comma/space-separated integers, or fielded query like "keyword:more name:fibonacci term@0:1".',
     )
     p_match.add_argument("--db", default=default_db, help="SQLite index path")
@@ -1257,11 +1231,12 @@ def _main(argv=None):
     p_selfcheck.add_argument("--fail-fast", action="store_true", help="Stop on first failing regression case")
     p_selfcheck.add_argument("--json", action="store_true", dest="as_json", help="Output JSON")
 
-    lean_keep = {"--db", "--json", "--fast", "--deep", "--max", "--time-cap"}
-    _suppress_advanced_search_flags(p_match, lean_keep)
-    _suppress_advanced_search_flags(p_tsearch, lean_keep)
-    _suppress_advanced_search_flags(p_combo, lean_keep)
-    _suppress_advanced_search_flags(p_analyze, lean_keep)
+    if not advanced_help:
+        lean_keep = {"--db", "--json", "--fast", "--deep", "--max", "--time-cap", "--help-advanced"}
+        _suppress_advanced_search_flags(p_match, lean_keep)
+        _suppress_advanced_search_flags(p_tsearch, lean_keep)
+        _suppress_advanced_search_flags(p_combo, lean_keep)
+        _suppress_advanced_search_flags(p_analyze, lean_keep)
 
     # Expose subparser choices so `_expand_preset_argv` can map preset keys to real flags.
     global _SUBPARSER_CHOICES
@@ -1272,6 +1247,8 @@ def _main(argv=None):
         return 2
     argv = _expand_preset_argv(rewritten_argv)
     args = parser.parse_args(argv)
+    if args.cmd == "match" and isinstance(args.sequence, list):
+        args.sequence = " ".join(args.sequence)
     _apply_time_cap_overrides(args)
 
     if args.cmd in {"match", "tsearch", "combo", "analyze", "selfcheck"}:

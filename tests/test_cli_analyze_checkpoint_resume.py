@@ -52,32 +52,27 @@ def test_analyze_lean_profile_runs_with_json(tmp_path: Path):
     assert isinstance(payload.get("combinations"), list)
 
 
-def test_analyze_legacy_checkpoint_flag_rejected(tmp_path: Path):
+def test_analyze_advanced_checkpoint_flag_supported(tmp_path: Path):
     repo_root = Path(__file__).resolve().parent.parent
     db = _mini_db(tmp_path)
-    env = dict(os.environ)
-    env["PYTHONPATH"] = str((repo_root / "src").resolve())
-    proc = subprocess.run(
+    checkpoint = tmp_path / "ckpt.json"
+    payload = _run(
+        repo_root,
         [
-            sys.executable,
-            "-m",
-            "oeis_matcher.cli",
             "analyze",
             "0,2,6,12,20,30",
             "--db",
             str(db),
             "--json",
+            "--fast",
             "--checkpoint",
-            str(tmp_path / "ckpt.json"),
+            str(checkpoint),
         ],
-        cwd=str(repo_root),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        env=env,
     )
-    assert proc.returncode == 2
-    assert "Unsupported flag for `analyze`: --checkpoint" in proc.stderr
+    state = json.loads(checkpoint.read_text(encoding="utf-8"))
+    assert payload["query"] == [0, 2, 6, 12, 20, 30]
+    assert state["schema_version"] == 1
+    assert state["stages"]
 
 
 def test_analyze_lean_profile_conflict_rejected(tmp_path: Path):
