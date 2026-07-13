@@ -59,6 +59,62 @@
       "combo_candidates": 200
     },
     "expect": { "convolution_contains_ids": ["A000012", "A000012"] }
+  },
+  {
+    "name": "Advanced transform: inverse binomial of powers of two = ones",
+    "query": "1,2,4,8,16,32,64,128",
+    "opts": {
+      "exact_limit": 0,
+      "transform_limit": 10,
+      "transform_depth": 1,
+      "transform_args": {
+        "scale_values": [],
+        "shift_values": [],
+        "allow_diff": false,
+        "allow_partial_sum": false,
+        "allow_abs": false,
+        "allow_gcd_norm": false,
+        "allow_inverse_binomial": true,
+        "allow_constant_outputs": true
+      },
+      "similarity": 0,
+      "combos": 0
+    },
+    "expect": { "transform_contains": ["A000012"] }
+  },
+  {
+    "name": "Mod-class: nonnegative integers split into evens and odds",
+    "query": "0,1,2,3,4,5,6,7,8,9,10,11",
+    "requires_ids": ["A005843", "A005408"],
+    "opts": {
+      "exact_limit": 0,
+      "transform_limit": 0,
+      "similarity": 0,
+      "combos": 0,
+      "modclass_limit": 10,
+      "modclass_moduli": [2],
+      "modclass_max_time": 5.0
+    },
+    "expect": { "modclass_contains_ids": ["A005843", "A005408"] }
+  },
+  {
+    "name": "Diversity: pronic has linear and pointwise explanations",
+    "query": "0,2,6,12,20,30",
+    "opts": {
+      "exact_limit": 0,
+      "transform_limit": 0,
+      "similarity": 20,
+      "combos": 20,
+      "combo_coeffs": [-2, -1, 1, 2],
+      "combo_candidates": 50,
+      "pointwise_limit": 10,
+      "pointwise_ops": ["mul"],
+      "rerank": true,
+      "rerank_limit": 10
+    },
+    "expect": {
+      "ranked_families_contains": ["linear_pair", "pointwise"],
+      "min_ranked_families": 2
+    }
   }
 ]
-

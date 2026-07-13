@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import math
 import random
+from fractions import Fraction
 from pathlib import Path
+
+import pytest
 
 from oeis_matcher.build_index import build_index
 from oeis_matcher.combination_search import (
+    resolve_component_transforms,
     search_three_sequence_combinations,
     search_three_sequence_combinations_expanded,
     search_two_sequence_combinations,
@@ -332,3 +336,75 @@ def test_fuzz_random_pointwise_lcm_combo_is_discoverable(tmp_path: Path):
         max_checks=200_000,
     )
     assert any(set(m.ids) == {id1, id2} and m.combined_terms == query_terms for m in hits)
+
+
+@pytest.mark.parametrize("seed", [11, 29, 73])
+def test_replay_seeded_rational_shift_and_component_paths(tmp_path: Path, seed: int):
+    rng = random.Random(seed)
+    seqs = _random_sequences(rng, n=8, length=12)
+    seqs = {id_: [2 * term for term in terms] for id_, terms in seqs.items()}
+    db = _build_db(tmp_path, seqs)
+    candidates = list(iter_sequences(db))
+    ids = sorted(seqs)
+
+    id1, id2 = ids[0], ids[3]
+    rational_terms = [seqs[id1][i] // 2 + 3 * seqs[id2][i] // 2 for i in range(7)]
+    rational_query = parse_query(
+        ",".join(map(str, rational_terms)), min_match_length=3, allow_subsequence=False
+    )
+    rational_hits = search_two_sequence_combinations(
+        rational_query,
+        candidates,
+        coeffs=(),
+        use_rational=True,
+        max_checks=100_000,
+        limit=20,
+    )
+    assert any(
+        m.ids == (id1, id2) and m.coeffs == (Fraction(1, 2), Fraction(3, 2))
+        for m in rational_hits
+    ), f"replay with seed={seed}"
+
+    id1, id2 = ids[1], ids[5]
+    shifted_terms = [2 * seqs[id1][i + 1] - seqs[id2][i + 2] for i in range(6)]
+    shifted_query = parse_query(
+        ",".join(map(str, shifted_terms)), min_match_length=3, allow_subsequence=False
+    )
+    shifted_hits = search_two_sequence_combinations(
+        shifted_query,
+        candidates,
+        coeffs=(2, -1),
+        max_shift=2,
+        max_checks=500_000,
+        limit=20,
+    )
+    assert any(
+        m.ids == (id1, id2) and m.coeffs == (2, -1) and m.shifts == (1, 2)
+        for m in shifted_hits
+    ), f"replay with seed={seed}"
+
+    id1, id2 = ids[2], ids[6]
+    diff = [b - a for a, b in zip(seqs[id1], seqs[id1][1:])]
+    partial_sum: list[int] = []
+    total = 0
+    for term in seqs[id2]:
+        total += term
+        partial_sum.append(total)
+    component_terms = [diff[i] - partial_sum[i] for i in range(7)]
+    component_query = parse_query(
+        ",".join(map(str, component_terms)), min_match_length=3, allow_subsequence=False
+    )
+    component_hits = search_two_sequence_combinations(
+        component_query,
+        candidates,
+        coeffs=(1, -1),
+        component_transforms=resolve_component_transforms(("id", "diff", "partial_sum")),
+        max_checks=500_000,
+        limit=20,
+    )
+    assert any(
+        m.ids == (id1, id2)
+        and m.coeffs == (1, -1)
+        and m.component_transforms == ("diff", "partial_sum")
+        for m in component_hits
+    ), f"replay with seed={seed}"

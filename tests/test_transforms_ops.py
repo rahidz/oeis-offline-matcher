@@ -1,3 +1,5 @@
+import random
+
 from oeis_matcher.transforms import (
     abs_transform,
     alternating_sign_transform,
@@ -284,3 +286,35 @@ def test_series_reversion_transform():
     assert rev == [0, 1, 1, 2, 5, 14]
     assert series_reversion_transform().apply([1, 1, 0]) == []
     assert series_reversion_transform().apply([0, 2, 1, 0]) == []
+
+
+def test_seeded_integer_transform_roundtrips():
+    """Broad, replayable algebraic checks beyond the named examples above."""
+    rng = random.Random(20260713)
+    for _ in range(24):
+        seq = [rng.randint(-8, 8) for _ in range(rng.randint(3, 10))]
+        assert inverse_binomial_transform().apply(binomial_transform().apply(seq)) == seq
+        assert binomial_transform().apply(inverse_binomial_transform().apply(seq)) == seq
+        assert inverse_stirling1_transform().apply(stirling1_transform().apply(seq)) == seq
+        assert inverse_stirling2_transform().apply(stirling2_transform().apply(seq)) == seq
+        assert alternating_sign_transform().apply(alternating_sign_transform().apply(seq)) == seq
+        assert reverse_transform().apply(reverse_transform().apply(seq)) == seq
+
+
+def test_seeded_generating_function_roundtrips():
+    rng = random.Random(20260714)
+    for _ in range(16):
+        seq = [rng.choice((-1, 1)), *[rng.randint(-3, 3) for _ in range(7)]]
+        inverse = ogf_inverse_transform(max_abs=10**30).apply(seq)
+        assert inverse
+        assert ogf_inverse_transform(max_abs=10**30).apply(inverse) == seq
+
+        euler_input = [0, *[rng.randint(-2, 3) for _ in range(7)]]
+        euler = euler_ogf_transform().apply(euler_input)
+        assert euler
+        assert inverse_euler_ogf_transform().apply(euler) == euler_input
+
+        reverted_input = [0, rng.choice((-1, 1)), *[rng.randint(-2, 2) for _ in range(6)]]
+        reverted = series_reversion_transform(max_abs=10**30).apply(reverted_input)
+        assert reverted
+        assert series_reversion_transform(max_abs=10**30).apply(reverted) == reverted_input

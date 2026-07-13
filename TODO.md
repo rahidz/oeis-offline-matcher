@@ -43,7 +43,7 @@ Complete this gate before declaring the feature-complete phases or milestones do
 - [x] Remove dead/shadowed code and generated repository artifacts (`$DB`, tracked `*.egg-info`).
 - [x] Repair CLI/API/JSON schema parity and add explicit additive `schema_version` contracts.
 - [ ] Refresh README, FAQ, architecture, preset guidance, reproducibility guidance, changelog, and benchmark results against the consolidated implementation.
-- [ ] Expand real-snapshot regressions, diversity assertions, transform inverse/property tests, fuzz replay seeds, and machine-readable command contract tests.
+- [x] Expand real-snapshot regressions, diversity assertions, transform inverse/property tests, fuzz replay seeds, and machine-readable command contract tests.
 - [ ] Profile current workloads, optimize measured Python/SQLite bottlenecks, and add repeatable performance envelopes before introducing native complexity.
 - [ ] Add deterministic local parallelism and optional acceleration only where benchmarks demonstrate a material end-to-end win.
 - [ ] Audit full-corpus b-file indexing/search for duplicate auxiliary files, resumability, storage cost, and useful result ranking; then build and smoke-test the local b-file index.
@@ -174,15 +174,15 @@ Complete this gate before declaring the feature-complete phases or milestones do
 
 ### 4.1 Regression suite expansion
 
-- [ ] Expand `docs/regressions.json` to include harder real-world examples and edge families.
-- [ ] Add expected diversity checks (not just one target id).
-- [ ] Add regression cases for stale-index and missing-index behavior.
+- [x] Expand `docs/regressions.json` to include harder real-world examples and edge families.
+- [x] Add expected diversity checks (not just one target id).
+- [x] Add regression cases for stale-index and missing-index behavior.
 
 ### 4.2 Randomized/property testing
 
-- [ ] Add property tests for transform invertibility and composition invariants where applicable.
-- [ ] Expand combo fuzzing to stress rational/shifted/component-transform paths.
-- [ ] Add long-run seed corpus for flaky-case replay.
+- [x] Add property tests for transform invertibility and composition invariants where applicable.
+- [x] Expand combo fuzzing to stress rational/shifted/component-transform paths.
+- [x] Add long-run seed corpus for flaky-case replay.
 
 ### 4.3 Performance regression gates
 

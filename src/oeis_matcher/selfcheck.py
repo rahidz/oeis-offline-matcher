@@ -69,12 +69,26 @@ def run_regressions(
     results: list[RegressionCaseResult] = []
     passes = 0
     fails = 0
+    skips = 0
 
     for case in cases:
         name = str(case.get("name") or "(unnamed)")
         query = str(case.get("query") or "")
         opts = dict(case.get("opts") or {})
         expect = dict(case.get("expect") or {})
+        required_ids = [str(seq_id) for seq_id in case.get("requires_ids") or ()]
+        missing_ids = [seq_id for seq_id in required_ids if get_sequence_by_id(db, seq_id) is None]
+        if missing_ids:
+            skips += 1
+            results.append(
+                RegressionCaseResult(
+                    name=name,
+                    ok=True,
+                    elapsed_s=0.0,
+                    details={"skipped": True, "missing_required_ids": missing_ids},
+                )
+            )
+            continue
 
         t0 = time.perf_counter()
         res = analyze_sequence(query, db_path=db, collect_timings=True, **opts)
@@ -111,6 +125,23 @@ def run_regressions(
                 ok = False
                 reasons.append(f"convolution missing ids={expect['convolution_contains_ids']}")
 
+        if "modclass_contains_ids" in expect:
+            if not _contains_ids(res.get("modclass_combinations") or [], list(expect["modclass_contains_ids"])):
+                ok = False
+                reasons.append(f"modclass missing ids={expect['modclass_contains_ids']}")
+
+        ranked_families = {str(row.get("family")) for row in res.get("ranked_explanations") or []}
+        if "ranked_families_contains" in expect:
+            missing = [family for family in expect["ranked_families_contains"] if family not in ranked_families]
+            if missing:
+                ok = False
+                reasons.append(f"ranked families missing {missing}")
+        if len(ranked_families) < int(expect.get("min_ranked_families", 0)):
+            ok = False
+            reasons.append(
+                f"ranked family count={len(ranked_families)} expected >= {expect['min_ranked_families']}"
+            )
+
         if ok:
             passes += 1
         else:
@@ -128,7 +159,7 @@ def run_regressions(
         if fail_fast and not ok:
             break
 
-    summary = {"cases": len(results), "passes": passes, "fails": fails}
+    summary = {"cases": len(results), "passes": passes, "fails": fails, "skips": skips}
     return results, summary
 
 
