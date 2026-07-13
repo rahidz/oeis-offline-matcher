@@ -736,6 +736,7 @@ from .storage import ensure_db_indexes, get_sequence_by_id, iter_sequences
 from .freshness import build_status_report, update_build_metadata, update_sync_metadata
 from .explanation_ranking import parse_family_quotas
 from .bfiles import build_bfile_index, fetch_bfiles, search_bfile_index
+from . import __version__
 
 
 def _run_combo_command(args) -> int:
@@ -1699,6 +1700,7 @@ def _main(argv=None):
     default_startup_refresh_if_stale = bool(startup_cfg.get("refresh_if_stale", False))
 
     parser = argparse.ArgumentParser(prog="oeis", description="Offline OEIS matcher")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     def _add_lean_search_flags(p) -> None:

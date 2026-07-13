@@ -1,14 +1,30 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "oeis-matcher"
-version = "0.0.1"
-description = "Offline OEIS matcher with transform search"
+version = "1.0.0"
+description = "Offline-first OEIS sequence matcher and explanation search"
 requires-python = ">=3.11"
 readme = "README.md"
 dependencies = []
+authors = [{ name = "Rahid Zaman" }]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Environment :: Console",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Mathematics",
+]
+
+[project.optional-dependencies]
+discovery = ["sympy>=1.12"]
+dev = ["jsonschema>=4.17", "pytest>=7.4", "ruff>=0.6"]
+
+[project.urls]
+Repository = "https://github.com/rahidz/oeis-offline-matcher"
 
 [project.scripts]
 oeis = "oeis_matcher.cli:main"

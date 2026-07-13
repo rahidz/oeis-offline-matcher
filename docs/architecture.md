@@ -1,42 +1,62 @@
-# OEIS Offline Matcher – Architecture Sketch
+# Architecture
 
-This snapshot describes the current v0/v1 pipeline.
+OEIS Offline Matcher is a local Python CLI/library backed by SQLite. Network access is confined to explicit data-sync and b-file fetch commands; query-time analysis is offline.
 
-## Data Flow (build)
-- `scripts/fetch_oeis_data.sh` downloads `stripped.gz` + `names.gz` to `data/raw/`.
-- `oeis build-index` parses stripped lines into `SequenceRecord` objects, attaches titles from names, keywords (when available), offsets, FORMULA text (when provided via `--formulas` or an `oeisdata` clone), computes invariants (prefix5, min/max, gcd, monotone flags, sign patterns, nonzero counts, first-diff sign, growth_rate), and stores them in `data/processed/oeis.db` (SQLite).
+## Data lifecycle
 
-## Query Flow (CLI/API)
-1) **Parse**: `parse_query` → `SequenceQuery` (terms, min_match_length, allow_subsequence).
-2) **Candidate filter**: `matcher.candidate_sequences` picks:
-   - prefix index (prefix5) if subsequence search is off and length ≥ 5,
-   - otherwise invariant-filtered scan via SQLite.
-3) **Exact match**: `_is_prefix` + optional KMP subsequence → `Match`.
-4) **Transforms**: `transform_search` enumerates chains (scale/affine/shift/diff/psum/abs/gcd_norm/decimate), applies to query, re-runs exact matcher, scores with complexity penalty, adds human/LaTeX explanations.
-5) **Similarity**: `rank_candidates_for_query` fits scale/offset (MSE + correlation) on filtered candidates.
-6) **Combinations (experimental)**: `get_candidate_bucket` (capped, optional fill) → `search_two_sequence_combinations` / `search_three_sequence_combinations` brute-force small integer coeffs and forward shifts, with optional per-component transforms (id/diff/partial_sum) → `CombinationMatch` with expression.
-7) **Aggregate**: `analyze_sequence` bundles exact, transform, similarity, combos (+ diagnostics) as dict or `AnalysisResult`.
-8) **Health/Freshness**: `oeis status` reads freshness metadata + file/DB health checks, and can optionally run `--refresh-if-stale` (sync + rebuild) for power workflows.
+1. `oeis sync` downloads `stripped.gz` and `names.gz`, optionally updates an `oeisdata` checkout, and derives keyword data. Downloads go to temporary files and replace the last known-good snapshot atomically.
+2. `oeis build-index` parses the exports, joins names/keywords/offsets/formulas, computes invariants, and writes `data/processed/oeis.db`.
+3. Freshness metadata records source markers, the `oeisdata` commit, build settings, row count, and timestamps. A skipped sync does not claim that the snapshot became newer.
+4. `oeis status` checks source presence, age, database integrity, schema/index health, and source/build consistency. `--refresh-if-stale` performs the explicit sync-and-rebuild path.
 
-## Key Data Structures
-- `SequenceRecord`: id, terms, length, name, metadata.
-- `SequenceQuery`: terms, min_match_length, allow_subsequence.
-- `Match`: id, match_type, offset, length, score, transform_desc, explanation, latex, snippet.
-- `CombinationMatch`: ids, coeffs, shifts, length, score, expression.
-- `AnalysisResult`: aggregates matches plus diagnostics.
+The separate b-file corpus is intentional. `oeis bfetch` retrieves selected canonical b-files; `oeis bindex` and `oeis bsearch` provide an auxiliary exact-value lookup database without bloating the main sequence index.
 
-## Config & Presets
-- Defaults: see `config.py` (paths, max_results/terms).
-- Presets: CLI `--preset fast|deep|max` adjusts depth, limits, coeffs, candidate caps, and time/check budgets.
-- Freshness config: `freshness.max_age_days`, `freshness.metadata_path`, `freshness.warn_on_stale`.
-- Startup defaults: `startup.show_status`, `startup.refresh_if_stale` (used by `scripts/oeis-start`).
+## Shared analysis engine
 
-## Storage
-- SQLite table `sequences(id TEXT PRIMARY KEY, length INT, terms TEXT, name TEXT, formula TEXT, prefix5 TEXT, min_val, max_val, gcd_val, is_nondecreasing, is_nonincreasing, sign_pattern, nonzero_count, first_diff_sign, growth_rate REAL, var REAL, diff_var REAL)`.
-- Indexes on prefix5, length, gcd_val, sign_pattern, first_diff_sign, nonzero_count, growth_rate.
+Both `oeis analyze` and `oeis_matcher.api.analyze_sequence` call `analysis.run_analysis`. This is the single owner of stage ordering and budgets:
 
-## Extensibility Notes
-- Drop-in new transforms by adding to `transforms.default_transforms`.
-- Wider combo search: extend `combination_search` to negative shifts or per-component transforms.
-- Metrics/benchmarks: hook into `analyze_sequence` to measure latency per stage.
- - Presets can be expanded (e.g., “balanced”) or tuned per use-case.
+1. exact/prefix match, with optional subsequence fallback;
+2. transform search;
+3. similarity ranking;
+4. mod-class decomposition;
+5. candidate-bucket construction;
+6. linear pair, pointwise, convolution, and linear triple search;
+7. deferred expanded DB-wide fallbacks;
+8. optional transform refinement;
+9. cross-family merge and diversity-aware reranking.
+
+Every expensive stage receives its own cap and the remaining global wall-time budget. Deep/max scheduling first runs a short transform probe when combination stages are requested, surfaces the cheaper combination families, and then refines transforms with remaining time.
+
+The engine emits ordered `AnalysisEvent` values for stage starts, matches, messages, and stage completion. The CLI uses those events for streaming text; API users can supply an `on_event` callback. Checkpoint persistence is a CLI adapter around the same engine stage cache, so resumed and fresh runs share orchestration.
+
+## Retrieval and search modules
+
+- `matcher.py`: indexed prefix/subsequence retrieval and exact verification.
+- `transform_search.py` / `transforms.py`: bounded transform-chain enumeration, domain guards, scoring, and symbolic explanations.
+- `candidates.py` / `discovery.py`: deterministic candidate buckets with provenance and optional SymPy discovery.
+- `combination_search.py`: linear pair/triple, pointwise, convolution, mod-class, and expanded prefix-index algorithms.
+- `explanation_ranking.py`: symbolic de-duplication, family quotas, diversity, and final ranking.
+- `analysis.py`: shared stage scheduler and result assembly.
+- `serialization.py`: the additive JSON contract shared by CLI and API.
+
+## Core models
+
+- `SequenceRecord`: OEIS id, stored terms, metadata, formula, and invariants.
+- `SequenceQuery`: terms (including optional wildcards), minimum match length, and subsequence policy.
+- `Match`: exact/transform hit plus score, snippet, formula, and explanation fields.
+- `CombinationMatch`: component ids, coefficients, shifts/transforms, expression, score, terms, and provenance.
+- `AnalysisResult`: all result families, combined/ranked explanations, and diagnostics.
+
+`AnalysisResult.to_dict()` delegates to the shared serializer. CLI and API payloads carry `schema_version: 1`; v1.x changes are additive.
+
+## SQLite layout
+
+The main `sequences` table stores ids, comma-encoded terms, names/formulas/keywords, offsets, prefix columns, and filter invariants such as length, extrema, gcd, monotonicity, sign pattern, nonzero count, variance, and growth rate. Recommended indexes cover prefix lookup and the common invariant filters. `oeis optimize-db` upgrades older databases in place and can add shifted prefix columns for expanded searches.
+
+The b-file index is separate: `bfile_values(seq_id, n, value)`, indexed by exact decimal value and by `(seq_id, n)`.
+
+## Presets and determinism
+
+`fast`, `deep`, and `max` expand into concrete, bounded options before parsing. No-profile search defaults to `deep`; `max` is the exhaustive ceiling. Advanced options stay supported but are hidden from normal help; use `--help-advanced`.
+
+Candidate ordering, search enumeration, family merging, and randomized selfchecks are deterministic. See `docs/reproducibility.md` for snapshot pinning and benchmark protocol.

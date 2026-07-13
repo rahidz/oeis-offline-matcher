@@ -197,21 +197,21 @@ Complete this gate before declaring the feature-complete phases or milestones do
 ### 5.1 CLI/API stabilization
 
 - [x] Review/normalize option names and defaults across `match/tsearch/combo/analyze`.
-- [ ] Finalize additive-only JSON/schema compatibility policy for `v1.x` and add explicit `schema_version`.
-- [ ] Add command-level contract tests for machine-readable output.
+- [x] Finalize additive-only JSON/schema compatibility policy for `v1.x` and add explicit `schema_version`.
+- [x] Add command-level contract tests for machine-readable output.
 
 ### 5.2 Docs pass
 
-- [ ] Rewrite README for v1.0 workflows (bootstrap, refresh, exhaustive tuning, troubleshooting).
+- [x] Rewrite README for v1.0 workflows (bootstrap, refresh, exhaustive tuning, troubleshooting).
 - [x] Align README status/preset language with v1.0 direction and `fast/deep/max` runtime intent.
-- [ ] Add "how to choose presets" and "why this result ranked first" docs.
-- [ ] Add reproducibility guide (seeds, DB pinning, benchmark protocol).
+- [x] Add "how to choose presets" and "why this result ranked first" docs.
+- [x] Add reproducibility guide (seeds, DB pinning, benchmark protocol).
 
 ### 5.3 Release readiness
 
-- [ ] Add changelog and migration notes from v0.x to v1.0.
+- [x] Add changelog and migration notes from v0.x to v1.0.
 - [ ] Tag release checklist (quality, perf, docs, schemas, selfcheck green).
-- [ ] Prepare packaging/release process (including optional extras).
+- [x] Prepare packaging/release process (including optional extras).
 
 ---
 

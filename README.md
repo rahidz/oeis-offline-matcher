@@ -14,7 +14,7 @@ It downloads an OEIS snapshot once, builds a local SQLite index, then lets you p
 After the initial `oeis sync` + `oeis build-index`, analysis runs fully offline.
 
 ## Status
-Core pipeline is implemented end-to-end. Current work is the v1.0 roadmap: broader explanation coverage, better ranking diversity/depth, startup and data-freshness UX, and stronger regression/performance gates. See `TODO.md`.
+The v1.0 feature pipeline is implemented end-to-end. Current work is the consolidation/release gate: regression and performance baselines, full-corpus b-file indexing, and the final release audit. See `TODO.md`.
 
 ## Quick Start
 
@@ -50,8 +50,8 @@ oeis bfetch "A000045,A000217"
 # Build/search a b-file value index (exact integer lookup)
 oeis bindex --files-root data/raw/bfiles --db data/processed/bfiles.db
 oeis bsearch 514229 --db data/processed/bfiles.db
-# Note: `oeisdata/files` entries are Git LFS pointers unless LFS content is fetched.
-# `oeis bfetch` downloads real b-file text directly from OEIS.
+# `oeis bfetch` downloads real b-file text directly from OEIS. A full b-file
+# corpus/index is intentionally separate and can require tens of GiB.
 
 # Health + freshness report (read-only):
 oeis status
@@ -134,6 +134,12 @@ Search commands expose a lean preset-first interface:
 - `--max`
 - `--time-cap`
 
+With no profile flag, search commands default to `deep`. The complete tuning surface remains supported but is hidden from routine help:
+
+```bash
+oeis analyze --help-advanced
+```
+
 ```bash
 # Deep preset (balanced) with a 2-minute cap
 oeis analyze "5,17,103,1011,10042" --deep --time-cap 120
@@ -145,6 +151,8 @@ oeis analyze "5,17,103,1011,10042" --deep --time-cap 120
 - **max**: exhaustive ceiling mode (no `ultra` tier), with the widest search families, large candidate pools, expanded DB-wide combo fallback, and streaming output by default.
 
 `--time-cap` is the top-level wall-time cap for `tsearch` and for the full `combo`/`analyze` pipelines.
+
+Preset budgets are ceilings, not promises to consume the whole interval. A run can finish early; conversely, the exact set reached before a wall-time boundary can vary slightly by machine. See `docs/reproducibility.md` when results must be pinned exactly.
 
 ## Combination Search
 
@@ -206,6 +214,20 @@ oeis tsearch "1,2,3,4,5" --deep --time-cap 30
 # Machine-readable output
 oeis analyze "1,2,3,4,5" --max --json > out.json
 # Schemas: docs/schemas/analyze.schema.json, docs/schemas/combo.schema.json
+# CLI and API payloads use the same additive contract and include schema_version=1.
+```
+
+Library use goes through the same scheduler as the CLI:
+
+```python
+from oeis_matcher.api import analyze_sequence
+
+result = analyze_sequence(
+    [1, 1, 2, 3, 5, 8, 13],
+    db_path="data/processed/oeis.db",
+    preset="deep",
+    total_max_time=120,
+)
 ```
 
 ## Architecture
@@ -225,6 +247,8 @@ See `docs/FAQ.md` for limits and performance tips.
 - `oeis selfcheck --db data/processed/oeis.db --pointwise-trials 20 --convolution-trials 20` adds random pointwise/convolution sanity checks.
 - `docs/notebook_regressions.ipynb` runs `docs/regressions.json` as a full-pipeline regression check (requires a built DB).
 - Bench numbers live in `docs/benchmarks.md`.
+
+For snapshot pinning, deterministic replay, and the benchmark protocol, see `docs/reproducibility.md`. Release changes and v0.x migration notes are in `CHANGELOG.md`.
 
 ## Configuration
 - Optional `config.toml` (see `config.example.toml`) controls default paths and limits.
