@@ -64,9 +64,22 @@ def _allows_low_diversity(chain: Sequence[Transform]) -> bool:
             return True
         if name == "partial_sum":
             return True
+        if name == "ratio_int":
+            return True
         if name.startswith("movsum("):
             return True
         if name == "gcd_norm":
+            return True
+        if name in {
+            "inv_binomial",
+            "inv_euler_ogf",
+            "inv_stirling1",
+            "inv_stirling2",
+            "ogf_inv",
+            "series_reversion",
+        }:
+            # Inverse transforms can legitimately reduce variance/diversity
+            # when undoing a previously expansive map.
             return True
     return False
 
@@ -108,6 +121,8 @@ def _render_symbolic_chain(chain: Sequence[Transform], *, latex: bool = False) -
         elif name.startswith("scale("):
             k = name[name.index("(") + 1 : -1]
             expr = f"{k}\\,{expr}" if latex else f"{k}*{expr}"
+        elif name == "alt_sign":
+            expr = f"(-1)^n\\,{expr}" if latex else f"(-1)^n*{expr}"
         elif name.startswith("affine("):
             vals = name[name.index("(") + 1 : -1]
             k, b = vals.split(",")
@@ -117,6 +132,24 @@ def _render_symbolic_chain(chain: Sequence[Transform], *, latex: bool = False) -
             expr = f"\\left|{expr}\\right|" if latex else f"|{expr}|"
         elif name == "gcd_norm":
             expr = f"{expr}/\\gcd" if latex else f"{expr}/gcd"
+        elif name == "ratio_int":
+            expr = f"\\Delta\\log {expr}" if latex else f"ratio({expr})"
+        elif name == "euler_ogf":
+            expr = f"\\mathcal{{E}}\\,{expr}" if latex else f"EulerOGF({expr})"
+        elif name == "inv_euler_ogf":
+            expr = f"\\mathcal{{E}}^{{-1}}\\,{expr}" if latex else f"InvEulerOGF({expr})"
+        elif name == "stirling1":
+            expr = f"\\mathbf{{S}}_1\\,{expr}" if latex else f"Stirling1({expr})"
+        elif name == "stirling2":
+            expr = f"\\mathbf{{S}}_2\\,{expr}" if latex else f"Stirling2({expr})"
+        elif name == "inv_stirling1":
+            expr = f"\\mathbf{{S}}_1^{{-1}}\\,{expr}" if latex else f"InvStirling1({expr})"
+        elif name == "inv_stirling2":
+            expr = f"\\mathbf{{S}}_2^{{-1}}\\,{expr}" if latex else f"InvStirling2({expr})"
+        elif name == "ogf_inv":
+            expr = f"\\mathrm{{OGFInv}}\\,{expr}" if latex else f"OGFInv({expr})"
+        elif name == "series_reversion":
+            expr = f"\\mathrm{{Rev}}\\,{expr}" if latex else f"Rev({expr})"
         elif name.startswith("movsum("):
             expr = (f"\\mathrm{{movsum}}({name[name.index('(')+1:-1]},{expr})") if latex else f"movsum({expr})"
         else:
@@ -161,6 +194,48 @@ def search_transform_matches(
     #
     # This matters most in `--preset deep/max` where the transform vocabulary
     # is large but `max_depth` is typically 2.
+    def _allow_pair(t1: Transform, t2: Transform) -> bool:
+        n1, n2 = t1.name, t2.name
+        # Drop immediate idempotent/involution repeats that do not add information.
+        if n1 == n2 and n1 in {
+            "abs",
+            "reverse",
+            "gcd_norm",
+            "alt_sign",
+            "ratio_int",
+            "euler_ogf",
+            "inv_euler_ogf",
+            "stirling1",
+            "stirling2",
+            "inv_stirling1",
+            "inv_stirling2",
+            "ogf_inv",
+            "series_reversion",
+        }:
+            return False
+        # Drop immediate inverse-cancel pairs for heavy transforms.
+        if (n1, n2) in {
+            ("euler_ogf", "inv_euler_ogf"),
+            ("inv_euler_ogf", "euler_ogf"),
+            ("stirling1", "inv_stirling1"),
+            ("inv_stirling1", "stirling1"),
+            ("stirling2", "inv_stirling2"),
+            ("inv_stirling2", "stirling2"),
+        }:
+            return False
+        # Index selectors are strong reducers; chaining many of them explodes
+        # equivalent families with little explanatory gain.
+        if n1.startswith("index_") and n2.startswith("index_"):
+            return False
+        if n1.startswith("index_powk(") and n2.startswith("index_"):
+            return False
+        if n1.startswith("index_") and n2.startswith("index_powk("):
+            return False
+        # Chaining p-adic valuations rarely yields useful additional structure.
+        if n1.startswith("vp(") and n2.startswith("vp("):
+            return False
+        return True
+
     def _iter_chains_with_outputs() -> Iterable[tuple[list[Transform], list[int], str]]:
         if max_depth <= 0:
             return
@@ -179,12 +254,21 @@ def search_transform_matches(
                 yield [t1], out1, t1.name
             for t1, out1 in level1:
                 for t2 in transforms:
+                    if not _allow_pair(t1, t2):
+                        continue
                     out2 = t2.apply(out1) if out1 else []
                     yield [t1, t2], out2, f"{t1.name} ∘ {t2.name}"
             return
 
         # Fallback: higher depths are expected to be rare / explicitly opt-in.
         for chain in enumerate_chains(transforms, max_depth):
+            ok = True
+            for t1, t2 in zip(chain, chain[1:]):
+                if not _allow_pair(t1, t2):
+                    ok = False
+                    break
+            if not ok:
+                continue
             out, desc = apply_chain(query.terms, chain)
             yield chain, out, desc
 
@@ -201,6 +285,8 @@ def search_transform_matches(
     q_var = _variance(q_terms_no_none) if q_terms_no_none else None
     all_same_query = len(set(query.terms)) == 1 if query.terms else False
     q_len = len(q_terms_no_none)
+    q_nonzero = sum(1 for v in q_terms_no_none if v != 0)
+    q_nonzero_ratio = (q_nonzero / q_len) if q_len else 0.0
     seen_transformed: set[tuple] = set()
 
     if time_fn is None:
@@ -237,6 +323,15 @@ def search_transform_matches(
             t_var = _variance(transformed_terms)
             t_is_arith, t_arith_step = _is_simple_arith_prog(transformed_terms) if transformed_terms else (False, None)
             rarity = _invariant_rarity_bonus(transformed_terms, inv_stats)
+            chain_has_cumprod = any(t.name == "cumprod" for t in chain)
+
+            # Guard against degenerate cumprod collapses (e.g. diff ∘ cumprod
+            # producing 1,0,0,...) on otherwise non-sparse queries.
+            if chain_has_cumprod and not allow_constant_outputs and q_distinct > 2 and q_len >= 6 and q_nonzero_ratio >= 0.5:
+                t_nonzero = sum(1 for v in transformed_terms if v != 0)
+                t_nonzero_ratio = t_nonzero / len(transformed_terms)
+                if t_nonzero_ratio <= 0.20 and t_distinct <= 3:
+                    continue
 
             # Drop low-diversity transforms unless the query is equally low-diversity.
             if t_distinct <= 2 and q_distinct > 2 and not allow_low_diversity and not allow_constant_outputs:
@@ -249,6 +344,7 @@ def search_transform_matches(
                 and q_var > 0
                 and t_var < 0.05 * q_var
                 and q_distinct > 2
+                and not allow_low_diversity
                 and not allow_constant_outputs
             ):
                 continue
@@ -264,7 +360,10 @@ def search_transform_matches(
                     # (e.g., diff of an arithmetic progression → all ones). Allow
                     # those through while still dropping constants from arbitrary
                     # noisy chains.
-                    allows_constants = any(t.name.startswith("diff") or t.name == "partial_sum" for t in chain)
+                    allows_constants = any(
+                        t.name.startswith("diff") or t.name in {"partial_sum", "ratio_int"}
+                        for t in chain
+                    )
                     if not (allow_low_diversity and allows_constants):
                         continue
 
@@ -602,6 +701,8 @@ def _chain_complexity(chain: Sequence[Transform]) -> float:
             weight += 1.6
         elif name == "partial_sum":
             weight += 1.1
+        elif name == "alt_sign":
+            weight += 0.5
         elif name == "cumprod":
             weight += 1.8
         elif name.startswith("decimate"):
@@ -626,16 +727,42 @@ def _chain_complexity(chain: Sequence[Transform]) -> float:
             weight += 1.0
         elif name == "binomial":
             weight += 1.6
+        elif name == "inv_binomial":
+            weight += 1.7
         elif name == "euler":
             weight += 1.7
+        elif name == "euler_ogf":
+            weight += 2.2
+        elif name == "inv_euler_ogf":
+            weight += 2.4
+        elif name == "stirling1":
+            weight += 1.9
+        elif name == "stirling2":
+            weight += 1.9
+        elif name == "inv_stirling1":
+            weight += 2.0
+        elif name == "inv_stirling2":
+            weight += 2.0
+        elif name == "ogf_inv":
+            weight += 2.5
+        elif name == "series_reversion":
+            weight += 2.7
         elif name == "rle_len":
             weight += 1.9
         elif name == "mobius":
             weight += 1.7
-        elif name in ("omega", "bigomega", "tau", "sigma", "phi", "v2"):
+        elif name in ("omega", "bigomega", "tau", "sigma", "phi", "v2", "lpf", "gpf", "rad", "liouville"):
             weight += 1.3
-        elif name in ("index_square", "prime_index", "index_pow2", "index_factorial"):
+        elif name == "squarefree":
             weight += 1.1
+        elif name.startswith("vp("):
+            weight += 1.3
+        elif name == "ratio_int":
+            weight += 1.2
+        elif name in ("index_square", "prime_index", "index_pow2", "index_factorial", "index_triangular", "index_fibonacci"):
+            weight += 1.1
+        elif name.startswith("index_powk("):
+            weight += 1.2
         elif name.startswith("concat("):
             weight += 1.4
         elif name.startswith("log"):

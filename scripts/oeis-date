@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+import argparse
+import sys
+from datetime import date, datetime
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
+from oeis_matcher.api import match_exact_terms
+from oeis_matcher.config import load_config
+
+
+def parse_date(text: str) -> date:
+    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y", "%m-%d-%Y", "%m-%d-%y"):
+        try:
+            return datetime.strptime(text, fmt).date()
+        except ValueError:
+            pass
+    raise SystemExit(f"Unsupported date: {text} (try YYYY-MM-DD or M/D/YYYY)")
+
+
+def queries(day: date) -> list[tuple[str, list[int]]]:
+    m, d, y = day.month, day.day, day.year
+    yy, cc = y % 100, y // 100
+    md = int(f"{m}{d:02d}")
+    ymd = int(f"{y}{m:02d}{d:02d}")
+    items = [
+        ("m,d,yyyy", [m, d, y]),
+        ("m,d,yy", [m, d, yy]),
+        ("digits(m,d,yyyy)", [int(ch) for ch in f"{m}{d}{y}"]),
+        ("digits(m,d,yy)", [int(ch) for ch in f"{m}{d}{yy}"]),
+        ("md,yyyy", [md, y]),
+        ("md,yy", [md, yy]),
+        ("yyyy,m,d", [y, m, d]),
+        ("yy,m,d", [yy, m, d]),
+        ("century,yy,m,d", [cc, yy, m, d]),
+        ("m,d,century,yy", [m, d, cc, yy]),
+        ("digits(yyyy,m,d)", [int(ch) for ch in f"{y}{m}{d}"]),
+        ("digits(yy,m,d)", [int(ch) for ch in f"{yy}{m}{d}"]),
+        ("yyyy,md", [y, md]),
+        ("ymd", [ymd]),
+        ("yyyy,day_of_year", [y, int(day.strftime("%j"))]),
+    ]
+    seen = set()
+    out = []
+    for label, seq in items:
+        key = tuple(seq)
+        if key not in seen:
+            seen.add(key)
+            out.append((label, seq))
+    return out
+
+
+def main(argv: list[str]) -> int:
+    cfg = load_config()
+    parser = argparse.ArgumentParser(description="Search OEIS for date-shaped exact/subsequence matches.")
+    parser.add_argument("date", nargs="?", help="Date to use (default: today). Accepts YYYY-MM-DD or M/D/YYYY.")
+    parser.add_argument("--db", default=cfg["paths"]["db"], help="SQLite index path")
+    parser.add_argument("--limit", type=int, default=50, help="Max matches to show for each generated query")
+    parser.add_argument("--show-terms", type=int, default=0, metavar="N", help="Include the first N sequence terms for each hit")
+    parser.add_argument("--print-only", action="store_true", help="Only print the generated queries")
+    args = parser.parse_args(argv[1:])
+
+    day = parse_date(args.date) if args.date else date.today()
+    qq = queries(day)
+    print(f"date\t{day.isoformat()}")
+    for label, seq in qq:
+        print(f"{label}\t{','.join(map(str, seq))}")
+    if args.print_only:
+        return 0
+
+    for i, (label, seq) in enumerate(qq, start=1):
+        print(f"\n[{i}/{len(qq)}] {label}: {','.join(map(str, seq))}")
+        matches = match_exact_terms(
+            seq,
+            db_path=args.db,
+            allow_subsequence=True,
+            fallback_subsequence=False,
+            limit=args.limit,
+            show_terms=(args.show_terms or None),
+        )
+        if not matches:
+            print("  (none)")
+            continue
+        for m in matches:
+            snippet = f" terms={','.join(str(t) for t in m.snippet)}" if m.snippet is not None else ""
+            name = f" - {m.name}" if m.name else ""
+            print(f"  {m.id} [{m.match_type} @ {m.offset}] len={m.length}{snippet}{name}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv))

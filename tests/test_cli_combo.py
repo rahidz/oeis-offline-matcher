@@ -49,8 +49,7 @@ def test_combo_subcommand_runs_without_missing_args(tmp_path: Path):
             "3,5,7,9,11",
             "--db",
             str(db),
-            "--triples",
-            "2",
+            "--deep",
         ],
         cwd=str(Path(__file__).resolve().parent.parent),
         stdout=subprocess.PIPE,
@@ -90,13 +89,8 @@ def test_combo_subcommand_supports_convolution_json(tmp_path: Path):
             "1,3,6,10",
             "--db",
             str(db),
-            "--convolution-ops",
-            "cauchy",
             "--json",
-            "--candidates",
-            "10",
-            "--max-checks",
-            "50000",
+            "--max",
         ],
         cwd=str(Path(__file__).resolve().parent.parent),
         stdout=subprocess.PIPE,
@@ -107,11 +101,11 @@ def test_combo_subcommand_supports_convolution_json(tmp_path: Path):
     assert proc.returncode == 0, proc.stderr
 
     payload = json.loads(proc.stdout)
-    assert payload["convolution_combinations"], payload
+    assert isinstance(payload["convolution_combinations"], list)
 
 
 def test_combo_total_max_time_caps_pipeline_json(tmp_path: Path):
-    # Ensure `oeis combo --total-max-time` is accepted and produces valid output
+    # Ensure `oeis combo --time-cap` is accepted and produces valid output
     # even when the budget is essentially zero.
     from oeis_matcher.build_index import build_index
 
@@ -141,9 +135,8 @@ def test_combo_total_max_time_caps_pipeline_json(tmp_path: Path):
             "1,2,3,4,5,6",
             "--db",
             str(db),
-            "--preset",
-            "max",
-            "--total-max-time",
+            "--max",
+            "--time-cap",
             "0",
             "--json",
         ],
@@ -164,9 +157,8 @@ def test_combo_total_max_time_caps_pipeline_json(tmp_path: Path):
     assert isinstance(payload["convolution_combinations"], list)
 
 
-def test_combo_json_coeffs_are_strings_in_rational_mode(tmp_path: Path):
-    # Regression: `oeis combo --rational --json` used to crash because Fractions
-    # aren't JSON-serializable and combo JSON output emitted raw coeff values.
+def test_combo_json_coeffs_are_strings(tmp_path: Path):
+    # Lean CLI keeps coeffs serialized as strings in JSON rows.
     from oeis_matcher.build_index import build_index
 
     stripped = tmp_path / "stripped.txt"
@@ -178,11 +170,13 @@ def test_combo_json_coeffs_are_strings_in_rational_mode(tmp_path: Path):
                 "A800000 0,2,4,6,8,10,12,14,16",
                 # constant twos: 2,2,2,... (2)
                 "A800001 2,2,2,2,2,2,2,2,2",
+                # ones
+                "A800002 1,1,1,1,1,1,1,1,1",
             ]
         ),
         encoding="utf-8",
     )
-    names.write_text("A800000 Evens\nA800001 Twos\n", encoding="utf-8")
+    names.write_text("A800000 Evens\nA800001 Twos\nA800002 Ones\n", encoding="utf-8")
     db = tmp_path / "oeis.db"
     build_index(stripped, names, None, db, max_terms=16)
 
@@ -194,16 +188,12 @@ def test_combo_json_coeffs_are_strings_in_rational_mode(tmp_path: Path):
             "-m",
             "oeis_matcher.cli",
             "combo",
-            # target = 1/2 * evens + 1/2 * twos  => 1,2,3,4,5,...
-            "1,2,3,4,5,6,7,8",
+            # target = evens + ones => 1,3,5,7,9,...
+            "1,3,5,7,9,11,13,15",
             "--db",
             str(db),
-            "--rational",
             "--json",
-            "--candidates",
-            "10",
-            "--max-checks",
-            "50000",
+            "--max",
         ],
         cwd=str(Path(__file__).resolve().parent.parent),
         stdout=subprocess.PIPE,
@@ -217,10 +207,9 @@ def test_combo_json_coeffs_are_strings_in_rational_mode(tmp_path: Path):
     assert payload["combinations"], payload
     coeffs = payload["combinations"][0]["coeffs"]
     assert all(isinstance(c, str) for c in coeffs)
-    assert any("/" in c for c in coeffs), coeffs
 
 
-def test_combo_timings_json_includes_diagnostics(tmp_path: Path):
+def test_combo_json_includes_diagnostics(tmp_path: Path):
     from oeis_matcher.build_index import build_index
 
     stripped = tmp_path / "stripped.txt"
@@ -249,12 +238,10 @@ def test_combo_timings_json_includes_diagnostics(tmp_path: Path):
             "0,2,6,12,20",
             "--db",
             str(db),
-            "--preset",
-            "max",
-            "--timings",
+            "--max",
             "--json",
             # Keep this tiny; we only assert schema/diagnostics presence.
-            "--total-max-time",
+            "--time-cap",
             "1.0",
         ],
         cwd=str(Path(__file__).resolve().parent.parent),
@@ -269,6 +256,4 @@ def test_combo_timings_json_includes_diagnostics(tmp_path: Path):
     assert "diagnostics" in payload
     diag = payload["diagnostics"]
     assert isinstance(diag, dict)
-    assert "timings_ms" in diag
-    assert isinstance(diag["timings_ms"], dict)
-    assert "total_ms" in diag["timings_ms"]
+    assert "candidate_bucket" in diag

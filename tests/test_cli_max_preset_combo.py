@@ -31,25 +31,10 @@ def test_cli_preset_max_enables_all_combo_stages(tmp_path: Path):
             "1,2,3,4,5",
             "--db",
             str(db),
-            "--preset",
-            "max",
-            "--timings",
+            "--max",
+            "--time-cap",
+            "5.0",
             "--json",
-            # Keep runtime tiny; we only care that max preset activates the stages.
-            "--max-time",
-            "1.0",
-            "--triple-max-time",
-            "1.0",
-            "--expanded-max-time",
-            "0",
-            "--max-checks",
-            "20000",
-            "--triple-max-checks",
-            "20000",
-            "--candidates",
-            "30",
-            "--triple-candidates",
-            "30",
         ],
         cwd=str(repo_root),
         stdout=subprocess.PIPE,
@@ -60,14 +45,6 @@ def test_cli_preset_max_enables_all_combo_stages(tmp_path: Path):
     assert proc.returncode == 0, proc.stderr
 
     payload = json.loads(proc.stdout)
-    diag = payload.get("diagnostics") or {}
-    timings = diag.get("timings_ms") or {}
-    assert "candidates_ms" in timings, timings
-    assert "pair_ms" in timings, timings
-    assert "pointwise_ms" in timings, timings
-    assert "convolution_ms" in timings, timings
-    assert "triples_ms" in timings, timings
-
     # These should be non-empty on this fixture (ones/naturals are present).
     assert payload.get("pointwise_combinations"), payload
     assert payload.get("convolution_combinations"), payload
@@ -95,21 +72,10 @@ def test_cli_preset_max_combo_enables_component_transforms(tmp_path: Path):
             "1,2,3,4,5",
             "--db",
             str(db),
-            "--preset",
-            "max",
+            "--max",
+            "--time-cap",
+            "2.0",
             "--json",
-            "--triples",
-            "0",
-            "--convolution-ops",
-            "",
-            "--pointwise-ops",
-            "mul",
-            "--max-time",
-            "0.75",
-            "--max-checks",
-            "100000",
-            "--candidates",
-            "20",
         ],
         cwd=str(repo_root),
         stdout=subprocess.PIPE,

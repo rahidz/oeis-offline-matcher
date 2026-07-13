@@ -73,6 +73,7 @@ class CombinationMatch:
     latex_expression: Optional[str] = None
     component_terms: Optional[tuple[list[int], ...]] = None
     combined_terms: Optional[list[int]] = None
+    candidate_provenance: Optional[tuple[tuple[str, ...], ...]] = None
 
 
 @dataclass

@@ -58,24 +58,42 @@ Archived roadmap: `TODO_v0.5.md`
 
 ### 1.1 Transform/operator coverage
 
-- [ ] Add more vetted transform families (guarded by complexity and domain checks).
-- [ ] Add richer composition constraints for deeper chains without explosion.
-- [ ] Add structured operator metadata (invertibility/domain/risk/noise profile).
-- [ ] Add opt-in advanced transforms that depend on heavier numeric backends.
+- [x] Add more vetted transform families (guarded by complexity and domain checks).
+  - [x] Add alternating-sign transform (`alt_sign`: `(-1)^n * a(n)`).
+  - [x] Add inverse binomial transform (pair with existing `binomial`).
+  - [x] Add canonical Euler transform + inverse Euler transform with explicit naming/semantics.
+  - [x] Add Stirling transforms (first/second kind) and their inverses.
+  - [x] Generalize p-adic valuation transform family (`v_p` for configurable primes, not only `v2`).
+  - [x] Add factorization-profile transforms (`lpf`, `gpf`, `rad`, squarefree indicator, Liouville lambda).
+  - [x] Add index-family subsequence transforms (`index_triangular`, `index_fibonacci`, generic `index_kth_power`).
+  - [x] Add ratio/quotient transforms with exactness guards (integral ratio path + safe fallback behavior).
+- [x] Add richer composition constraints for deeper chains without explosion.
+  - [x] Add pairwise chain guards for idempotent/index-selector/stacked-`vp` combinations.
+- [x] Add structured operator metadata (invertibility/domain/risk/noise profile).
+  - [x] Extend `Transform` schema with explicit metadata fields (`invertible`, `domain`, `risk`, `noise`, `complexity`).
+- [x] Add opt-in advanced transforms that depend on heavier numeric backends.
+  - [x] Add OGF inverse transform (`1 / A(x)`) with strict domain guards (`a0 != 0`, bounded truncation).
+  - [x] Add compositional inverse / series reversion transform (advanced, strongly bounded, opt-in).
 
 ### 1.2 Combination/explanation breadth
 
-- [ ] Improve multi-family explanation search so linear/pointwise/convolution/mod-class results compete fairly.
-- [ ] Add better de-duplication across equivalent expressions (symbolic canonicalization).
-- [ ] Improve shifted/self-reference discovery under exhaustive mode.
-- [ ] Add guardrails for pathological rational-solver outputs.
+- [x] Improve multi-family explanation search so linear/pointwise/convolution/mod-class results compete fairly.
+- [x] Add better de-duplication across equivalent expressions (symbolic canonicalization).
+- [x] Improve shifted/self-reference discovery under exhaustive mode.
+- [x] Add guardrails for pathological rational-solver outputs.
 
 ### 1.3 Ranking improvements (diversity + depth)
 
-- [ ] Implement diversity-aware ranking (avoid near-duplicate top-N).
-- [ ] Add explanation-family quotas for top results (`transform`, `combo`, `pointwise`, etc.).
-- [ ] Add optional reranker pass for `--preset deep|max`.
-- [ ] Expose ranking diagnostics in JSON output for tuning.
+- [x] Implement diversity-aware ranking (avoid near-duplicate top-N).
+- [x] Add explanation-family quotas for top results (`transform`, `combo`, `pointwise`, etc.).
+- [x] Add optional reranker pass for `--preset deep|max`.
+- [x] Expose ranking diagnostics in JSON output for tuning.
+
+### 1.4 Query/retrieval coverage expansion
+
+- [x] Generalize `oeis match` into a fielded query surface (beyond raw term lists), including `name:`, `formula:`, and `id:` forms.
+- [x] Add user-facing invariant/tag filters in CLI (e.g., monotonic/sign-pattern/has-formula/keyword combinations) with deterministic semantics.
+- [x] Add positional/value constraints for search (`term@index`, contains-all terms, excludes-term) to improve non-prefix discovery workflows.
 
 ---
 
@@ -89,15 +107,16 @@ Archived roadmap: `TODO_v0.5.md`
   - [x] `max`: exhaustive ceiling with all available search families and long budgets (hour-scale or longer via explicit caps).
 - [x] Translate preset contracts into concrete `PRESETS` defaults in `src/oeis_matcher/cli.py` (time caps, candidate caps, transform/combination breadth).
 - [x] Add preset contract tests/bench checks to keep real runtime behavior aligned with the documented intent.
-- [ ] Ensure every stage is bounded by both per-stage and global budgets.
-- [ ] Add checkpoint/resume support for long exhaustive runs (optional persisted state).
-- [ ] Improve stage scheduling for better time-to-first-meaningful-hit.
+- [x] Ensure every stage is bounded by both per-stage and global budgets.
+- [x] Add checkpoint/resume support for long exhaustive runs (optional persisted state).
+- [x] Improve stage scheduling for better time-to-first-meaningful-hit.
 
 ### 2.2 Candidate generation expansion
 
-- [ ] Add optional wider prefilters for difficult sequences.
-- [ ] Add pluggable candidate providers (exact/similarity/index-join/expanded).
-- [ ] Track candidate provenance through scoring for explainability.
+- [x] Add optional wider prefilters for difficult sequences.
+- [x] Add pluggable candidate providers (exact/similarity/index-join/expanded).
+- [x] Track candidate provenance through scoring for explainability.
+- [x] Add an optional symbolic/numeric-discovery candidate provider (SymPy/Sage/GP-backed recurrence/OGF/closed-form guessers) and feed discovered candidates into ranking with provenance.
 
 ### 2.3 Parallel/distributed local execution
 
@@ -155,7 +174,7 @@ Archived roadmap: `TODO_v0.5.md`
 
 ### 5.1 CLI/API stabilization
 
-- [ ] Review/normalize option names and defaults across `match/tsearch/combo/analyze`.
+- [x] Review/normalize option names and defaults across `match/tsearch/combo/analyze`.
 - [ ] Finalize additive-only JSON/schema compatibility policy for `v1.x` and add explicit `schema_version`.
 - [ ] Add command-level contract tests for machine-readable output.
 

@@ -12,6 +12,11 @@ TransformFunc = Callable[[List[int]], List[int]]
 class Transform:
     name: str
     func: TransformFunc
+    invertible: bool | None = None
+    domain: str = "int"
+    risk: str = "medium"
+    noise: str = "medium"
+    complexity: float = 1.0
 
     def apply(self, seq: List[int]) -> List[int]:
         return self.func(seq)
@@ -87,6 +92,23 @@ def cumulative_product_transform() -> Transform:
 
 def abs_transform() -> Transform:
     return Transform(name="abs", func=lambda seq: [abs(x) for x in seq])
+
+
+def alternating_sign_transform() -> Transform:
+    """Multiply by (-1)^n (0-based indexing)."""
+
+    def _alt(seq: List[int]) -> List[int]:
+        return [x if (i % 2 == 0) else -x for i, x in enumerate(seq)]
+
+    return Transform(
+        name="alt_sign",
+        func=_alt,
+        invertible=True,
+        domain="int",
+        risk="low",
+        noise="low",
+        complexity=0.5,
+    )
 
 
 def gcd_normalize_transform() -> Transform:
@@ -251,7 +273,45 @@ def binomial_transform() -> Transform:
             out.append(s)
         return out
 
-    return Transform(name="binomial", func=_bt)
+    return Transform(
+        name="binomial",
+        func=_bt,
+        invertible=True,
+        domain="int",
+        risk="medium",
+        noise="low",
+        complexity=1.6,
+    )
+
+
+def inverse_binomial_transform() -> Transform:
+    """
+    Inverse binomial transform:
+      b_n = sum_{k=0..n} (-1)^(n-k) * C(n, k) * a_k
+    """
+
+    def _ibt(seq: List[int]) -> List[int]:
+        out: List[int] = []
+        for n in range(len(seq)):
+            s = 0
+            comb = 1
+            for k in range(n + 1):
+                sign = -1 if ((n - k) % 2) else 1
+                s += sign * comb * seq[k]
+                if k != n:
+                    comb = comb * (n - k) // (k + 1)
+            out.append(s)
+        return out
+
+    return Transform(
+        name="inv_binomial",
+        func=_ibt,
+        invertible=True,
+        domain="int",
+        risk="medium",
+        noise="low",
+        complexity=1.7,
+    )
 
 
 def euler_transform() -> Transform:
@@ -276,7 +336,358 @@ def euler_transform() -> Transform:
                 out[n] += contrib
         return out
 
-    return Transform(name="euler", func=_et)
+    return Transform(
+        name="euler",
+        func=_et,
+        invertible=True,
+        domain="int",
+        risk="medium",
+        noise="medium",
+        complexity=1.7,
+    )
+
+
+def euler_ogf_transform() -> Transform:
+    """
+    Canonical Euler transform.
+
+    For input a(n) with n>=1, define:
+      C(n) = sum_{d|n} d*a(d),
+      b(0)=1,
+      n*b(n) = sum_{k=1..n} C(k)*b(n-k).
+    Returns b(0..N-1) for input length N.
+    """
+
+    def _eogf(seq: List[int]) -> List[int]:
+        if not seq:
+            return []
+        L = len(seq)
+        c = [0] * L
+        for d in range(1, L):
+            contrib = d * seq[d]
+            if contrib == 0:
+                continue
+            for n in range(d, L, d):
+                c[n] += contrib
+
+        out = [0] * L
+        out[0] = 1
+        for n in range(1, L):
+            s = 0
+            for k in range(1, n + 1):
+                s += c[k] * out[n - k]
+            if s % n != 0:
+                return []
+            out[n] = s // n
+        return out
+
+    return Transform(
+        name="euler_ogf",
+        func=_eogf,
+        invertible=True,
+        domain="int",
+        risk="high",
+        noise="medium",
+        complexity=2.2,
+    )
+
+
+def inverse_euler_ogf_transform() -> Transform:
+    """
+    Inverse canonical Euler transform.
+
+    Requires b(0)=1. Reconstructs C(n) via:
+      C(n) = n*b(n) - sum_{k=1..n-1} C(k)*b(n-k),
+    then recovers a(n) by Möbius inversion:
+      a(n) = (1/n) * sum_{d|n} mu(d)*C(n/d).
+    """
+
+    def _mu(n: int) -> int:
+        n_abs = abs(n)
+        if n_abs == 1:
+            return 1
+        p = 0
+        d = 2
+        while d * d <= n_abs:
+            if n_abs % d == 0:
+                n_abs //= d
+                if n_abs % d == 0:
+                    return 0
+                p += 1
+            d += 1
+        if n_abs > 1:
+            p += 1
+        return -1 if (p % 2) else 1
+
+    def _inv(seq: List[int]) -> List[int]:
+        if not seq:
+            return []
+        if seq[0] != 1:
+            return []
+        L = len(seq)
+        c = [0] * L
+        for n in range(1, L):
+            s = n * seq[n]
+            for k in range(1, n):
+                s -= c[k] * seq[n - k]
+            c[n] = s
+
+        out = [0] * L
+        for n in range(1, L):
+            num = 0
+            for d in range(1, n + 1):
+                if n % d == 0:
+                    num += _mu(d) * c[n // d]
+            if num % n != 0:
+                return []
+            out[n] = num // n
+        return out
+
+    return Transform(
+        name="inv_euler_ogf",
+        func=_inv,
+        invertible=True,
+        domain="int_with_b0_eq_1",
+        risk="high",
+        noise="medium",
+        complexity=2.4,
+    )
+
+
+def ogf_inverse_transform(max_terms: int = 256, max_abs: int = 10**12) -> Transform:
+    """
+    OGF inverse transform: given A(x)=sum a_n x^n, return B(x)=1/A(x) truncated.
+    Integer-only path: requires exact divisibility at each coefficient step.
+    """
+
+    def _ogf_inv(seq: List[int]) -> List[int]:
+        if not seq:
+            return []
+        work = list(seq[:max_terms])
+        if not work:
+            return []
+        a0 = work[0]
+        if a0 == 0:
+            return []
+        if 1 % a0 != 0:
+            return []
+        L = len(work)
+        out = [0] * L
+        out[0] = 1 // a0
+        for n in range(1, L):
+            s = 0
+            for k in range(1, n + 1):
+                if k < L:
+                    s += work[k] * out[n - k]
+            num = -s
+            if num % a0 != 0:
+                return []
+            coeff = num // a0
+            if abs(coeff) > max_abs:
+                return []
+            out[n] = coeff
+        return out
+
+    return Transform(
+        name="ogf_inv",
+        func=_ogf_inv,
+        invertible=True,
+        domain="int_with_a0_nonzero_and_exact_division",
+        risk="high",
+        noise="medium",
+        complexity=2.5,
+    )
+
+
+def _poly_mul_trunc(p: List[int], q: List[int], degree: int) -> List[int]:
+    if not p or not q or degree < 0:
+        return []
+    out_len = min(len(p) + len(q) - 1, degree + 1)
+    out = [0] * out_len
+    for i, pi in enumerate(p):
+        if pi == 0:
+            continue
+        max_j = min(len(q) - 1, degree - i)
+        if max_j < 0:
+            continue
+        for j in range(max_j + 1):
+            out[i + j] += pi * q[j]
+    return out
+
+
+def series_reversion_transform(max_terms: int = 128, max_abs: int = 10**12) -> Transform:
+    """
+    Compositional inverse (series reversion): given F(x)=sum a_n x^n, find G(x)
+    such that F(G(x)) = x, truncated. Integer-only path with strict guards.
+    Requires a0=0 and exact divisibility by a1 at each step.
+    """
+
+    def _revert(seq: List[int]) -> List[int]:
+        if not seq:
+            return []
+        work = list(seq[:max_terms])
+        L = len(work)
+        if L < 2:
+            return []
+        if work[0] != 0:
+            return []
+        a1 = work[1]
+        if a1 == 0:
+            return []
+        if 1 % a1 != 0:
+            return []
+
+        out = [0] * L
+        out[1] = 1 // a1
+
+        # For n>=2: coefficient of x^n in F(G(x)) must be 0.
+        # Since G has no constant term, b_n appears linearly only in a1*G.
+        for n in range(2, L):
+            b = out[:n] + [0]
+            known = 0
+            if n >= 2:
+                power = b[:]  # G^1
+                for k in range(2, n + 1):
+                    power = _poly_mul_trunc(power, b, n)
+                    if k >= L:
+                        break
+                    ak = work[k]
+                    if ak == 0:
+                        continue
+                    coeff_kn = power[n] if n < len(power) else 0
+                    known += ak * coeff_kn
+            num = -known
+            if num % a1 != 0:
+                return []
+            coeff = num // a1
+            if abs(coeff) > max_abs:
+                return []
+            out[n] = coeff
+        return out
+
+    return Transform(
+        name="series_reversion",
+        func=_revert,
+        invertible=True,
+        domain="int_with_a0_eq_0_and_exact_division_by_a1",
+        risk="high",
+        noise="medium",
+        complexity=2.7,
+    )
+
+
+def _stirling2_table(n_max: int) -> list[list[int]]:
+    s2 = [[0] * (n_max + 1) for _ in range(n_max + 1)]
+    s2[0][0] = 1
+    for n in range(1, n_max + 1):
+        for k in range(1, n + 1):
+            s2[n][k] = s2[n - 1][k - 1] + k * s2[n - 1][k]
+    return s2
+
+
+def _stirling1_signed_table(n_max: int) -> list[list[int]]:
+    s1 = [[0] * (n_max + 1) for _ in range(n_max + 1)]
+    s1[0][0] = 1
+    for n in range(1, n_max + 1):
+        for k in range(1, n + 1):
+            s1[n][k] = s1[n - 1][k - 1] - (n - 1) * s1[n - 1][k]
+    return s1
+
+
+def stirling2_transform() -> Transform:
+    """b(n)=sum_{k=0..n} S(n,k)*a(k), where S are Stirling numbers of 2nd kind."""
+
+    def _s2t(seq: List[int]) -> List[int]:
+        if not seq:
+            return []
+        n_max = len(seq) - 1
+        s2 = _stirling2_table(n_max)
+        out = [0] * len(seq)
+        for n in range(len(seq)):
+            out[n] = sum(s2[n][k] * seq[k] for k in range(n + 1))
+        return out
+
+    return Transform(
+        name="stirling2",
+        func=_s2t,
+        invertible=True,
+        domain="int",
+        risk="medium",
+        noise="low",
+        complexity=1.9,
+    )
+
+
+def inverse_stirling2_transform() -> Transform:
+    """Inverse of `stirling2` using signed Stirling numbers of first kind."""
+
+    def _inv_s2(seq: List[int]) -> List[int]:
+        if not seq:
+            return []
+        n_max = len(seq) - 1
+        s1 = _stirling1_signed_table(n_max)
+        out = [0] * len(seq)
+        for n in range(len(seq)):
+            out[n] = sum(s1[n][k] * seq[k] for k in range(n + 1))
+        return out
+
+    return Transform(
+        name="inv_stirling2",
+        func=_inv_s2,
+        invertible=True,
+        domain="int",
+        risk="medium",
+        noise="low",
+        complexity=2.0,
+    )
+
+
+def stirling1_transform() -> Transform:
+    """b(n)=sum_{k=0..n} s(n,k)*a(k), signed Stirling numbers of first kind."""
+
+    def _s1t(seq: List[int]) -> List[int]:
+        if not seq:
+            return []
+        n_max = len(seq) - 1
+        s1 = _stirling1_signed_table(n_max)
+        out = [0] * len(seq)
+        for n in range(len(seq)):
+            out[n] = sum(s1[n][k] * seq[k] for k in range(n + 1))
+        return out
+
+    return Transform(
+        name="stirling1",
+        func=_s1t,
+        invertible=True,
+        domain="int",
+        risk="medium",
+        noise="low",
+        complexity=1.9,
+    )
+
+
+def inverse_stirling1_transform() -> Transform:
+    """Inverse of `stirling1` using Stirling numbers of second kind."""
+
+    def _inv_s1(seq: List[int]) -> List[int]:
+        if not seq:
+            return []
+        n_max = len(seq) - 1
+        s2 = _stirling2_table(n_max)
+        out = [0] * len(seq)
+        for n in range(len(seq)):
+            out[n] = sum(s2[n][k] * seq[k] for k in range(n + 1))
+        return out
+
+    return Transform(
+        name="inv_stirling1",
+        func=_inv_s1,
+        invertible=True,
+        domain="int",
+        risk="medium",
+        noise="low",
+        complexity=2.0,
+    )
 
 
 def mobius_transform() -> Transform:
@@ -433,6 +844,174 @@ def phi_transform() -> Transform:
     return Transform(name="phi", func=_phi)
 
 
+def vp_transform(p: int) -> Transform:
+    """p-adic valuation v_p(n): exponent of p in |n|. Drops if p<=1 or term is 0."""
+
+    def _vp(seq: List[int]) -> List[int]:
+        if p <= 1:
+            return []
+        out: List[int] = []
+        for v in seq:
+            if v == 0:
+                return []
+            m = abs(v)
+            e = 0
+            while m % p == 0:
+                m //= p
+                e += 1
+            out.append(e)
+        return out
+
+    return Transform(
+        name=f"vp({p})",
+        func=_vp,
+        invertible=False,
+        domain="int_nonzero",
+        risk="low",
+        noise="medium",
+        complexity=1.3,
+    )
+
+
+def least_prime_factor_transform() -> Transform:
+    """Least prime factor of |n|; lpf(1)=1, drops on 0."""
+
+    def _lpf(seq: List[int]) -> List[int]:
+        out: List[int] = []
+        for v in seq:
+            if v == 0:
+                return []
+            m = abs(v)
+            if m == 1:
+                out.append(1)
+                continue
+            f = _factor_abs(m)
+            out.append(min(f.keys()) if f else 1)
+        return out
+
+    return Transform(
+        name="lpf",
+        func=_lpf,
+        invertible=False,
+        domain="int_nonzero",
+        risk="low",
+        noise="medium",
+        complexity=1.3,
+    )
+
+
+def greatest_prime_factor_transform() -> Transform:
+    """Greatest prime factor of |n|; gpf(1)=1, drops on 0."""
+
+    def _gpf(seq: List[int]) -> List[int]:
+        out: List[int] = []
+        for v in seq:
+            if v == 0:
+                return []
+            m = abs(v)
+            if m == 1:
+                out.append(1)
+                continue
+            f = _factor_abs(m)
+            out.append(max(f.keys()) if f else 1)
+        return out
+
+    return Transform(
+        name="gpf",
+        func=_gpf,
+        invertible=False,
+        domain="int_nonzero",
+        risk="low",
+        noise="medium",
+        complexity=1.3,
+    )
+
+
+def radical_transform() -> Transform:
+    """rad(n): product of distinct prime factors of |n|; rad(1)=1, drops on 0."""
+
+    def _rad(seq: List[int]) -> List[int]:
+        out: List[int] = []
+        for v in seq:
+            if v == 0:
+                return []
+            m = abs(v)
+            if m == 1:
+                out.append(1)
+                continue
+            f = _factor_abs(m)
+            r = 1
+            for p_ in f.keys():
+                r *= p_
+            out.append(r)
+        return out
+
+    return Transform(
+        name="rad",
+        func=_rad,
+        invertible=False,
+        domain="int_nonzero",
+        risk="low",
+        noise="medium",
+        complexity=1.3,
+    )
+
+
+def squarefree_indicator_transform() -> Transform:
+    """mu^2(n): 1 iff |n| is squarefree (and n!=0), else 0. Drops on 0."""
+
+    def _sqfree(seq: List[int]) -> List[int]:
+        out: List[int] = []
+        for v in seq:
+            if v == 0:
+                return []
+            m = abs(v)
+            if m == 1:
+                out.append(1)
+                continue
+            f = _factor_abs(m)
+            out.append(1 if all(e == 1 for e in f.values()) else 0)
+        return out
+
+    return Transform(
+        name="squarefree",
+        func=_sqfree,
+        invertible=False,
+        domain="int_nonzero",
+        risk="low",
+        noise="high",
+        complexity=1.1,
+    )
+
+
+def liouville_transform() -> Transform:
+    """Liouville lambda(n)=(-1)^Omega(|n|); lambda(1)=1, drops on 0."""
+
+    def _liouville(seq: List[int]) -> List[int]:
+        out: List[int] = []
+        for v in seq:
+            if v == 0:
+                return []
+            m = abs(v)
+            if m == 1:
+                out.append(1)
+                continue
+            f = _factor_abs(m)
+            omega = sum(f.values())
+            out.append(-1 if (omega % 2) else 1)
+        return out
+
+    return Transform(
+        name="liouville",
+        func=_liouville,
+        invertible=False,
+        domain="int_nonzero",
+        risk="low",
+        noise="high",
+        complexity=1.3,
+    )
+
+
 def v2_transform() -> Transform:
     """2-adic valuation v_2(n): exponent of 2 in |n|. Drops if any term is 0."""
 
@@ -532,6 +1111,117 @@ def factorial_index_transform() -> Transform:
     return Transform(name="index_factorial", func=_fact)
 
 
+def triangular_index_transform() -> Transform:
+    """Subsequence at triangular indices T_n=n(n+1)/2 (0-based)."""
+
+    def _tri(seq: List[int]) -> List[int]:
+        out: List[int] = []
+        n = 0
+        L = len(seq)
+        while True:
+            idx = n * (n + 1) // 2
+            if idx >= L:
+                break
+            out.append(seq[idx])
+            n += 1
+        return out
+
+    return Transform(
+        name="index_triangular",
+        func=_tri,
+        invertible=False,
+        domain="int",
+        risk="low",
+        noise="low",
+        complexity=1.1,
+    )
+
+
+def fibonacci_index_transform() -> Transform:
+    """
+    Subsequence at monotone Fibonacci-style indices 0,1,2,3,5,8,...
+    (uses the duplicate-free convention to avoid repeated index 1).
+    """
+
+    def _fib(seq: List[int]) -> List[int]:
+        L = len(seq)
+        if L == 0:
+            return []
+        out: List[int] = [seq[0]]
+        a, b = 1, 2
+        while a < L:
+            out.append(seq[a])
+            a, b = b, a + b
+        return out
+
+    return Transform(
+        name="index_fibonacci",
+        func=_fib,
+        invertible=False,
+        domain="int",
+        risk="low",
+        noise="low",
+        complexity=1.1,
+    )
+
+
+def power_index_transform(power: int) -> Transform:
+    """Subsequence at k-th-power indices n^k (0-based), for k>=2."""
+
+    def _powk(seq: List[int]) -> List[int]:
+        if power < 2:
+            return []
+        out: List[int] = []
+        L = len(seq)
+        n = 0
+        while True:
+            idx = n**power
+            if idx >= L:
+                break
+            out.append(seq[idx])
+            n += 1
+        return out
+
+    return Transform(
+        name=f"index_powk({power})",
+        func=_powk,
+        invertible=False,
+        domain="int",
+        risk="low",
+        noise="low",
+        complexity=1.2,
+    )
+
+
+def ratio_int_transform() -> Transform:
+    """
+    Integer quotient transform: b_n = a_{n+1} / a_n.
+    Drops if any denominator is zero or division is non-integral.
+    """
+
+    def _ratio(seq: List[int]) -> List[int]:
+        if len(seq) < 2:
+            return []
+        out: List[int] = []
+        for a, b in zip(seq, seq[1:]):
+            if a == 0:
+                return []
+            if b % a != 0:
+                return []
+            out.append(b // a)
+        return out
+
+    return Transform(
+        name="ratio_int",
+        func=_ratio,
+        invertible=False,
+        domain="int_nonzero_adjacent_with_exact_division",
+        risk="medium",
+        noise="medium",
+        complexity=1.2,
+    )
+
+
 def digit_sum_transform(base: int = 10) -> Transform:
     def _ds(seq: List[int]) -> List[int]:
         out = []
@@ -597,6 +1287,7 @@ def default_transforms(
     scale_values: Iterable[int] = (-2, -1, 2, 3),
     beta_values: Iterable[int] = (),
     shift_values: Iterable[int] = (1, 2),
+    allow_alt_sign: bool = False,
     allow_diff: bool = True,
     diff_orders: Iterable[int] = (1,),
     allow_partial_sum: bool = True,
@@ -621,7 +1312,16 @@ def default_transforms(
     exp_bases: Iterable[float] = (),
     allow_mobius: bool = False,
     allow_binomial: bool = False,
+    allow_inverse_binomial: bool = False,
     allow_euler: bool = False,
+    allow_euler_ogf: bool = False,
+    allow_inverse_euler_ogf: bool = False,
+    allow_stirling1: bool = False,
+    allow_stirling2: bool = False,
+    allow_inverse_stirling1: bool = False,
+    allow_inverse_stirling2: bool = False,
+    allow_ogf_inverse: bool = False,
+    allow_series_reversion: bool = False,
     allow_omega: bool = False,
     allow_bigomega: bool = False,
     allow_tau: bool = False,
@@ -632,6 +1332,16 @@ def default_transforms(
     allow_prime_index: bool = False,
     allow_index_pow2: bool = False,
     allow_index_factorial: bool = False,
+    allow_index_triangular: bool = False,
+    allow_index_fibonacci: bool = False,
+    index_power_values: Iterable[int] = (),
+    vp_values: Iterable[int] = (),
+    allow_lpf: bool = False,
+    allow_gpf: bool = False,
+    allow_rad: bool = False,
+    allow_squarefree: bool = False,
+    allow_liouville: bool = False,
+    allow_ratio_int: bool = False,
 ) -> List[Transform]:
     transforms: List[Transform] = []
     # Affine (k,b) including pure scale
@@ -645,6 +1355,8 @@ def default_transforms(
             transforms.append(make_affine(1, b))
     for k in shift_values:
         transforms.append(make_shift(k))
+    if allow_alt_sign:
+        transforms.append(alternating_sign_transform())
     if allow_diff:
         for order in diff_orders:
             if order == 1:
@@ -696,8 +1408,26 @@ def default_transforms(
         transforms.append(mobius_transform())
     if allow_binomial:
         transforms.append(binomial_transform())
+    if allow_inverse_binomial:
+        transforms.append(inverse_binomial_transform())
     if allow_euler:
         transforms.append(euler_transform())
+    if allow_euler_ogf:
+        transforms.append(euler_ogf_transform())
+    if allow_inverse_euler_ogf:
+        transforms.append(inverse_euler_ogf_transform())
+    if allow_stirling1:
+        transforms.append(stirling1_transform())
+    if allow_stirling2:
+        transforms.append(stirling2_transform())
+    if allow_inverse_stirling1:
+        transforms.append(inverse_stirling1_transform())
+    if allow_inverse_stirling2:
+        transforms.append(inverse_stirling2_transform())
+    if allow_ogf_inverse:
+        transforms.append(ogf_inverse_transform())
+    if allow_series_reversion:
+        transforms.append(series_reversion_transform())
     if allow_omega:
         transforms.append(omega_transform())
     if allow_bigomega:
@@ -710,6 +1440,18 @@ def default_transforms(
         transforms.append(phi_transform())
     if allow_v2:
         transforms.append(v2_transform())
+    for p in vp_values:
+        transforms.append(vp_transform(int(p)))
+    if allow_lpf:
+        transforms.append(least_prime_factor_transform())
+    if allow_gpf:
+        transforms.append(greatest_prime_factor_transform())
+    if allow_rad:
+        transforms.append(radical_transform())
+    if allow_squarefree:
+        transforms.append(squarefree_indicator_transform())
+    if allow_liouville:
+        transforms.append(liouville_transform())
     if allow_index_square:
         transforms.append(square_index_transform())
     if allow_prime_index:
@@ -718,6 +1460,14 @@ def default_transforms(
         transforms.append(pow2_index_transform())
     if allow_index_factorial:
         transforms.append(factorial_index_transform())
+    if allow_index_triangular:
+        transforms.append(triangular_index_transform())
+    if allow_index_fibonacci:
+        transforms.append(fibonacci_index_transform())
+    for k in index_power_values:
+        transforms.append(power_index_transform(int(k)))
+    if allow_ratio_int:
+        transforms.append(ratio_int_transform())
     return transforms
 
 
@@ -769,6 +1519,9 @@ def describe_chain(chain: Sequence[Transform]) -> tuple[str, str]:
         elif name == "partial_sum":
             human_parts.append("Partial sums")
             latex_parts.append("\\mathrm{psum}")
+        elif name == "alt_sign":
+            human_parts.append("Multiply by (-1)^n")
+            latex_parts.append("(-1)^n")
         elif name == "cumprod":
             human_parts.append("Cumulative products")
             latex_parts.append("\\mathrm{cprod}")
@@ -814,6 +1567,54 @@ def describe_chain(chain: Sequence[Transform]) -> tuple[str, str]:
         elif name == "mobius":
             human_parts.append("Möbius transform")
             latex_parts.append("\\mathrm{Mobius}")
+        elif name == "binomial":
+            human_parts.append("Binomial transform")
+            latex_parts.append("\\mathrm{Binomial}")
+        elif name == "inv_binomial":
+            human_parts.append("Inverse binomial transform")
+            latex_parts.append("\\mathrm{InvBinomial}")
+        elif name == "euler":
+            human_parts.append("Euler transform")
+            latex_parts.append("\\mathrm{Euler}")
+        elif name == "euler_ogf":
+            human_parts.append("Canonical Euler transform (OGF product)")
+            latex_parts.append("\\mathrm{EulerOGF}")
+        elif name == "inv_euler_ogf":
+            human_parts.append("Inverse canonical Euler transform")
+            latex_parts.append("\\mathrm{InvEulerOGF}")
+        elif name == "stirling1":
+            human_parts.append("Stirling transform (1st kind)")
+            latex_parts.append("\\mathrm{Stirling1}")
+        elif name == "stirling2":
+            human_parts.append("Stirling transform (2nd kind)")
+            latex_parts.append("\\mathrm{Stirling2}")
+        elif name == "inv_stirling1":
+            human_parts.append("Inverse Stirling transform (1st kind)")
+            latex_parts.append("\\mathrm{InvStirling1}")
+        elif name == "inv_stirling2":
+            human_parts.append("Inverse Stirling transform (2nd kind)")
+            latex_parts.append("\\mathrm{InvStirling2}")
+        elif name == "ogf_inv":
+            human_parts.append("OGF inverse transform (1/A(x))")
+            latex_parts.append("\\mathrm{OGFInv}")
+        elif name == "series_reversion":
+            human_parts.append("Compositional inverse (series reversion)")
+            latex_parts.append("\\mathrm{SeriesRev}")
+        elif name in ("omega", "bigomega", "tau", "sigma", "phi", "v2"):
+            human_parts.append(name)
+            latex_parts.append(f"\\mathrm{{{name}}}")
+        elif name.startswith("vp("):
+            human_parts.append(f"p-adic valuation {name[name.index('(')+1:-1]}")
+            latex_parts.append("\\mathrm{v_p}")
+        elif name in ("lpf", "gpf", "rad", "squarefree", "liouville", "ratio_int"):
+            human_parts.append(name)
+            latex_parts.append(f"\\mathrm{{{name}}}")
+        elif name in ("index_square", "prime_index", "index_pow2", "index_factorial", "index_triangular", "index_fibonacci"):
+            human_parts.append(name)
+            latex_parts.append(f"\\mathrm{{{name}}}")
+        elif name.startswith("index_powk("):
+            human_parts.append(name)
+            latex_parts.append("\\mathrm{index\\_powk}")
         elif name.startswith("concat("):
             human_parts.append("Concatenate n with a_n")
             latex_parts.append("\\mathrm{concat}(n,a_n)")

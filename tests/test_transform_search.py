@@ -6,6 +6,7 @@ from oeis_matcher.transform_search import search_transform_matches
 from oeis_matcher.transforms import (
     abs_transform,
     cumulative_product_transform,
+    diff_transform,
     default_transforms,
     make_affine,
     make_scale,
@@ -107,6 +108,28 @@ def test_transform_extra_ops(tmp_path: Path):
     matches = search_transform_matches(query, db, max_depth=1, transforms=transforms, limit=10)
     ids = {m.id for m in matches}
     assert "A100103" in ids
+
+
+def test_cumprod_sparse_collapse_chain_is_dropped(tmp_path: Path):
+    stripped = tmp_path / "stripped.txt"
+    names = tmp_path / "names.txt"
+    stripped.write_text("A100110 1,0,0,0,0\n", encoding="utf-8")
+    names.write_text("A100110 One then zeros\n", encoding="utf-8")
+    db = tmp_path / "oeis.db"
+    build_index(stripped, names, None, db, max_terms=10)
+
+    query = parse_query("1,2,2,5,2,4")
+    transforms = [diff_transform(), cumulative_product_transform()]
+
+    matches = search_transform_matches(
+        query,
+        db,
+        max_depth=2,
+        transforms=transforms,
+        limit=5,
+        full_scan=True,
+    )
+    assert matches == []
 
 
 def test_zero_collapsing_chain_is_dropped(tmp_path: Path):
@@ -473,3 +496,298 @@ def test_constant_outputs_filtered_for_nonconstant_query(tmp_path: Path):
     )
     ids = {m.id for m in matches}
     assert "A930100" not in ids
+
+
+def test_diff_chain_not_dropped_by_low_variance_guard(tmp_path: Path):
+    """
+    Regression: low-variance guard must not suppress legitimate low-diversity
+    chains like diff/partial_sum inverses.
+    """
+    stripped = tmp_path / "stripped.txt"
+    names = tmp_path / "names.txt"
+    stripped.write_text(
+        "\n".join(
+            [
+                # Intentionally low-variance base sequence.
+                "A980000 1,1,1,1,1,1,2,2,2,2",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    names.write_text("A980000 Low-variance sample\n", encoding="utf-8")
+    db = tmp_path / "oeis.db"
+    build_index(stripped, names, None, db, max_terms=16)
+
+    # Query is cumulative sums with a leading 0, so diff(query) = stored base.
+    # This creates a large query variance / transformed variance gap.
+    query = parse_query("0,1,2,3,4,5,6,8,10")
+    transforms = default_transforms(
+        scale_values=(),
+        beta_values=(),
+        shift_values=(),
+        allow_diff=True,
+        diff_orders=(1,),
+        allow_partial_sum=False,
+        allow_abs=False,
+        allow_gcd_norm=False,
+    )
+
+    matches = search_transform_matches(
+        query,
+        db,
+        max_depth=1,
+        transforms=transforms,
+        limit=50,
+        full_scan=True,
+    )
+    ids = {m.id for m in matches}
+    assert "A980000" in ids
+
+
+def test_alt_sign_transform_search(tmp_path: Path):
+    stripped = tmp_path / "stripped.txt"
+    names = tmp_path / "names.txt"
+    stripped.write_text("A981000 1,-2,3,-4,5,-6\n", encoding="utf-8")
+    names.write_text("A981000 Alternating signed naturals\n", encoding="utf-8")
+    db = tmp_path / "oeis.db"
+    build_index(stripped, names, None, db, max_terms=16)
+
+    query = parse_query("1,2,3,4,5,6")
+    transforms = default_transforms(
+        scale_values=(),
+        beta_values=(),
+        shift_values=(),
+        allow_alt_sign=True,
+        allow_diff=False,
+        allow_partial_sum=False,
+        allow_abs=False,
+        allow_gcd_norm=False,
+    )
+    matches = search_transform_matches(query, db, max_depth=1, transforms=transforms, limit=10, full_scan=True)
+    ids = {m.id for m in matches}
+    assert "A981000" in ids
+
+
+def test_ratio_int_transform_search(tmp_path: Path):
+    stripped = tmp_path / "stripped.txt"
+    names = tmp_path / "names.txt"
+    stripped.write_text("A981100 2,2,2,2,2\n", encoding="utf-8")
+    names.write_text("A981100 Constant twos\n", encoding="utf-8")
+    db = tmp_path / "oeis.db"
+    build_index(stripped, names, None, db, max_terms=16)
+
+    query = parse_query("1,2,4,8,16,32")
+    transforms = default_transforms(
+        scale_values=(),
+        beta_values=(),
+        shift_values=(),
+        allow_diff=False,
+        allow_partial_sum=False,
+        allow_abs=False,
+        allow_gcd_norm=False,
+        allow_ratio_int=True,
+    )
+    matches = search_transform_matches(query, db, max_depth=1, transforms=transforms, limit=10, full_scan=True)
+    ids = {m.id for m in matches}
+    assert "A981100" in ids
+
+
+def test_euler_ogf_and_inverse_transform_search(tmp_path: Path):
+    stripped = tmp_path / "stripped.txt"
+    names = tmp_path / "names.txt"
+    stripped.write_text(
+        "\n".join(
+            [
+                "A982000 0,1,1,1,1,1",
+                "A982001 1,1,2,3,5,7",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    names.write_text(
+        "\n".join(
+            [
+                "A982000 Ones with zero offset",
+                "A982001 Euler OGF transform of A982000",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    db = tmp_path / "oeis.db"
+    build_index(stripped, names, None, db, max_terms=16)
+
+    query = parse_query("0,1,1,1,1,1")
+    transforms = default_transforms(
+        scale_values=(),
+        beta_values=(),
+        shift_values=(),
+        allow_diff=False,
+        allow_partial_sum=False,
+        allow_abs=False,
+        allow_gcd_norm=False,
+        allow_euler_ogf=True,
+    )
+    matches = search_transform_matches(query, db, max_depth=1, transforms=transforms, limit=10, full_scan=True)
+    ids = {m.id for m in matches}
+    assert "A982001" in ids
+
+    inv_query = parse_query("1,1,2,3,5,7")
+    inv_transforms = default_transforms(
+        scale_values=(),
+        beta_values=(),
+        shift_values=(),
+        allow_diff=False,
+        allow_partial_sum=False,
+        allow_abs=False,
+        allow_gcd_norm=False,
+        allow_inverse_euler_ogf=True,
+    )
+    inv_matches = search_transform_matches(inv_query, db, max_depth=1, transforms=inv_transforms, limit=10, full_scan=True)
+    inv_ids = {m.id for m in inv_matches}
+    assert "A982000" in inv_ids
+
+
+def test_stirling_transform_search_roundtrips(tmp_path: Path):
+    stripped = tmp_path / "stripped.txt"
+    names = tmp_path / "names.txt"
+    stripped.write_text(
+        "\n".join(
+            [
+                "A982100 0,1,2,3,4,5",
+                "A982101 0,1,3,10,37,151",
+                "A982102 0,1,1,-1,2,-6",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    names.write_text(
+        "\n".join(
+            [
+                "A982100 Base sequence",
+                "A982101 Stirling2 transform of A982100",
+                "A982102 Stirling1 transform of A982100",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    db = tmp_path / "oeis.db"
+    build_index(stripped, names, None, db, max_terms=16)
+
+    base_query = parse_query("0,1,2,3,4,5")
+    s2_transforms = default_transforms(
+        scale_values=(),
+        beta_values=(),
+        shift_values=(),
+        allow_diff=False,
+        allow_partial_sum=False,
+        allow_abs=False,
+        allow_gcd_norm=False,
+        allow_stirling2=True,
+    )
+    s2_matches = search_transform_matches(base_query, db, max_depth=1, transforms=s2_transforms, limit=10, full_scan=True)
+    assert "A982101" in {m.id for m in s2_matches}
+
+    s1_transforms = default_transforms(
+        scale_values=(),
+        beta_values=(),
+        shift_values=(),
+        allow_diff=False,
+        allow_partial_sum=False,
+        allow_abs=False,
+        allow_gcd_norm=False,
+        allow_stirling1=True,
+    )
+    s1_matches = search_transform_matches(base_query, db, max_depth=1, transforms=s1_transforms, limit=10, full_scan=True)
+    assert "A982102" in {m.id for m in s1_matches}
+
+    s2_query = parse_query("0,1,3,10,37,151")
+    inv_s2_transforms = default_transforms(
+        scale_values=(),
+        beta_values=(),
+        shift_values=(),
+        allow_diff=False,
+        allow_partial_sum=False,
+        allow_abs=False,
+        allow_gcd_norm=False,
+        allow_inverse_stirling2=True,
+    )
+    inv_s2_matches = search_transform_matches(
+        s2_query,
+        db,
+        max_depth=1,
+        transforms=inv_s2_transforms,
+        limit=10,
+        full_scan=True,
+    )
+    assert "A982100" in {m.id for m in inv_s2_matches}
+
+    s1_query = parse_query("0,1,1,-1,2,-6")
+    inv_s1_transforms = default_transforms(
+        scale_values=(),
+        beta_values=(),
+        shift_values=(),
+        allow_diff=False,
+        allow_partial_sum=False,
+        allow_abs=False,
+        allow_gcd_norm=False,
+        allow_inverse_stirling1=True,
+    )
+    inv_s1_matches = search_transform_matches(
+        s1_query,
+        db,
+        max_depth=1,
+        transforms=inv_s1_transforms,
+        limit=10,
+        full_scan=True,
+    )
+    assert "A982100" in {m.id for m in inv_s1_matches}
+
+
+def test_ogf_inverse_transform_search(tmp_path: Path):
+    stripped = tmp_path / "stripped.txt"
+    names = tmp_path / "names.txt"
+    stripped.write_text("A983000 1,2,3,4,5,6\n", encoding="utf-8")
+    names.write_text("A983000 Naturals from 1\n", encoding="utf-8")
+    db = tmp_path / "oeis.db"
+    build_index(stripped, names, None, db, max_terms=16)
+
+    query = parse_query("1,-2,1,0,0,0")
+    transforms = default_transforms(
+        scale_values=(),
+        beta_values=(),
+        shift_values=(),
+        allow_diff=False,
+        allow_partial_sum=False,
+        allow_abs=False,
+        allow_gcd_norm=False,
+        allow_ogf_inverse=True,
+    )
+    matches = search_transform_matches(query, db, max_depth=1, transforms=transforms, limit=10, full_scan=True)
+    assert "A983000" in {m.id for m in matches}
+
+
+def test_series_reversion_transform_search(tmp_path: Path):
+    stripped = tmp_path / "stripped.txt"
+    names = tmp_path / "names.txt"
+    stripped.write_text("A983100 0,1,1,2,5,14\n", encoding="utf-8")
+    names.write_text("A983100 Catalan-shifted coefficients\n", encoding="utf-8")
+    db = tmp_path / "oeis.db"
+    build_index(stripped, names, None, db, max_terms=16)
+
+    query = parse_query("0,1,-1,0,0,0")
+    transforms = default_transforms(
+        scale_values=(),
+        beta_values=(),
+        shift_values=(),
+        allow_diff=False,
+        allow_partial_sum=False,
+        allow_abs=False,
+        allow_gcd_norm=False,
+        allow_series_reversion=True,
+    )
+    matches = search_transform_matches(query, db, max_depth=1, transforms=transforms, limit=10, full_scan=True)
+    assert "A983100" in {m.id for m in matches}

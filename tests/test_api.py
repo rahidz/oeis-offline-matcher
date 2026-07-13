@@ -34,6 +34,14 @@ def _make_sample_raw(tmp_path: Path):
     return stripped, names
 
 
+def _make_fib_only_raw(tmp_path: Path):
+    stripped = tmp_path / "stripped.txt"
+    names = tmp_path / "names.txt"
+    stripped.write_text("A000045 0,1,1,2,3,5,8,13,21,34\n", encoding="utf-8")
+    names.write_text("A000045 Fibonacci numbers\n", encoding="utf-8")
+    return stripped, names
+
+
 def test_analyze_sequence_includes_formula(tmp_path: Path):
     stripped = tmp_path / "stripped.txt"
     names = tmp_path / "names.txt"
@@ -322,3 +330,101 @@ def test_search_combinations_negative_shift(tmp_path: Path):
     assert m.shifts == (0, -1)
     assert m.length == 3
     assert set(m.ids) == {"A420000", "A420001"}
+
+
+def test_search_combinations_tracks_candidate_provenance(tmp_path: Path):
+    stripped, names = _make_fib_only_raw(tmp_path)
+    db = tmp_path / "oeis.db"
+    build_index(stripped, names, None, db, max_terms=20)
+
+    combos = search_combinations(
+        [2, 1, 3, 4, 7, 11],
+        db_path=db,
+        coeffs=(1,),
+        max_shift=1,
+        max_shift_back=1,
+        candidate_cap=10,
+        limit=10,
+        max_checks=200_000,
+    )
+    assert combos
+    assert any(
+        m.ids == ("A000045", "A000045")
+        and m.candidate_provenance
+        and all("seed" in reasons for reasons in m.candidate_provenance)
+        for m in combos
+    )
+
+
+def test_analyze_sequence_combo_rows_include_candidate_provenance(tmp_path: Path):
+    stripped, names = _make_fib_only_raw(tmp_path)
+    db = tmp_path / "oeis.db"
+    build_index(stripped, names, None, db, max_terms=20)
+
+    result = analyze_sequence(
+        [2, 1, 3, 4, 7, 11],
+        db_path=db,
+        exact_limit=0,
+        transform_limit=0,
+        similarity=0,
+        combos=10,
+        combo_coeffs=(1,),
+        combo_max_shift=1,
+        combo_max_shift_back=1,
+        combo_candidates=10,
+        combo_max_checks=200_000,
+    )
+    combos = result["combinations"]
+    assert combos
+    assert any("candidate_provenance" in c and any("seed" in rs for rs in c["candidate_provenance"]) for c in combos)
+
+
+def test_analyze_combined_explanations_are_cross_family_and_fair(tmp_path: Path):
+    stripped = tmp_path / "stripped.txt"
+    names = tmp_path / "names.txt"
+    stripped.write_text(
+        "\n".join(
+            [
+                "A830000 1,2,3,4,5,6",
+                "A830001 2,4,6,8,10,12",
+                "A830002 1,1,1,1,1,1",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    names.write_text(
+        "\n".join(
+            [
+                "A830000 Naturals",
+                "A830001 Evens",
+                "A830002 Ones",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    db = tmp_path / "oeis.db"
+    build_index(stripped, names, None, db, max_terms=12)
+
+    res = analyze_sequence(
+        "1,2,3,4,5,6",
+        db_path=db,
+        exact_limit=0,
+        transform_limit=0,
+        similarity=0,
+        combos=5,
+        combo_coeffs=(-1, 1),
+        combo_candidates=10,
+        triples=0,
+        pointwise_limit=5,
+        pointwise_ops=("gcd",),
+        convolution_limit=5,
+        convolution_ops=("cauchy",),
+        combined_limit=2,
+        combined_family_quota=1,
+    )
+
+    diag = res.get("diagnostics") or {}
+    mixed = diag.get("combined_explanations") or []
+    assert len(mixed) == 2
+    families = {m["family"] for m in mixed}
+    assert len(families) == 2

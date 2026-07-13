@@ -54,7 +54,11 @@
         "expression": { "type": "string" },
         "component_transforms": { "type": "array", "items": { "type": "string" } },
         "component_terms": { "type": "array", "items": { "type": "array", "items": { "type": "integer" } } },
-        "combined_terms": { "type": "array", "items": { "type": "integer" } }
+        "combined_terms": { "type": "array", "items": { "type": "integer" } },
+        "candidate_provenance": {
+          "type": "array",
+          "items": { "type": "array", "items": { "type": "string" } }
+        }
       },
       "additionalProperties": true
     }

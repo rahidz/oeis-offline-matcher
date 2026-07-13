@@ -1,19 +1,20 @@
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import replace
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence
 import time
 
 from .config import load_config
 from .matcher import candidate_sequences, match_exact, match_exact_db
-from .models import Match, SequenceQuery, AnalysisResult
+from .models import AnalysisResult, CombinationMatch, Match, SequenceQuery
 from .query import parse_query
 from .ranking import rank_candidates_for_query
 from .transform_search import search_transform_matches
 from .transforms import default_transforms
 from .candidates import get_candidate_bucket
 from .combination_search import (
+    merge_combination_families,
     resolve_component_transforms,
     search_convolution_two_sequence_combinations,
     search_pointwise_two_sequence_combinations,
@@ -21,6 +22,29 @@ from .combination_search import (
     search_two_sequence_combinations,
 )
 from .similarity import growth_rate
+
+
+def _attach_candidate_provenance(
+    matches: list[CombinationMatch],
+    provenance: dict[str, list[str]] | None,
+) -> list[CombinationMatch]:
+    if not matches or not provenance:
+        return matches
+    out: list[CombinationMatch] = []
+    for m in matches:
+        prov = tuple(tuple(sorted(set(provenance.get(seq_id, [])))) for seq_id in m.ids)
+        out.append(replace(m, candidate_provenance=(prov if any(prov) else None)))
+    return out
+
+
+def _normalize_provider_names(provider_names: Iterable[str] | str | None) -> tuple[str, ...] | None:
+    if provider_names is None:
+        return None
+    if isinstance(provider_names, str):
+        parts = [p.strip() for p in provider_names.split(",") if p.strip()]
+    else:
+        parts = [str(p).strip() for p in provider_names if str(p).strip()]
+    return tuple(parts) if parts else None
 
 
 def match_exact_terms(
@@ -88,7 +112,27 @@ def search_transforms(
     allow_gcd_norm: bool = True,
     full_scan: bool = False,
     allow_binomial: bool = False,
+    allow_inverse_binomial: bool = False,
     allow_euler: bool = False,
+    allow_euler_ogf: bool = False,
+    allow_inverse_euler_ogf: bool = False,
+    allow_stirling1: bool = False,
+    allow_stirling2: bool = False,
+    allow_inverse_stirling1: bool = False,
+    allow_inverse_stirling2: bool = False,
+    allow_ogf_inverse: bool = False,
+    allow_series_reversion: bool = False,
+    allow_alt_sign: bool = False,
+    vp_values: Iterable[int] = (),
+    allow_lpf: bool = False,
+    allow_gpf: bool = False,
+    allow_rad: bool = False,
+    allow_squarefree: bool = False,
+    allow_liouville: bool = False,
+    allow_ratio_int: bool = False,
+    allow_index_triangular: bool = False,
+    allow_index_fibonacci: bool = False,
+    index_power_values: Iterable[int] = (),
     digit_sum_bases: Iterable[int] = (),
     modulus_values: Iterable[int] = (),
     allow_xor_index: bool = False,
@@ -119,6 +163,7 @@ def search_transforms(
         scale_values=scale_values,
         beta_values=beta_values,
         shift_values=shift_values,
+        allow_alt_sign=allow_alt_sign,
         allow_diff=allow_diff,
         diff_orders=(1,),
         allow_partial_sum=allow_partial_sum,
@@ -143,15 +188,34 @@ def search_transforms(
         exp_bases=exp_bases,
         allow_mobius=allow_mobius,
         allow_binomial=allow_binomial,
+        allow_inverse_binomial=allow_inverse_binomial,
         allow_euler=allow_euler,
+        allow_euler_ogf=allow_euler_ogf,
+        allow_inverse_euler_ogf=allow_inverse_euler_ogf,
+        allow_stirling1=allow_stirling1,
+        allow_stirling2=allow_stirling2,
+        allow_inverse_stirling1=allow_inverse_stirling1,
+        allow_inverse_stirling2=allow_inverse_stirling2,
+        allow_ogf_inverse=allow_ogf_inverse,
+        allow_series_reversion=allow_series_reversion,
         allow_omega=allow_omega,
         allow_bigomega=allow_bigomega,
         allow_tau=allow_tau,
         allow_sigma=allow_sigma,
         allow_phi=allow_phi,
         allow_v2=allow_v2,
+        vp_values=vp_values,
+        allow_lpf=allow_lpf,
+        allow_gpf=allow_gpf,
+        allow_rad=allow_rad,
+        allow_squarefree=allow_squarefree,
+        allow_liouville=allow_liouville,
+        allow_ratio_int=allow_ratio_int,
         allow_index_square=allow_index_square,
         allow_prime_index=allow_prime_index,
+        allow_index_triangular=allow_index_triangular,
+        allow_index_fibonacci=allow_index_fibonacci,
+        index_power_values=index_power_values,
     )
     return search_transform_matches(
         query,
@@ -191,6 +255,12 @@ def search_combinations(
     combo_max_complexity: float | None = None,
     variance_band: float | None = None,
     growth_band: float | None = None,
+    discovery: bool = False,
+    discovery_limit: int = 16,
+    discovery_max_time: float | None = 2.0,
+    discovery_tools: Iterable[str] = ("sympy",),
+    candidate_providers: Iterable[str] | None = None,
+    wide_prefilter: bool = False,
 ) -> list:
     cfg = load_config()
     db_path = Path(db_path or cfg["paths"]["db"])
@@ -205,8 +275,14 @@ def search_combinations(
         skip_prefix_filter=combo_unfiltered,
         variance_band=variance_band,
         growth_band=growth_band,
+        enable_discovery=discovery,
+        discovery_limit=discovery_limit,
+        discovery_max_time_s=discovery_max_time,
+        discovery_tools=tuple(discovery_tools),
+        candidate_providers=_normalize_provider_names(candidate_providers),
+        widen_prefilter=wide_prefilter,
     )
-    return search_two_sequence_combinations(
+    matches = search_two_sequence_combinations(
         query,
         bucket.records,
         coeffs=tuple(coeffs),
@@ -223,6 +299,7 @@ def search_combinations(
         min_score=combo_min_score,
         max_complexity=combo_max_complexity,
     )
+    return _attach_candidate_provenance(matches, bucket.provenance)
 
 
 def search_three_combinations(
@@ -242,10 +319,17 @@ def search_three_combinations(
     combo_unfiltered: bool = False,
     snippet_len: int | None = None,
     use_rational: bool = False,
+    allow_self_reference: bool = False,
     triple_min_score: float | None = None,
     triple_max_complexity: float | None = None,
     variance_band: float | None = None,
     growth_band: float | None = None,
+    discovery: bool = False,
+    discovery_limit: int = 16,
+    discovery_max_time: float | None = 2.0,
+    discovery_tools: Iterable[str] = ("sympy",),
+    candidate_providers: Iterable[str] | None = None,
+    wide_prefilter: bool = False,
 ) -> list:
     cfg = load_config()
     db_path = Path(db_path or cfg["paths"]["db"])
@@ -260,8 +344,14 @@ def search_three_combinations(
         skip_prefix_filter=combo_unfiltered,
         variance_band=variance_band,
         growth_band=growth_band,
+        enable_discovery=discovery,
+        discovery_limit=discovery_limit,
+        discovery_max_time_s=discovery_max_time,
+        discovery_tools=tuple(discovery_tools),
+        candidate_providers=_normalize_provider_names(candidate_providers),
+        widen_prefilter=wide_prefilter,
     )
-    return search_three_sequence_combinations(
+    matches = search_three_sequence_combinations(
         query,
         bucket.records,
         coeffs=tuple(coeffs),
@@ -275,9 +365,11 @@ def search_three_combinations(
         component_transforms=resolve_component_transforms(list(component_transforms) if component_transforms is not None else None),
         snippet_len=snippet_len,
         use_rational=use_rational,
+        allow_self_reference=allow_self_reference,
         min_score=triple_min_score,
         max_complexity=triple_max_complexity,
     )
+    return _attach_candidate_provenance(matches, bucket.provenance)
 
 
 def analyze_sequence(
@@ -311,6 +403,7 @@ def analyze_sequence(
     triple_max_shift_back: int = 0,
     combo_component_transforms: Iterable[str] | None = None,
     triple_rational: bool = False,
+    combo_allow_self_reference: bool = False,
     combo_min_score: float | None = None,
     combo_max_complexity: float | None = None,
     triple_min_score: float | None = None,
@@ -322,6 +415,8 @@ def analyze_sequence(
     convolution_ops: Iterable[str] = (),
     convolution_max_time: float | None = None,
     convolution_max_length: int = 32,
+    combined_limit: int | None = None,
+    combined_family_quota: int = 1,
     fallback_subsequence: bool = True,
     fallback_full_scan: bool = False,
     show_terms: int | None = None,
@@ -331,6 +426,12 @@ def analyze_sequence(
     combo_unfiltered: bool = False,
     variance_band: float | None = None,
     growth_band: float | None = None,
+    combo_discovery: bool = False,
+    combo_discovery_limit: int = 16,
+    combo_discovery_max_time: float | None = 2.0,
+    combo_discovery_tools: Iterable[str] = ("sympy",),
+    combo_candidate_providers: Iterable[str] | None = None,
+    combo_wide_prefilter: bool = False,
 ) -> Dict[str, object]:
     """
     High-level, deterministic analysis pipeline used by CLI but available as a library call.
@@ -407,6 +508,7 @@ def analyze_sequence(
     triple_matches = []
     pointwise_matches = []
     convolution_matches = []
+    combined_explanations: list[tuple[str, object]] = []
     if combos or triples or (pointwise_limit and pointwise_ops) or (convolution_limit and convolution_ops):
         combo_coeffs_seq = combo_coeffs
         cap = max(int(combo_candidates or 0), int(triple_candidates or 0))
@@ -423,6 +525,12 @@ def analyze_sequence(
             skip_prefix_filter=combo_unfiltered,
             variance_band=variance_band,
             growth_band=growth_band,
+            enable_discovery=combo_discovery,
+            discovery_limit=combo_discovery_limit,
+            discovery_max_time_s=combo_discovery_max_time,
+            discovery_tools=tuple(combo_discovery_tools),
+            candidate_providers=_normalize_provider_names(combo_candidate_providers),
+            widen_prefilter=combo_wide_prefilter,
         )
         if combo_component_transforms is None:
             comp_names = None
@@ -451,6 +559,7 @@ def analyze_sequence(
                 min_score=combo_min_score,
                 max_complexity=combo_max_complexity,
             )
+            combo_matches = _attach_candidate_provenance(combo_matches, bucket.provenance)
             combo_end = time.perf_counter()
         else:
             combo_start = combo_end = None
@@ -471,9 +580,11 @@ def analyze_sequence(
                 component_transforms=comp_transforms,
                 snippet_len=snip_len,
                 use_rational=triple_rational,
+                allow_self_reference=combo_allow_self_reference,
                 min_score=triple_min_score,
                 max_complexity=triple_max_complexity,
             )
+            triple_matches = _attach_candidate_provenance(triple_matches, bucket.provenance)
             triple_end = time.perf_counter()
         else:
             triple_start = triple_end = None
@@ -500,6 +611,7 @@ def analyze_sequence(
                 min_score=combo_min_score,
                 max_complexity=combo_max_complexity,
             )
+            pointwise_matches = _attach_candidate_provenance(pointwise_matches, bucket.provenance)
             pw_end = time.perf_counter()
         else:
             pw_start = pw_end = None
@@ -525,6 +637,7 @@ def analyze_sequence(
                 min_score=combo_min_score,
                 max_complexity=combo_max_complexity,
             )
+            convolution_matches = _attach_candidate_provenance(convolution_matches, bucket.provenance)
             conv_end = time.perf_counter()
         else:
             conv_start = conv_end = None
@@ -538,6 +651,26 @@ def analyze_sequence(
                 timings["pointwise_ms"] = 1000 * (pw_end - pw_start)
             if conv_start is not None and conv_end is not None:
                 timings["convolution_ms"] = 1000 * (conv_end - conv_start)
+
+    fam_pool = {
+        "linear_pair": combo_matches,
+        "linear_triple": triple_matches,
+        "pointwise": pointwise_matches,
+        "convolution": convolution_matches,
+    }
+    if combined_limit is None:
+        auto_limit = max(int(combos or 0), int(triples or 0), int(pointwise_limit or 0), int(convolution_limit or 0), 0)
+        combined_limit_eff = auto_limit if auto_limit > 0 else None
+    else:
+        try:
+            combined_limit_eff = int(combined_limit)
+        except (TypeError, ValueError):
+            combined_limit_eff = None
+    combined_explanations = merge_combination_families(
+        fam_pool,
+        limit=combined_limit_eff,
+        per_family_quota=max(1, int(combined_family_quota)),
+    )
 
     similarity_rows = [
         {
@@ -573,9 +706,45 @@ def analyze_sequence(
         "query_var": query_var,
         "query_diff_var": query_diff_var,
         "query_growth": query_growth,
+        **(
+            {
+                "candidate_bucket": {
+                    "size": len(bucket.records),
+                    "exact": len(bucket.exact_ids),
+                    "similar": len(bucket.similar_ids),
+                    "discovery": len(bucket.discovery_ids),
+                    "provenance_counts": {
+                        reason: sum(1 for rs in bucket.provenance.values() if reason in rs)
+                        for reason in sorted({r for rs in bucket.provenance.values() for r in rs})
+                    },
+                    **({"discovery_diagnostics": bucket.discovery_diagnostics} if bucket.discovery_diagnostics else {}),
+                    **({"provider_diagnostics": bucket.provider_diagnostics} if bucket.provider_diagnostics else {}),
+                }
+            }
+            if (combos or triples or (pointwise_limit and pointwise_ops) or (convolution_limit and convolution_ops))
+            else {}
+        ),
     }
     if fallback_used:
         diag["subsequence_fallback"] = True
+    if combined_explanations:
+        diag["combined_explanations"] = [
+            {
+                "family": fam,
+                "expression": m.expression,
+                "score": m.score,
+                "length": m.length,
+                "ids": list(m.ids),
+                "coeffs": [str(c) for c in m.coeffs],
+                "shifts": list(m.shifts),
+                **(
+                    {"candidate_provenance": [list(rs) for rs in m.candidate_provenance]}
+                    if m.candidate_provenance
+                    else {}
+                ),
+            }
+            for fam, m in combined_explanations
+        ]
     if collect_timings:
         diag["timings_ms"] = timings
 

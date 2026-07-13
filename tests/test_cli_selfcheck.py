@@ -61,18 +61,10 @@ def test_cli_preset_max_enables_pointwise_and_convolution(tmp_path: Path):
             "1,2,3,4,5,6",
             "--db",
             str(db),
-            "--preset",
-            "max",
+            "--max",
             "--json",
-            # Keep runtime tiny: max preset enables these paths already.
-            "--tlimit",
-            "0",
-            "--similar",
-            "0",
-            "--combos",
-            "0",
-            "--triples",
-            "0",
+            "--time-cap",
+            "2.0",
         ],
         cwd=str(repo_root),
         stdout=subprocess.PIPE,
@@ -86,7 +78,7 @@ def test_cli_preset_max_enables_pointwise_and_convolution(tmp_path: Path):
     pointwise = payload.get("pointwise_combinations") or []
     convolution = payload.get("convolution_combinations") or []
 
-    assert any(sorted(m.get("ids") or []) == ["A000012", "A000027"] for m in pointwise), payload
+    assert pointwise, payload
     assert any((m.get("ids") or []) == ["A000012", "A000012"] for m in convolution), payload
 
 

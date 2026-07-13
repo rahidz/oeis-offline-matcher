@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import sqlite3
 from pathlib import Path
-from typing import Iterable, List, Optional
+from typing import Callable, Iterable, List, Optional
+import time
 from .config import load_config
 from .similarity import growth_rate
 
@@ -235,6 +236,9 @@ def match_exact(
     sequences: Iterable[SequenceRecord],
     limit: Optional[int] = None,
     snippet_len: Optional[int] = None,
+    max_time_s: float | None = None,
+    deadline_s: float | None = None,
+    time_fn: Callable[[], float] = time.perf_counter,
 ) -> List[Match]:
     """
     Find prefix (and optionally subsequence) matches.
@@ -243,8 +247,20 @@ def match_exact(
     qterms = query.terms
     if len(qterms) < query.min_match_length:
         return results
+    deadline: float | None = deadline_s
+    if deadline is None and max_time_s is not None:
+        try:
+            cap = float(max_time_s)
+        except (TypeError, ValueError):
+            cap = None
+        if cap is not None:
+            if cap <= 0:
+                return results
+            deadline = time_fn() + cap
 
     for seq in sequences:
+        if deadline is not None and time_fn() >= deadline:
+            break
         if _is_prefix(qterms, seq.terms):
             results.append(
                 Match(
@@ -402,6 +418,9 @@ class DBExactMatcher:
         *,
         limit: int | None = None,
         snippet_len: int | None = None,
+        max_time_s: float | None = None,
+        deadline_s: float | None = None,
+        time_fn: Callable[[], float] = time.perf_counter,
     ) -> list[Match]:
         qterms = query.terms
         qlen = len(qterms)
@@ -409,6 +428,16 @@ class DBExactMatcher:
             return []
         if any(t is None for t in qterms):
             raise ValueError("DBExactMatcher does not support wildcards (None terms)")
+        deadline: float | None = deadline_s
+        if deadline is None and max_time_s is not None:
+            try:
+                cap = float(max_time_s)
+            except (TypeError, ValueError):
+                cap = None
+            if cap is not None:
+                if cap <= 0:
+                    return []
+                deadline = time_fn() + cap
 
         pattern = ",".join(str(int(t)) for t in qterms)
         results: list[Match] = []
@@ -416,7 +445,26 @@ class DBExactMatcher:
         def _maybe_limit(sql: str) -> str:
             return (sql + " LIMIT ?") if limit is not None else sql
 
+        def _run_query(sql: str, params: list[object]) -> list[sqlite3.Row]:
+            if deadline is None:
+                return self._conn.execute(sql, params).fetchall()
+
+            def _progress() -> int:
+                return 1 if time_fn() >= deadline else 0
+
+            self._conn.set_progress_handler(_progress, 2000)
+            try:
+                return self._conn.execute(sql, params).fetchall()
+            except sqlite3.OperationalError as exc:
+                if "interrupted" in str(exc).lower():
+                    return []
+                raise
+            finally:
+                self._conn.set_progress_handler(None, 0)
+
         # Prefix matches
+        if deadline is not None and time_fn() >= deadline:
+            return []
         prefix_where: list[str] = ["length >= ?"]
         prefix_params: list[object] = [qlen]
         if qlen >= 5:
@@ -433,12 +481,10 @@ class DBExactMatcher:
         prefix_params.extend([pattern, pattern + ",%"])
 
         prefix_sql = _maybe_limit(f"SELECT {self._select} FROM sequences WHERE " + " AND ".join(prefix_where))
-        prefix_rows = (
-            self._conn.execute(prefix_sql, prefix_params + ([limit] if limit is not None else [])).fetchall()
-            if limit is not None
-            else self._conn.execute(prefix_sql, prefix_params).fetchall()
-        )
+        prefix_rows = _run_query(prefix_sql, prefix_params + ([limit] if limit is not None else []))
         for row in prefix_rows:
+            if deadline is not None and time_fn() >= deadline:
+                break
             results.append(
                 _row_to_match(
                     row,
@@ -455,6 +501,9 @@ class DBExactMatcher:
             )
 
         if (not query.allow_subsequence) or (limit is not None and len(results) >= limit):
+            return results[:limit] if limit is not None else results
+        if deadline is not None and time_fn() >= deadline:
+            results.sort(key=lambda m: (0 if m.match_type == "prefix" else 1, -m.length, m.offset))
             return results[:limit] if limit is not None else results
 
         remaining = None if limit is None else max(0, limit - len(results))
@@ -478,8 +527,10 @@ class DBExactMatcher:
             subseq_params2 = subseq_params + [remaining]
         else:
             subseq_params2 = subseq_params
-        subseq_rows = self._conn.execute(subseq_sql, subseq_params2).fetchall()
+        subseq_rows = _run_query(subseq_sql, subseq_params2)
         for row in subseq_rows:
+            if deadline is not None and time_fn() >= deadline:
+                break
             terms_text = row["terms"] or ""
             hay = "," + terms_text + ","
             needle = "," + pattern + ","
@@ -513,6 +564,9 @@ def match_exact_db(
     *,
     limit: int | None = None,
     snippet_len: int | None = None,
+    max_time_s: float | None = None,
+    deadline_s: float | None = None,
+    time_fn: Callable[[], float] = time.perf_counter,
 ) -> list[Match]:
     """
     Exact prefix/subsequence matching using SQLite string predicates.
@@ -527,7 +581,22 @@ def match_exact_db(
         return []
     if any(t is None for t in qterms):
         # Wildcards: fall back to the original matcher.
-        return match_exact(query, iter_sequences(Path(db_path)), limit=limit, snippet_len=snippet_len)
+        return match_exact(
+            query,
+            iter_sequences(Path(db_path)),
+            limit=limit,
+            snippet_len=snippet_len,
+            max_time_s=max_time_s,
+            deadline_s=deadline_s,
+            time_fn=time_fn,
+        )
 
     with sqlite3.connect(str(Path(db_path))) as conn:
-        return DBExactMatcher(conn).match(query, limit=limit, snippet_len=snippet_len)
+        return DBExactMatcher(conn).match(
+            query,
+            limit=limit,
+            snippet_len=snippet_len,
+            max_time_s=max_time_s,
+            deadline_s=deadline_s,
+            time_fn=time_fn,
+        )

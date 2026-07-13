@@ -19,6 +19,10 @@ def test_runtime_contracts_for_fast_deep_max_presets():
         assert preset["transform_max_time"] <= preset["total_max_time"]
         assert preset["combo_max_time"] <= preset["total_max_time"]
         assert preset["max_time"] <= preset["total_max_time"]
+        assert preset["exact_max_time"] <= preset["total_max_time"]
+        assert preset["similarity_max_time"] <= preset["total_max_time"]
+        assert preset["candidate_max_time"] <= preset["total_max_time"]
+        assert preset["combo_candidate_max_time"] <= preset["total_max_time"]
 
 
 def test_max_preset_is_exhaustive_ceiling_defaults():

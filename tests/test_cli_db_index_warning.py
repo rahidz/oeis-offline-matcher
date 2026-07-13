@@ -49,28 +49,13 @@ def test_cli_warns_when_db_missing_recommended_indexes(tmp_path: Path, cmd: str)
     env["PYTHONPATH"] = str((repo_root / "src").resolve())
 
     if cmd == "match":
-        args = [cmd, "1,1,1", "--db", str(db), "--limit", "1"]
+        args = [cmd, "1,1,1", "--db", str(db), "--time-cap", "0.1"]
     elif cmd == "tsearch":
-        args = [cmd, "1,1,1,1,1", "--db", str(db), "--limit", "1", "--max-time", "0.1"]
+        args = [cmd, "1,1,1,1,1", "--db", str(db), "--time-cap", "0.1"]
     elif cmd == "combo":
-        args = [cmd, "2,3,4,5,6", "--db", str(db), "--coeffs", "1", "--candidates", "5", "--max-time", "0.1"]
+        args = [cmd, "2,3,4,5,6", "--db", str(db), "--time-cap", "0.1"]
     else:
-        args = [
-            cmd,
-            "1,2,3,4,5",
-            "--db",
-            str(db),
-            "--limit",
-            "0",
-            "--tlimit",
-            "0",
-            "--similar",
-            "0",
-            "--combos",
-            "0",
-            "--total-max-time",
-            "0.1",
-        ]
+        args = [cmd, "1,2,3,4,5", "--db", str(db), "--time-cap", "0.1"]
 
     proc = subprocess.run(
         [sys.executable, "-m", "oeis_matcher.cli", *args],

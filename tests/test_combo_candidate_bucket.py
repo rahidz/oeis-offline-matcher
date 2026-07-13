@@ -84,3 +84,49 @@ def test_combo_search_finds_lucas_self_shift_in_noisy_bucket(tmp_path: Path):
         for m in combos
     )
 
+
+def test_candidate_bucket_supports_explicit_provider_selection(tmp_path: Path):
+    db = _build_noisy_lucas_db(tmp_path)
+    query = parse_query("2,1,3,4,7,11", allow_subsequence=False)
+    bucket = get_candidate_bucket(
+        query,
+        db,
+        exact_limit=20,
+        similar_limit=20,
+        max_records=20,
+        fill_unfiltered=False,
+        skip_prefix_filter=True,
+        candidate_providers=("exact", "expanded", "bogus"),
+    )
+    diag = bucket.provider_diagnostics
+    assert diag.get("enabled") == ["exact", "expanded"]
+    assert diag.get("unknown") == ["bogus"]
+    assert "seed" not in {r for rs in bucket.provenance.values() for r in rs}
+    assert "similarity" not in {r for rs in bucket.provenance.values() for r in rs}
+
+
+def test_wide_prefilter_enables_exact_provider_in_prefix_mode_defaults(tmp_path: Path):
+    db = _build_noisy_lucas_db(tmp_path)
+    query = parse_query("2,1,3,4,7,11", allow_subsequence=False)
+    base = get_candidate_bucket(
+        query,
+        db,
+        exact_limit=20,
+        similar_limit=20,
+        max_records=20,
+        fill_unfiltered=False,
+        skip_prefix_filter=False,
+        widen_prefilter=False,
+    )
+    wide = get_candidate_bucket(
+        query,
+        db,
+        exact_limit=20,
+        similar_limit=20,
+        max_records=20,
+        fill_unfiltered=False,
+        skip_prefix_filter=False,
+        widen_prefilter=True,
+    )
+    assert "exact" not in (base.provider_diagnostics.get("enabled") or [])
+    assert "exact" in (wide.provider_diagnostics.get("enabled") or [])

@@ -1,5 +1,12 @@
 from oeis_matcher.transforms import (
     abs_transform,
+    alternating_sign_transform,
+    euler_ogf_transform,
+    inverse_euler_ogf_transform,
+    inverse_binomial_transform,
+    ogf_inverse_transform,
+    inverse_stirling1_transform,
+    inverse_stirling2_transform,
     diff_transform,
     diff_k_transform,
     gcd_normalize_transform,
@@ -26,9 +33,23 @@ from oeis_matcher.transforms import (
     tau_transform,
     sigma_transform,
     phi_transform,
+    vp_transform,
+    least_prime_factor_transform,
+    greatest_prime_factor_transform,
+    radical_transform,
+    squarefree_indicator_transform,
+    liouville_transform,
     v2_transform,
     square_index_transform,
     prime_index_transform,
+    triangular_index_transform,
+    fibonacci_index_transform,
+    power_index_transform,
+    ratio_int_transform,
+    series_reversion_transform,
+    binomial_transform,
+    stirling1_transform,
+    stirling2_transform,
 )
 
 
@@ -57,6 +78,11 @@ def test_shift_transform():
 def test_abs_transform():
     result = abs_transform().apply([-1, 0, 5, -7])
     assert result == [1, 0, 5, 7]
+
+
+def test_alternating_sign_transform():
+    out = alternating_sign_transform().apply([1, 2, 3, 4, 5])
+    assert out == [1, -2, 3, -4, 5]
 
 
 def test_gcd_normalize_transform():
@@ -171,6 +197,23 @@ def test_arithmetic_function_transforms():
     assert v2 == [0, 1, 2, 2]
 
 
+def test_additional_arithmetic_transforms():
+    seq = [1, 2, 4, 6, 12]
+    vp3 = vp_transform(3).apply(seq)
+    lpf = least_prime_factor_transform().apply(seq)
+    gpf = greatest_prime_factor_transform().apply(seq)
+    rad = radical_transform().apply(seq)
+    sqf = squarefree_indicator_transform().apply(seq)
+    liou = liouville_transform().apply(seq)
+
+    assert vp3 == [0, 0, 0, 1, 1]
+    assert lpf == [1, 2, 2, 2, 2]
+    assert gpf == [1, 2, 2, 3, 3]
+    assert rad == [1, 2, 2, 6, 6]
+    assert sqf == [1, 1, 0, 1, 0]
+    assert liou == [1, -1, 1, 1, -1]
+
+
 def test_index_based_transforms():
     seq = [10, 11, 12, 13, 14, 15]
     sq = square_index_transform().apply(seq)
@@ -180,3 +223,64 @@ def test_index_based_transforms():
     assert sq == [10, 11, 14]
     # primes 2,3,5 -> indices 1,2,4 -> 11,12,14
     assert primes == [11, 12, 14]
+
+
+def test_additional_index_and_ratio_transforms():
+    seq = [10, 11, 12, 13, 14, 15, 16, 17, 18]
+    tri = triangular_index_transform().apply(seq)
+    fib = fibonacci_index_transform().apply(seq)
+    pow3 = power_index_transform(3).apply(seq)
+    ratio = ratio_int_transform().apply([1, 2, 4, 8, 16])
+    ratio_fail = ratio_int_transform().apply([2, 3, 6])
+
+    # triangular indices 0,1,3,6 -> 10,11,13,16
+    assert tri == [10, 11, 13, 16]
+    # monotone Fibonacci-style indices 0,1,2,3,5,8 -> 10,11,12,13,15,18
+    assert fib == [10, 11, 12, 13, 15, 18]
+    # cube indices 0,1,8
+    assert pow3 == [10, 11, 18]
+    assert ratio == [2, 2, 2, 2]
+    assert ratio_fail == []
+
+
+def test_inverse_binomial_roundtrip():
+    base = [1, 2, 3, 4, 5]
+    b = binomial_transform().apply(base)
+    inv = inverse_binomial_transform().apply(b)
+    assert inv == base
+
+
+def test_euler_ogf_transform_and_inverse_roundtrip():
+    base = [0, 1, 1, 1, 1, 1]
+    e = euler_ogf_transform().apply(base)
+    assert e == [1, 1, 2, 3, 5, 7]
+    inv = inverse_euler_ogf_transform().apply(e)
+    assert inv == base
+    assert inverse_euler_ogf_transform().apply([0, 1, 2, 3]) == []
+
+
+def test_stirling_transform_roundtrips():
+    base = [0, 1, 2, 3, 4, 5]
+
+    s1 = stirling1_transform().apply(base)
+    assert inverse_stirling1_transform().apply(s1) == base
+
+    s2 = stirling2_transform().apply(base)
+    assert inverse_stirling2_transform().apply(s2) == base
+
+
+def test_ogf_inverse_transform():
+    seq = [1, -2, 1, 0, 0, 0]
+    inv = ogf_inverse_transform().apply(seq)
+    assert inv == [1, 2, 3, 4, 5, 6]
+    assert ogf_inverse_transform().apply([0, 1, 2]) == []
+    assert ogf_inverse_transform().apply([2, 1, 0]) == []
+
+
+def test_series_reversion_transform():
+    # F(x)=x-x^2 -> G(x)=x+x^2+2x^3+5x^4+14x^5+...
+    seq = [0, 1, -1, 0, 0, 0]
+    rev = series_reversion_transform().apply(seq)
+    assert rev == [0, 1, 1, 2, 5, 14]
+    assert series_reversion_transform().apply([1, 1, 0]) == []
+    assert series_reversion_transform().apply([0, 2, 1, 0]) == []

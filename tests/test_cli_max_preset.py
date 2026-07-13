@@ -41,12 +41,11 @@ def test_preset_max_analyze_runs_with_extras(tmp_path: Path, monkeypatch):
     build_index(stripped, names, None, db, max_terms=16)
 
     # Run analyze with the max preset and a few pointwise ops; this exercises
-    # the full transform vocabulary and combo/pointwise paths without
-    # asserting on specific matches.
+    # the full transform/combo pipeline without asserting on specific matches.
     env = dict(os.environ)
     env["PYTHONPATH"] = str(Path("src").resolve())
     proc = subprocess.run(
-        [sys.executable, "-m", "oeis_matcher.cli", "analyze", "1,2,3,4,5,6", "--db", str(db), "--preset", "max", "--combos", "3", "--pointwise-ops", "mul,gcd", "--pointwise-limit", "2"],
+        [sys.executable, "-m", "oeis_matcher.cli", "analyze", "1,2,3,4,5,6", "--db", str(db), "--max", "--time-cap", "2"],
         cwd=str(Path(__file__).resolve().parent.parent),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -73,12 +72,9 @@ def test_preset_max_tsearch_streams_by_default(tmp_path: Path, capsys):
             "1,2,3,4,5",
             "--db",
             str(db),
-            "--preset",
-            "max",
-            "--max-time",
+            "--max",
+            "--time-cap",
             "0.1",
-            "--limit",
-            "5",
         ]
     )
     assert rc == 0

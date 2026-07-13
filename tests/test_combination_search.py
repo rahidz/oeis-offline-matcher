@@ -709,3 +709,102 @@ def test_cauchy_convolution_self_pair_dedupes_commutative_transform_swaps_and_sh
     ]
     assert len(commutative_swaps) == 1, streamed
     assert "diff(" in combos[0].expression
+
+
+def test_symbolic_dedupe_collapses_scaled_equivalent_linear_forms(tmp_path: Path):
+    stripped = tmp_path / "stripped_sym_dedup.txt"
+    names = tmp_path / "names_sym_dedup.txt"
+    stripped.write_text(
+        "\n".join(
+            [
+                "A770000 1,2,3,4,5,6",
+                "A770001 1,2,3,4,5,6",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    names.write_text("A770000 N1\nA770001 N2\n", encoding="utf-8")
+    db = tmp_path / "oeis_sym_dedup.db"
+    build_index(stripped, names, None, db, max_terms=16)
+
+    query = parse_query("0,0,0,0,0")
+    candidates = list(iter_sequences(db))
+    combos = search_two_sequence_combinations(
+        query,
+        candidates,
+        coeffs=(-2, -1, 1, 2),
+        max_shift=0,
+        limit=20,
+        max_candidates=4,
+    )
+    hits = [m for m in combos if set(m.ids) == {"A770000", "A770001"}]
+    assert len(hits) == 1
+
+
+def test_rational_pathological_large_denominator_is_rejected(tmp_path: Path):
+    stripped = tmp_path / "stripped_rational_guard.txt"
+    names = tmp_path / "names_rational_guard.txt"
+    stripped.write_text(
+        "\n".join(
+            [
+                "A790000 97,194,291,388,485",
+                "A790001 2,3,4,5,6",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    names.write_text("A790000 Scaled linear\nA790001 Shifted naturals\n", encoding="utf-8")
+    db = tmp_path / "oeis_rational_guard.db"
+    build_index(stripped, names, None, db, max_terms=16)
+
+    # Exact fit would require coeffs (1/97, 1), which is intentionally filtered.
+    query = parse_query("3,5,7,9,11")
+    candidates = list(iter_sequences(db))
+    combos = search_two_sequence_combinations(
+        query,
+        candidates,
+        coeffs=(),
+        max_shift=0,
+        limit=10,
+        max_candidates=4,
+        use_rational=True,
+    )
+    assert combos == []
+
+
+def test_three_sequence_self_reference_enabled(tmp_path: Path):
+    stripped = tmp_path / "stripped_triple_self.txt"
+    names = tmp_path / "names_triple_self.txt"
+    stripped.write_text("A780000 1,2,3,4,5,6,7,8\n", encoding="utf-8")
+    names.write_text("A780000 Naturals\n", encoding="utf-8")
+    db = tmp_path / "oeis_triple_self.db"
+    build_index(stripped, names, None, db, max_terms=20)
+
+    query = parse_query("2,3,4,5,6")
+    candidates = list(iter_sequences(db))
+
+    from oeis_matcher.combination_search import search_three_sequence_combinations
+
+    off = search_three_sequence_combinations(
+        query,
+        candidates,
+        coeffs=(-1, 1),
+        max_shift=1,
+        max_shift_back=0,
+        limit=10,
+        max_candidates=2,
+        allow_self_reference=False,
+    )
+    assert off == []
+
+    on = search_three_sequence_combinations(
+        query,
+        candidates,
+        coeffs=(-1, 1),
+        max_shift=1,
+        max_shift_back=0,
+        limit=10,
+        max_candidates=2,
+        allow_self_reference=True,
+    )
+    assert any(m.ids == ("A780000", "A780000", "A780000") for m in on)

@@ -658,16 +658,254 @@ def _format_convolution_latex(op: str, ids: Sequence[str], t_names: Sequence[str
     return f"a_{{n}} = ({op}({s1},{s2}))"
 
 
+def _to_fraction(val) -> Fraction:
+    if isinstance(val, Fraction):
+        return val
+    if isinstance(val, int):
+        return Fraction(val, 1)
+    try:
+        return Fraction(val).limit_denominator(10_000)
+    except Exception:
+        return Fraction(int(val), 1)
+
+
+def _normalize_linear_coeffs(coeffs: Sequence) -> tuple[int, ...]:
+    fracs = [_to_fraction(c) for c in coeffs]
+    if not fracs:
+        return tuple()
+    denom_lcm = 1
+    for f in fracs:
+        denom_lcm = math.lcm(denom_lcm, int(f.denominator))
+    ints = [int(f.numerator * (denom_lcm // int(f.denominator))) for f in fracs]
+    g = 0
+    for v in ints:
+        g = math.gcd(g, abs(int(v)))
+    if g > 1:
+        ints = [int(v // g) for v in ints]
+    first_nonzero = next((v for v in ints if v != 0), 0)
+    if first_nonzero < 0:
+        ints = [-int(v) for v in ints]
+    return tuple(int(v) for v in ints)
+
+
+def _infer_family_from_expression(expr: str) -> str:
+    e = (expr or "").lower()
+    if "gcd(" in e or "lcm(" in e:
+        return "pointwise"
+    if " = (" in e and (" ⋆ " in e or ")_n" in e):
+        return "convolution"
+    if "a(" in e and "n+" in e and ";" in e:
+        return "modclass"
+    if "a(" in e and "n)" in e and ";" in e:
+        return "modclass"
+    return "linear"
+
+
+def _combination_symbolic_key(m: CombinationMatch, *, family_hint: str | None = None) -> tuple:
+    family = family_hint or _infer_family_from_expression(m.expression or "")
+    t_names = m.component_transforms or tuple("id" for _ in m.ids)
+    comps = list(zip(m.ids, (int(s) for s in m.shifts), t_names))
+
+    if family in {"linear", "linear2", "linear3"}:
+        norm = _normalize_linear_coeffs(m.coeffs)
+        with_coeffs = [(c[0], int(c[1]), c[2], int(k)) for c, k in zip(comps, norm)]
+        with_coeffs.sort(key=lambda x: (x[0], x[1], x[2], x[3]))
+        return ("linear", tuple(with_coeffs))
+
+    if family == "pointwise":
+        # For ranking diversity we intentionally de-dup pointwise hits at the
+        # component-family level (id + transform), not by shift/op variants.
+        # Otherwise high-scoring gcd/lcm shift variants can flood out distinct
+        # component pairs.
+        comps_s = tuple(sorted((c[0], c[2]) for c in comps))
+        return ("pointwise", comps_s)
+
+    if family == "convolution":
+        expr = m.expression or ""
+        op = "dirichlet" if ("⋆" in expr or "star" in expr.lower()) else "cauchy"
+        comps_s = tuple(sorted((c[0], int(c[1]), c[2]) for c in comps))
+        return ("convolution", op, comps_s)
+
+    if family == "modclass":
+        # Mod-class is order-sensitive by residue class.
+        return (
+            "modclass",
+            tuple((c[0], int(c[1]), c[2]) for c in comps),
+        )
+
+    # Fallback: expression text + components.
+    return (
+        family,
+        (m.expression or "").replace(" ", ""),
+        tuple((c[0], int(c[1]), c[2]) for c in comps),
+    )
+
+
+def _rational_solution_is_pathological(
+    coeffs: Sequence[Fraction],
+    components: Sequence[Sequence[int]],
+    target: Sequence[int],
+    *,
+    max_abs_numerator: int = 200,
+    max_denominator: int = 64,
+    max_l1_coeff: float = 64.0,
+    max_cancel_ratio: float = 40.0,
+) -> bool:
+    """
+    Guardrails for exact-rational solves to suppress hard-to-interpret fits.
+
+    We already verify exact equality term-by-term. This helper additionally filters
+    solutions with very complex coefficients or extreme cancellation.
+    """
+    nz = [c for c in coeffs if c != 0]
+    if not nz:
+        return True
+    if any(abs(int(c.numerator)) > max_abs_numerator for c in nz):
+        return True
+    if any(int(c.denominator) > max_denominator for c in nz):
+        return True
+    l1 = sum(abs(float(c)) for c in nz)
+    if l1 > max_l1_coeff:
+        return True
+
+    if not target:
+        return True
+    worst_ratio = 0.0
+    for i, want in enumerate(target):
+        contrib = 0.0
+        for c, seq in zip(coeffs, components):
+            if i >= len(seq):
+                return True
+            contrib += abs(float(c * seq[i]))
+        denom = abs(float(want)) + 1.0
+        worst_ratio = max(worst_ratio, contrib / denom)
+        if worst_ratio > max_cancel_ratio:
+            return True
+    return False
+
+
+def merge_combination_families(
+    families: dict[str, Sequence[CombinationMatch]],
+    *,
+    limit: int | None = None,
+    per_family_quota: int = 1,
+) -> list[tuple[str, CombinationMatch]]:
+    """
+    Merge multiple explanation families with fair representation and
+    cross-family symbolic deduplication.
+    """
+    staged: dict[str, list[CombinationMatch]] = {}
+    for fam, raw in families.items():
+        if not raw:
+            continue
+        arr = sorted(
+            list(raw),
+            key=lambda m: (
+                -(m.score if m.score is not None else 0.0),
+                _combo_complexity(m.coeffs, m.shifts),
+                -m.length,
+                m.ids,
+            ),
+        )
+        # De-dup within family first.
+        uniq: list[CombinationMatch] = []
+        seen_local: set[tuple] = set()
+        for m in arr:
+            key = _combination_symbolic_key(m, family_hint=fam)
+            if key in seen_local:
+                continue
+            seen_local.add(key)
+            uniq.append(m)
+        if uniq:
+            staged[fam] = uniq
+
+    if not staged:
+        return []
+
+    total = sum(len(v) for v in staged.values())
+    out_limit = total if (limit is None or int(limit) <= 0) else min(int(limit), total)
+    quota = max(0, int(per_family_quota))
+
+    ptr: dict[str, int] = {fam: 0 for fam in staged}
+    selected_per_family: dict[str, int] = {fam: 0 for fam in staged}
+    chosen: list[tuple[str, CombinationMatch]] = []
+    seen_global: set[tuple] = set()
+
+    # Phase 1: quota-based round-robin so each family competes fairly.
+    if quota > 0:
+        while len(chosen) < out_limit:
+            made_progress = False
+            fam_order = sorted(
+                (f for f in staged.keys() if selected_per_family[f] < quota),
+                key=lambda f: -(staged[f][ptr[f]].score if ptr[f] < len(staged[f]) and staged[f][ptr[f]].score is not None else 0.0),
+            )
+            if not fam_order:
+                break
+            for fam in fam_order:
+                if len(chosen) >= out_limit:
+                    break
+                if selected_per_family[fam] >= quota:
+                    continue
+                arr = staged[fam]
+                i = ptr[fam]
+                pick: CombinationMatch | None = None
+                while i < len(arr):
+                    cand = arr[i]
+                    key = _combination_symbolic_key(cand, family_hint=fam)
+                    i += 1
+                    if key in seen_global:
+                        continue
+                    pick = cand
+                    seen_global.add(key)
+                    break
+                ptr[fam] = i
+                if pick is None:
+                    continue
+                chosen.append((fam, pick))
+                selected_per_family[fam] += 1
+                made_progress = True
+            if not made_progress:
+                break
+
+    # Phase 2: fill remaining slots by global score.
+    if len(chosen) < out_limit:
+        leftovers: list[tuple[str, CombinationMatch]] = []
+        for fam, arr in staged.items():
+            i = ptr[fam]
+            while i < len(arr):
+                leftovers.append((fam, arr[i]))
+                i += 1
+        leftovers.sort(
+            key=lambda fm: (
+                -(fm[1].score if fm[1].score is not None else 0.0),
+                _combo_complexity(fm[1].coeffs, fm[1].shifts),
+                -fm[1].length,
+                fm[0],
+                fm[1].ids,
+            )
+        )
+        for fam, m in leftovers:
+            if len(chosen) >= out_limit:
+                break
+            key = _combination_symbolic_key(m, family_hint=fam)
+            if key in seen_global:
+                continue
+            seen_global.add(key)
+            chosen.append((fam, m))
+
+    return chosen
+
+
 def _sorted_and_trim(
     results: list[CombinationMatch],
     limit: int | None,
     *,
     dedupe_family: bool = True,
+    family: str | None = None,
 ) -> list[CombinationMatch]:
     def _family_key(m: CombinationMatch) -> tuple:
-        cts = m.component_transforms or tuple("id" for _ in m.ids)
-        paired = tuple(sorted(zip(m.ids, cts)))
-        return (tuple(sorted(m.ids)), paired)
+        fam = family or _infer_family_from_expression(m.expression or "")
+        return _combination_symbolic_key(m, family_hint=fam)
 
     results.sort(
         key=lambda m: (
@@ -913,6 +1151,8 @@ def search_two_sequence_combinations(
                             if sol is None:
                                 continue
                             a, b = sol
+                            if _rational_solution_is_pathological((a, b), (slice1, slice2), q_slice):
+                                continue
                             checks += 1
                             if max_checks is not None and checks > max_checks:
                                 return _sorted_and_trim(results, limit)
@@ -1936,6 +2176,7 @@ def search_three_sequence_combinations(
     component_transforms: Sequence[ComponentTransform] | None = None,
     snippet_len: int | None = None,
     use_rational: bool = False,
+    allow_self_reference: bool = False,
     min_score: float | None = None,
     max_complexity: float | None = None,
     on_match: Callable[[CombinationMatch], None] | None = None,
@@ -2160,7 +2401,10 @@ def search_three_sequence_combinations(
                                         if limit and len(results) >= limit:
                                             return _sorted_and_trim(results, limit)
 
-    for rec1, rec2, rec3 in combinations(records, 3):
+    record_triples = (
+        combinations_with_replacement(records, 3) if allow_self_reference else combinations(records, 3)
+    )
+    for rec1, rec2, rec3 in record_triples:
         for t1 in transforms:
             seq1 = _get_transformed(rec1, t1)
             for s1 in shift_vals:
@@ -2170,6 +2414,19 @@ def search_three_sequence_combinations(
                         for t3 in transforms:
                             seq3 = _get_transformed(rec3, t3)
                             for s3 in shift_vals:
+                                # Symmetry guards for repeated component ids.
+                                if rec1.id == rec2.id and (t1.name, s1) > (t2.name, s2):
+                                    continue
+                                if rec2.id == rec3.id and (t2.name, s2) > (t3.name, s3):
+                                    continue
+                                if (
+                                    rec1.id == rec2.id == rec3.id
+                                    and t1.name == t2.name == t3.name
+                                    and s1 == s2 == s3
+                                ):
+                                    # Same component repeated three times only
+                                    # yields merged-coefficient variants.
+                                    continue
                                 if max_time_s is not None and (time_fn() - t_start) > max_time_s:
                                     return _sorted_and_trim(results, limit)
                                 span = _aligned_span(
@@ -2190,6 +2447,10 @@ def search_three_sequence_combinations(
                                     slice2 = seq2[s2_start : s2_start + match_len]
                                     slice3 = seq3[s3_start : s3_start + match_len]
                                     sol3 = _solve_rational_coeffs_triple(slice1, slice2, slice3, q_slice)
+                                    if sol3 is not None and _rational_solution_is_pathological(
+                                        sol3, (slice1, slice2, slice3), q_slice
+                                    ):
+                                        sol3 = None
                                     coeff_triples = [sol3] if sol3 else []
                                     # Keep the legacy scoring/emit path below.
                                     triple_iter = coeff_triples
