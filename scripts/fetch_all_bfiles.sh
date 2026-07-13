@@ -1,30 +1,34 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Fetch all OEIS supporting files (including b-files) via oeisdata + Git LFS.
+# Fetch all OEIS supporting files via oeisdata + Git LFS, then repair
+# unavailable canonical b-files from oeis.org.
 # Safe to re-run; fetch/checkouts resume.
-# Usage: scripts/fetch_all_bfiles.sh [--repo PATH] [--jobs N] [--skip-pull] [--progress-every SEC]
+# Usage: scripts/fetch_all_bfiles.sh [--repo PATH] [--jobs N] [--skip-pull] [--no-direct-fallback] [--progress-every SEC]
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO_DIR="${ROOT_DIR}/data/raw/oeisdata"
 JOBS=2
 SKIP_PULL=0
 PROGRESS_EVERY=120
+DIRECT_FALLBACK=1
 
 for arg in "$@"; do
   case "$arg" in
     --repo=*) REPO_DIR="${arg#*=}" ;;
     --jobs=*) JOBS="${arg#*=}" ;;
     --skip-pull) SKIP_PULL=1 ;;
+    --no-direct-fallback) DIRECT_FALLBACK=0 ;;
     --progress-every=*) PROGRESS_EVERY="${arg#*=}" ;;
     -h|--help)
       cat <<'EOF'
-Usage: scripts/fetch_all_bfiles.sh [--repo PATH] [--jobs N] [--skip-pull] [--progress-every SEC]
+Usage: scripts/fetch_all_bfiles.sh [--repo PATH] [--jobs N] [--skip-pull] [--no-direct-fallback] [--progress-every SEC]
 
 Options:
   --repo=PATH   Path to oeisdata git repo (default: data/raw/oeisdata)
   --jobs=N      Git LFS concurrent transfers (default: 2; be polite)
   --skip-pull   Skip `git pull --ff-only` before LFS fetch
+  --no-direct-fallback  Leave unavailable LFS b-files as pointers
   --progress-every=SEC  Print b-file progress every N seconds (default: 120, 0=off)
 EOF
       exit 0
@@ -95,10 +99,35 @@ if [[ "${PROGRESS_EVERY}" =~ ^[0-9]+$ ]] && [[ "${PROGRESS_EVERY}" -gt 0 ]]; the
     fi
   done
 fi
-wait "${FETCH_PID}"
+if ! wait "${FETCH_PID}"; then
+  echo "[warning] Git LFS fetch was incomplete; checking canonical b-files for direct repair" >&2
+fi
 
 echo "[checkout] git lfs checkout"
-git -C "${REPO_DIR}" lfs checkout
+git -C "${REPO_DIR}" lfs checkout || true
+
+if [[ ${DIRECT_FALLBACK} -eq 1 ]]; then
+  POINTERS="$(mktemp)"
+  trap 'rm -f "${POINTERS}"' EXIT
+  git -C "${REPO_DIR}" lfs ls-files -I='files/**/b*.txt' -X='' \
+    | awk '$2=="-" && $3 ~ /\/b[0-9]{6}\.txt$/ {print $3}' > "${POINTERS}"
+  COUNT="$(wc -l < "${POINTERS}")"
+  if [[ ${COUNT} -gt 0 ]]; then
+    command -v curl >/dev/null 2>&1 || { echo "curl not found" >&2; exit 1; }
+    echo "[fallback] downloading ${COUNT} unavailable canonical b-files from oeis.org"
+    export REPO_DIR
+    if ! xargs -r -P "${JOBS}" -n 1 bash -c '
+      rel=$1
+      base=${rel##*/}
+      digits=${base#b}; digits=${digits%.txt}
+      dest="$REPO_DIR/$rel"; tmp="$dest.tmp"
+      curl --fail --location --silent --show-error --retry 2 \
+        "https://oeis.org/A${digits}/b${digits}.txt" -o "$tmp" && mv "$tmp" "$dest"
+    ' _ < "${POINTERS}"; then
+      echo "[warning] some direct b-file repairs failed; rerun to resume" >&2
+    fi
+  fi
+fi
 
 if LINE="$(progress_line 2>/dev/null)"; then
   echo "[progress] ${LINE}"

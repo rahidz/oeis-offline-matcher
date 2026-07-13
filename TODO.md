@@ -46,7 +46,7 @@ Complete this gate before declaring the feature-complete phases or milestones do
 - [x] Expand real-snapshot regressions, diversity assertions, transform inverse/property tests, fuzz replay seeds, and machine-readable command contract tests.
 - [x] Profile current workloads, optimize measured Python/SQLite bottlenecks, and add repeatable performance envelopes before introducing native complexity.
 - [x] Evaluate deterministic local parallelism and optional acceleration; measured in-engine probes did not clear the 20% material-win threshold, so v1.0 keeps the simpler serial path.
-- [ ] Audit full-corpus b-file indexing/search for duplicate auxiliary files, resumability, storage cost, and useful result ranking; then build and smoke-test the local b-file index.
+- [x] Audit full-corpus b-file indexing/search for duplicate auxiliary files, resumability, storage cost, and useful result ranking; then build and smoke-test the local b-file index.
 - [ ] Complete an end-to-end v1.0 release audit with the full suite, selfcheck, representative preset runs, schemas, docs, and packaging verified.
 
 ---

@@ -2,8 +2,6 @@ from pathlib import Path
 import subprocess
 import sys
 
-import pytest
-
 
 def _run_cli(tmp_path: Path, args: list[str]) -> subprocess.CompletedProcess:
     env = dict(**{k: v for k, v in os.environ.items()}, PYTHONPATH=str(Path("src").resolve()))

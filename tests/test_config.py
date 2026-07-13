@@ -1,5 +1,4 @@
 from pathlib import Path
-import os
 
 from oeis_matcher.config import DEFAULT_CONFIG, load_config
 

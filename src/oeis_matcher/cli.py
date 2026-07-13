@@ -1764,15 +1764,20 @@ def _main(argv=None):
     p_bfetch.add_argument("--force", action="store_true", help="Re-download files even if already present")
     p_bfetch.add_argument("--json", action="store_true", dest="as_json", help="Output JSON")
 
-    p_bindex = sub.add_parser("bindex", help="Build a value index from local b-files.")
-    p_bindex.add_argument("--files-root", default="data/raw/bfiles", help="Root directory containing b-files")
-    p_bindex.add_argument("--db", default="data/processed/bfiles.db", help="Output SQLite path for b-file value index")
+    p_bindex = sub.add_parser("bindex", help="Build/update a resumable canonical b-file manifest.")
+    p_bindex.add_argument("--files-root", default="data/raw/oeisdata/files", help="Root directory containing b-files")
+    p_bindex.add_argument("--db", default="data/processed/bfiles.db", help="Output SQLite path for b-file manifest/cache")
+    p_bindex.add_argument("--rebuild", action="store_true", help="Recreate the manifest and invalidate cached searches")
     p_bindex.add_argument("--json", action="store_true", dest="as_json", help="Output JSON")
 
-    p_bsearch = sub.add_parser("bsearch", help="Search for a value in indexed b-files.")
+    p_bsearch = sub.add_parser("bsearch", help="Search canonical b-files for an exact integer value.")
     p_bsearch.add_argument("value", help="Integer value to search for")
     p_bsearch.add_argument("--db", default="data/processed/bfiles.db", help="SQLite path built by `oeis bindex`")
     p_bsearch.add_argument("--limit", type=int, default=20, help="Maximum matches to print")
+    p_bsearch.add_argument("--oeis-db", default=default_db, help="Main OEIS DB used for names and popularity ranking")
+    p_bsearch.add_argument("--threads", type=int, default=0, help="ripgrep worker count (0=automatic)")
+    p_bsearch.add_argument("--max-time", type=float, help="Abort an uncached raw scan after this many seconds")
+    p_bsearch.add_argument("--refresh-cache", action="store_true", help="Rescan even if this value is cached")
     p_bsearch.add_argument("--json", action="store_true", dest="as_json", help="Output JSON")
 
     p_opt = sub.add_parser("optimize-db", help="Create missing SQLite indexes for faster searches (one-time).")
@@ -2420,13 +2425,18 @@ def _main(argv=None):
         return exit_code
 
     if args.cmd == "bindex":
-        stats = build_bfile_index(Path(args.files_root), Path(args.db))
+        try:
+            stats = build_bfile_index(Path(args.files_root), Path(args.db), rebuild=bool(args.rebuild))
+        except FileNotFoundError as exc:
+            print(f"Missing b-file root: {exc}")
+            return 2
         if args.as_json:
             print(json.dumps(stats, indent=2))
             return 0
         print(
-            f"bindex: files_seen={stats['files_seen']} files_indexed={stats['files_indexed']} "
-            f"rows={stats['rows_written']} lfs_pointers={stats['lfs_pointers']} -> {stats['db']}"
+            f"bindex: canonical={stats['manifest_rows']} updated={stats['files_updated']} "
+            f"unchanged={stats['skipped_unchanged']} auxiliary_ignored={stats['auxiliary_ignored']} "
+            f"lfs_pointers={stats['lfs_pointers']} -> {stats['db']}"
         )
         if int(stats.get("lfs_pointers") or 0) > 0:
             print("Note: some files are Git LFS pointers; fetch real b-files first.")
@@ -2434,9 +2444,17 @@ def _main(argv=None):
 
     if args.cmd == "bsearch":
         try:
-            result = search_bfile_index(Path(args.db), args.value, limit=max(1, int(args.limit)))
-        except FileNotFoundError:
-            print(f"Missing DB: {args.db}")
+            result = search_bfile_index(
+                Path(args.db),
+                args.value,
+                limit=max(1, int(args.limit)),
+                oeis_db=Path(args.oeis_db),
+                threads=max(0, int(args.threads)),
+                max_time_s=args.max_time,
+                refresh_cache=bool(args.refresh_cache),
+            )
+        except FileNotFoundError as exc:
+            print(f"Missing b-file data: {exc}")
             return 2
         except Exception as exc:
             print(f"bsearch failed: {exc}")
@@ -2444,9 +2462,11 @@ def _main(argv=None):
         if args.as_json:
             print(json.dumps(result, indent=2))
             return 0
-        print(f"value={result['value']} total={result['total']} db={args.db}")
+        source = "cache" if result.get("cached") else f"raw scan {result.get('scan_seconds', 0):.1f}s"
+        print(f"value={result['value']} sequences={result['total']} source={source} db={args.db}")
         for row in result.get("matches") or []:
-            print(f"{row['id']} n={row['n']}")
+            name = f" - {row['name']}" if row.get("name") else ""
+            print(f"{row['rank']:>2}. {row['id']} n={row['n']}{name}")
         if result.get("truncated"):
             extra = int(result["total"]) - len(result.get("matches") or [])
             print(f"... and {extra} more")

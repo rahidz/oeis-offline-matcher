@@ -1,4 +1,3 @@
-import io
 from pathlib import Path
 
 from oeis_matcher.oeis_data import (

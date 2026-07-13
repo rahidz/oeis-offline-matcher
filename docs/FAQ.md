@@ -54,6 +54,9 @@ The score rewards matched length and popularity while penalizing coefficient, sh
 **Are CLI/API JSON results stable?**
 Analyze and combo payloads carry `schema_version: 1`. The v1.x policy is additive-only: consumers should ignore unfamiliar fields. CLI and `analyze_sequence()` share one serializer and stage scheduler. Breaking schema changes are deferred to v2.0.
 
+**Can I search the full b-file corpus for an integer?**
+Yes. Run `oeis bindex` once, then `oeis bsearch VALUE`. The compact manifest indexes canonical files only; the first lookup scans raw b-files and caches one best index per sequence. Repeated values are instant. See `docs/bfiles.md` for storage, cold-scan timing, ranking, and the auxiliary-file policy.
+
 **Performance tips**  
 
 - Build the SQLite index on an SSD.  
@@ -63,7 +66,7 @@ Analyze and combo payloads carry `schema_version: 1`. The v1.x policy is additiv
 - Use `scripts/bench.py` to measure on your machine.
 - Use `--timings` to see per-stage time and `scripts/profile_matchers.py` for deeper profiling.
 - If you just want “best effort within X seconds”, use `--time-cap X` on `oeis analyze` or `oeis combo`.
-- Expanded combo fallback (`--max`, or advanced `--expanded`) builds a small in-memory prefix index per run. It requires at least 5 query terms and is bounded by stage and global caps. In streaming mode, expanded pair fallback is deferred until after the regular candidate-based stages (including triples) to improve time-to-first-hit.
+- Expanded combo fallback (`--max`, or advanced `--expanded`) can build a several-hundred-MiB in-memory prefix index on the full snapshot. It requires at least 5 query terms and is bounded by stage and global caps. In streaming mode, expanded pair fallback is deferred until after the regular candidate-based stages (including triples) to improve time-to-first-hit.
 - Short queries (4 terms) are still accelerated using the `prefix5` column via a partial prefix match, but very short inputs can naturally match many sequences.
 
 For exact replay and benchmark hygiene, see `docs/reproducibility.md`.

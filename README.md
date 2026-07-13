@@ -14,7 +14,7 @@ It downloads an OEIS snapshot once, builds a local SQLite index, then lets you p
 After the initial `oeis sync` + `oeis build-index`, analysis runs fully offline.
 
 ## Status
-The v1.0 feature pipeline is implemented end-to-end. Current work is the consolidation/release gate: regression and performance baselines, full-corpus b-file indexing, and the final release audit. See `TODO.md`.
+The v1.0 feature pipeline and consolidation gates are implemented end-to-end. Current work is the final release audit. See `TODO.md`.
 
 ## Quick Start
 
@@ -47,11 +47,11 @@ oeis build-index
 # Optional: fetch canonical b-files for specific sequences
 oeis bfetch "A000045,A000217"
 
-# Build/search a b-file value index (exact integer lookup)
-oeis bindex --files-root data/raw/bfiles --db data/processed/bfiles.db
+# Build/search the resumable full-corpus b-file manifest (exact integer lookup)
+oeis bindex --files-root data/raw/oeisdata/files --db data/processed/bfiles.db
 oeis bsearch 514229 --db data/processed/bfiles.db
-# `oeis bfetch` downloads real b-file text directly from OEIS. A full b-file
-# corpus/index is intentionally separate and can require tens of GiB.
+# The first lookup scans canonical raw files and is cached; the compact manifest
+# avoids duplicating the 28 GiB canonical corpus into a giant value table.
 
 # Health + freshness report (read-only):
 oeis status
@@ -250,6 +250,7 @@ See `docs/FAQ.md` for limits and performance tips.
 - Bench numbers live in `docs/benchmarks.md`.
 
 For snapshot pinning, deterministic replay, and the benchmark protocol, see `docs/reproducibility.md`. Release changes and v0.x migration notes are in `CHANGELOG.md`.
+Full-corpus storage, repair, indexing, and search behavior is documented in `docs/bfiles.md`.
 
 ## Configuration
 - Optional `config.toml` (see `config.example.toml`) controls default paths and limits.

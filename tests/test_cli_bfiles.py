@@ -16,14 +16,29 @@ def test_cli_bindex_and_bsearch_json(tmp_path: Path, capsys):
     assert rc == 0
     idx_payload = json.loads(capsys.readouterr().out)
     assert idx_payload["files_indexed"] == 1
-    assert idx_payload["rows_written"] == 5
+    assert idx_payload["manifest_rows"] == 1
+    assert idx_payload["legacy_value_rows_materialized"] == 0
 
-    rc = main(["bsearch", "3", "--db", str(db), "--limit", "10", "--json"])
+    rc = main(
+        [
+            "bsearch",
+            "3",
+            "--db",
+            str(db),
+            "--oeis-db",
+            str(tmp_path / "missing-oeis.db"),
+            "--limit",
+            "10",
+            "--json",
+        ]
+    )
     assert rc == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["value"] == "3"
     assert payload["total"] == 1
-    assert payload["matches"] == [{"id": "A000045", "n": 4}]
+    assert payload["cached"] is False
+    assert payload["matches"][0]["id"] == "A000045"
+    assert payload["matches"][0]["n"] == 4
 
 
 def test_cli_bfetch_from_local_base_url(tmp_path: Path, capsys):

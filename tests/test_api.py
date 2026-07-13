@@ -3,7 +3,6 @@ from pathlib import Path
 from oeis_matcher.api import analyze_sequence, match_exact_terms, search_combinations, search_transforms
 from oeis_matcher.build_index import build_index
 from oeis_matcher.models import AnalysisResult
-from oeis_matcher.oeis_data import load_formulas
 
 
 def _make_sample_raw(tmp_path: Path):
