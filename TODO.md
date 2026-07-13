@@ -23,7 +23,7 @@ Archived roadmap: `TODO_v0.5.md`
 - [ ] Exhaustive mode: `--preset max` reliably explores deeper search space within explicit global time/check budgets.
 - [ ] Reproducibility: deterministic outputs under fixed seed/options and pinned DB snapshot.
 - [ ] Reliability: selfcheck + regression suite + random trials are stable and expanded.
-- [ ] Performance: benchmarked and tracked; no unbounded regressions in common workflows.
+- [x] Performance: benchmarked and tracked; no unbounded regressions in common workflows.
 - [ ] UX: startup workflow removes repeated manual venv/data freshness setup.
 - [ ] Docs: v1.0 docs describe guarantees, limits, tuning knobs, and expected runtime tradeoffs.
 
@@ -42,10 +42,10 @@ Complete this gate before declaring the feature-complete phases or milestones do
 - [x] Break up the monolithic CLI command dispatcher and combination-search hotspots only where extraction removes duplication or materially reduces complexity.
 - [x] Remove dead/shadowed code and generated repository artifacts (`$DB`, tracked `*.egg-info`).
 - [x] Repair CLI/API/JSON schema parity and add explicit additive `schema_version` contracts.
-- [ ] Refresh README, FAQ, architecture, preset guidance, reproducibility guidance, changelog, and benchmark results against the consolidated implementation.
+- [x] Refresh README, FAQ, architecture, preset guidance, reproducibility guidance, changelog, and benchmark results against the consolidated implementation.
 - [x] Expand real-snapshot regressions, diversity assertions, transform inverse/property tests, fuzz replay seeds, and machine-readable command contract tests.
-- [ ] Profile current workloads, optimize measured Python/SQLite bottlenecks, and add repeatable performance envelopes before introducing native complexity.
-- [ ] Add deterministic local parallelism and optional acceleration only where benchmarks demonstrate a material end-to-end win.
+- [x] Profile current workloads, optimize measured Python/SQLite bottlenecks, and add repeatable performance envelopes before introducing native complexity.
+- [x] Evaluate deterministic local parallelism and optional acceleration; measured in-engine probes did not clear the 20% material-win threshold, so v1.0 keeps the simpler serial path.
 - [ ] Audit full-corpus b-file indexing/search for duplicate auxiliary files, resumability, storage cost, and useful result ranking; then build and smoke-test the local b-file index.
 - [ ] Complete an end-to-end v1.0 release audit with the full suite, selfcheck, representative preset runs, schemas, docs, and packaging verified.
 
@@ -142,6 +142,8 @@ Complete this gate before declaring the feature-complete phases or milestones do
 
 ### 2.3 Parallel/distributed local execution
 
+v1.0 decision: same-process threads regressed the representative workload and a fresh process pool improved it by only 14%; implementation is deferred until a workload demonstrates a material end-to-end win.
+
 - [ ] Add safe local parallelism for expensive independent search branches.
 - [ ] Add deterministic merge ordering for parallel result streams.
 - [ ] Add CPU pinning / worker caps in CLI for reproducible benchmarking.
@@ -154,7 +156,7 @@ Complete this gate before declaring the feature-complete phases or milestones do
 
 - [ ] Profile hot loops and move bottlenecks to vectorized/natively compiled paths.
 - [ ] Add optional `numpy`/`numba` accelerated kernels for transform and combo primitives (first acceleration path).
-- [ ] Add cache strategy for repeated transformed/candidate vectors.
+- [x] Add cache strategy for repeated transformed/candidate vectors.
 
 ### 3.2 Native extension path
 
@@ -164,9 +166,9 @@ Complete this gate before declaring the feature-complete phases or milestones do
 
 ### 3.3 Tool-assisted workflows
 
-- [ ] Add optional benchmark harness using `hyperfine` for repeatable local perf checks.
-- [ ] Add scripts to compare perf across presets and DB sizes.
-- [ ] Keep results versioned under `docs/benchmarks.md` updates.
+- [x] Add optional benchmark harness using `hyperfine` for repeatable local perf checks.
+- [x] Add scripts to compare perf across presets and DB sizes.
+- [x] Keep results versioned under `docs/benchmarks.md` updates.
 
 ---
 
@@ -186,9 +188,9 @@ Complete this gate before declaring the feature-complete phases or milestones do
 
 ### 4.3 Performance regression gates
 
-- [ ] Define baseline timing envelopes for representative workloads.
-- [ ] Add CI/per-commit smoke thresholds and local "strict perf" mode.
-- [ ] Flag worst-case explosion scenarios explicitly in tests/docs.
+- [x] Define baseline timing envelopes for representative workloads.
+- [x] Add CI/per-commit smoke thresholds and local "strict perf" mode.
+- [x] Flag worst-case explosion scenarios explicitly in tests/docs.
 
 ---
 

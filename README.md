@@ -237,7 +237,8 @@ See `docs/architecture.md` for the current data flow, storage schema, and key st
 See `docs/FAQ.md` for limits and performance tips.
 
 ## Benchmarks / Profiling
-- `scripts/bench.py` times a few common cases (after building the DB).
+- `scripts/bench.py --repeats 5 --strict` runs the maintained local performance gate.
+- `scripts/bench_hyperfine.sh /tmp/oeis-hyperfine.json` compares CLI startup and `fast`/`deep` presets; set `OEIS_BENCH_CPU=0` for CPU pinning.
 - `scripts/bench_sweep.py --repeats 5` runs small sweeps (transform families/depth, combo bucket size/shift ranges).
 - `scripts/bench_build.py --stripped data/raw/stripped.gz --names data/raw/names.gz --keywords data/raw/keywords.txt --db /tmp/oeis_bench.db` measures build time/size.
 - `scripts/profile_matchers.py --profile out.pstats --sort tottime` helps identify hotspots for specific cases.

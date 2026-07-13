@@ -1,45 +1,35 @@
-# Profiling / Hotspots
+# Profiling and performance gates
 
-This project is designed to run fully offline after `oeis sync` + `oeis build-index`.
-
-When performance regresses, it’s usually because of one of:
-- subsequence scans on very short queries (less pruning),
-- `--combo-unfiltered` + short queries (large candidate buckets),
-- expanded DB-wide combo fallback under `--preset max` (intentionally wide search).
-
-## Quick timings
-
-Use `scripts/bench.py` for a quick smoke check on your machine:
+Run the maintained local gate first:
 
 ```bash
-python scripts/bench.py
+python scripts/bench.py --repeats 5 --strict
 ```
 
-## cProfile (pstats)
+It uses `docs/perf_envelopes.json` and exits nonzero on regression. Use `--json` for machine-readable results. The normal test suite also has a generous mini-DB smoke threshold in `tests/test_perf_smoke.py`.
 
-Run a few canned cases and write cProfile output:
+For CLI startup and preset comparisons:
 
 ```bash
-python scripts/profile_matchers.py --profile out.pstats --sort tottime
+scripts/bench_hyperfine.sh /tmp/oeis-hyperfine.json
+OEIS_BENCH_CPU=0 OEIS_BENCH_RUNS=12 scripts/bench_hyperfine.sh /tmp/pinned.json
 ```
 
-Then inspect the profile:
+For a call profile:
 
 ```bash
-python -m pstats out.pstats
+python scripts/profile_matchers.py --case "Transform short" \
+  --profile /tmp/oeis.pstats --sort cumulative
+python -m pstats /tmp/oeis.pstats
 ```
 
-Or (optional, external) use a GUI viewer like `snakeviz`:
+Use `scripts/bench_sweep.py --repeats 5` for transform-depth and candidate/shift scaling, and `scripts/bench_build.py` for full-snapshot build time and size.
 
-```bash
-snakeviz out.pstats
-```
+Interpret the dominant frame before changing code:
 
-## What to look for
+- SQLite fetch/filter time usually calls for a better indexed query or avoiding record parsing.
+- Combination-loop time should first be controlled with candidate, shift, check, and wall-time caps.
+- Transform enumeration should first be controlled with depth, vocabulary, and complexity guards.
+- Expanded prefix-index construction is intentionally exhaustive and memory-heavy; do not hide it behind an unbounded fallback.
 
-- If the hot path is *SQLite fetch*, consider whether you’re triggering full scans (e.g. very short queries).
-- If the hot path is *combination loops*, reduce candidate caps / shift ranges, or disable expanded fallback.
-- If the hot path is *transform enumeration*, reduce `--max-depth` or `--extra-transforms`.
-
-Benchmarks and scaling notes live in `docs/benchmarks.md`.
-
+The current before/after evidence, full commands, environment, acceleration decision, and worst cases are recorded in `docs/benchmarks.md`.

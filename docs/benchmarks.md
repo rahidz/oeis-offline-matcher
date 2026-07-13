@@ -1,58 +1,86 @@
-# Benchmarks (Dec 20, 2025)
+# Benchmarks (July 13, 2026)
 
-Environment: Linux (WSL2), Python 3.12.3, local SSD. Data from `data/raw/stripped.gz` and `data/raw/names.gz`; DB built from full snapshot.
+Revision: `0cc05af` on `codex/v1-consolidation`. Snapshot: 397,352 sequences; `oeisdata` commit `7e846541fdca87dc2be0b6324ea96e3057310a24` (2026-07-13).
 
-Note: numbers are *very* sensitive to OS filesystem cache (cold vs warm). Treat these as order-of-magnitude sanity checks, not strict SLAs.
+Environment: WSL2 Linux 6.6.114.1, Python 3.12.3, Intel Core i7-12700 (20 logical CPUs), local SSD. Query numbers below are warm-cache medians unless noted. They are guardrails, not cross-machine SLAs.
 
 ## Build
-- Command: `python scripts/bench_build.py --stripped data/raw/stripped.gz --names data/raw/names.gz --keywords data/raw/keywords.txt --db /tmp/oeis_bench.db`
-- Result: ~19.4s wall, 390,388 sequences inserted, DB size ~212.5 MB at `/tmp/oeis_bench.db`.
 
-## Query microbench (scripts/bench.py)
-Using `data/processed/oeis.db` (warm cache):
-- Exact Fibonacci: ~1.0 ms (exact=10, transforms=0, combos=0)
-- Transform (scale): ~2.0 ms (exact=10, transforms=20, combos=0)
-- Subsequence (offset): ~0.5 ms (exact=10, transforms=0, combos=0)
-- Transform (deep): ~8.2 ms (exact=10, transforms=150, combos=0; depth=2, 2s cap)
-- Combo (small): ~137 ms (exact=10, transforms=10, combos=0)
-- Triple (demo): ~13 ms (exact=1, transforms=10, combos=0)
+```bash
+python scripts/bench_build.py \
+  --stripped data/raw/stripped.gz \
+  --names data/raw/names.gz \
+  --keywords data/raw/keywords.txt \
+  --db /tmp/oeis_bench_v1.db
+```
 
-Subsequence matching is now fast because exact+subsequence matching is pushed into SQLite string predicates (only parsing terms for returned hits).
+Result: 20.6 s inside the harness, 397,352 rows, 331.4 MiB. Building indexes after the bulk insert reduced the same build from 31.3 s to 20.6 s (34%). The optimized working DB is 340 MiB because it acquired the new shifted-prefix indexes incrementally.
 
-## Transform sweep (scripts/bench_sweep.py)
-Command: `python scripts/bench_sweep.py --repeats 5`
+## End-to-end API envelope
 
-| family | depth | #transforms | ms | #hits |
-| --- | --- | --- | --- | --- |
-| affine+shift only | 1 | 7 | 3.1 | 20 |
+Command: `python scripts/bench.py --repeats 5 --strict`. The maintained, deliberately loose failure thresholds live in `docs/perf_envelopes.json`.
+
+| case | median ms | observed range ms | strict envelope ms |
+| --- | ---: | ---: | ---: |
+| Exact Fibonacci | 1.34 | 1.20-1.44 | 25 |
+| Short transform search | 24.43 | 23.68-25.14 | 250 |
+| Subsequence | 0.41 | 0.37-0.47 | 25 |
+| Deep transform search | 25.46 | 24.86-27.48 | 250 |
+| Small pair combination | 9.26 | 9.17-9.56 | 500 |
+| Mod-class decomposition | 6.29 | 6.05-7.07 | 250 |
+
+Strict mode exits nonzero only when a median crosses its envelope. This keeps normal machine noise from breaking the gate while still catching an order-of-magnitude regression.
+
+## CLI process envelope (`hyperfine`)
+
+Command: `OEIS_BENCH_RUNS=5 scripts/bench_hyperfine.sh /tmp/oeis-hyperfine.json`.
+
+| command | mean ms | range ms |
+| --- | ---: | ---: |
+| `oeis match` Fibonacci | 81.0 | 78.7-84.2 |
+| `oeis analyze --fast` pronic | 108.0 | 104.1-114.9 |
+| `oeis analyze --deep --time-cap 10` pronic | 232.9 | 224.2-247.8 |
+
+Set `OEIS_BENCH_CPU=0` to pin commands with `taskset`, and `OEIS_BENCH_RUNS=N` to change the repeat count.
+
+## Kernel sweeps
+
+Command: `python scripts/bench_sweep.py --repeats 5`.
+
+| transform family | depth | transforms | ms | hits |
+| --- | ---: | ---: | ---: | ---: |
+| affine+shift only | 1 | 7 | 1.4 | 20 |
 | basic (+diff,+psum,+abs,+gcd) | 1 | 11 | 2.6 | 20 |
-| basic + (digitsum10, mod2, popcount) | 1 | 14 | 2.6 | 20 |
-| affine+shift only | 2 | 7 | 2.5 | 20 |
-| basic (+diff,+psum,+abs,+gcd) | 2 | 11 | 2.6 | 20 |
-| basic + (digitsum10, mod2, popcount) | 2 | 14 | 2.7 | 20 |
+| basic + digits/mod/popcount | 1 | 14 | 2.9 | 20 |
+| affine+shift only | 2 | 7 | 1.2 | 20 |
+| basic (+diff,+psum,+abs,+gcd) | 2 | 11 | 2.5 | 20 |
+| basic + digits/mod/popcount | 2 | 14 | 3.0 | 20 |
 
-## Combo sweep (scripts/bench_sweep.py)
-Synthetic candidates (deterministic), measuring scaling with candidate bucket size and shift range.
+Synthetic pair-combination scaling:
 
-| candidates | max_shift | alignments | ms | #hits |
-| --- | --- | --- | --- | --- |
-| 20 | 0 | 190 | 0.3 | 1 |
-| 20 | 1 | 760 | 0.8 | 1 |
-| 20 | 2 | 1710 | 1.8 | 1 |
-| 20 | 3 | 3040 | 3.1 | 1 |
-| 40 | 0 | 780 | 1.0 | 1 |
-| 40 | 1 | 3120 | 3.3 | 1 |
-| 40 | 2 | 7020 | 7.3 | 1 |
-| 40 | 3 | 12480 | 11.9 | 1 |
-| 80 | 0 | 3160 | 3.8 | 1 |
-| 80 | 1 | 12640 | 13.0 | 1 |
-| 80 | 2 | 28440 | 27.9 | 1 |
-| 80 | 3 | 50560 | 48.7 | 1 |
+| candidates | max shift | alignments | ms |
+| ---: | ---: | ---: | ---: |
+| 20 | 0 | 190 | 0.3 |
+| 20 | 3 | 3,040 | 2.9 |
+| 40 | 0 | 780 | 1.0 |
+| 40 | 3 | 12,480 | 12.1 |
+| 80 | 0 | 3,160 | 3.9 |
+| 80 | 3 | 50,560 | 50.4 |
 
-## Profiles (scripts/profile_matchers.py)
-If you see a perf regression, prefer running:
-- `python scripts/profile_matchers.py --profile out.pstats --sort tottime`
+## Profile-driven changes
 
-## Notes / follow-ups
-- For real-world workloads, the biggest remaining runtime risks are `--combo-unfiltered` + short queries (candidate explosion), and expanded DB-wide combo fallback when `--preset max` enables it.
-- Future speedups likely come from deeper indexing (e.g., windowed-subsequence indexes) or compiled/vectorized inner loops once the heuristics stabilize.
+- Short transformed queries previously fell back to parsing thousands of full records. Reusing the SQLite exact matcher reduced the representative warm case from about 188 ms to 24 ms while restoring deterministic ID ordering.
+- Mod-class search previously materialized a DB-wide shifted-prefix map before looking up a few keys. Indexed SQLite lookups reduced the representative profile from its 3 s cap to about 12 ms cold-profiled / 6 ms warm.
+- Cold SymPy discovery was accidentally invoking a broken Sage editable finder (roughly 9 s and 421 MiB). Suppressing that unrelated finder during discovery reduced the provider import/probe path to hundreds of milliseconds and restored global-budget behavior.
+- Singleton prefix locations no longer allocate a list per key, trimming the exhaustive in-memory index, though DB-wide expanded search remains the principal memory-heavy path.
+
+## Parallel/native acceleration decision
+
+A same-process probe over representative deep transform and combination branches measured 37.8 ms sequential versus 42.5 ms with two threads (0.89x). A fresh two-process fork measured 38.5 ms versus 33.8 ms (1.14x), below the 20% material-win threshold and with extra memory/callback/checkpoint complexity. No parallel, NumPy/Numba, or Rust path is enabled for v1.0; the measured bottlenecks were SQLite access patterns, not a stable numeric kernel.
+
+## Known worst cases
+
+- `max` can build a full shifted-prefix map for expanded pair/pointwise/triple fallbacks. This is bounded by time/check caps but can use several hundred MiB on the full snapshot.
+- `--combo-unfiltered` with short queries widens candidate ranking sharply.
+- `--time-cap` governs analysis work. Python startup, JSON emission, and process teardown are outside that internal budget; exhaustive in-memory indexes can make teardown visibly slower.
+- Wall-time cutoffs can stop at slightly different loop boundaries across machines. Fixed check/candidate caps are the reproducibility boundary.
