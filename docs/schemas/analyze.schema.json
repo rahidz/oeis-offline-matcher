@@ -3,6 +3,7 @@
   "title": "oeis analyze --json output schema",
   "type": "object",
   "required": [
+    "schema_version",
     "query",
     "exact_matches",
     "transform_matches",
@@ -12,9 +13,12 @@
     "modclass_combinations",
     "pointwise_combinations",
     "convolution_combinations",
+    "combined_combinations",
+    "ranked_explanations",
     "diagnostics"
   ],
   "properties": {
+    "schema_version": { "const": 1 },
     "query": {
       "type": "array",
       "items": { "type": ["integer", "null"] }
@@ -51,9 +55,13 @@
       "type": "array",
       "items": { "$ref": "#/$defs/combination" }
     },
+    "combined_combinations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/explanation" }
+    },
     "ranked_explanations": {
       "type": "array",
-      "items": { "type": "object", "additionalProperties": true }
+      "items": { "$ref": "#/$defs/explanation" }
     },
     "diagnostics": {
       "type": "object",
@@ -72,13 +80,13 @@
         "length": { "type": "integer" },
         "score": { "type": ["number", "null"] },
         "transform": { "type": "string" },
-        "explanation": { "type": "string" },
-        "latex": { "type": "string" },
-        "symbolic": { "type": "string" },
-        "symbolic_latex": { "type": "string" },
-        "formula": { "type": "string" },
+        "explanation": { "type": ["string", "null"] },
+        "latex": { "type": ["string", "null"] },
+        "symbolic": { "type": ["string", "null"] },
+        "symbolic_latex": { "type": ["string", "null"] },
+        "formula": { "type": ["string", "null"] },
         "terms": { "type": "array", "items": { "type": "integer" } },
-        "transformed_terms": { "type": "array", "items": { "type": "integer" } }
+        "transformed_terms": { "type": ["array", "null"], "items": { "type": "integer" } }
       },
       "additionalProperties": true
     },
@@ -106,12 +114,23 @@
         "length": { "type": "integer" },
         "score": { "type": "number" },
         "expression": { "type": "string" },
-        "component_transforms": { "type": "array", "items": { "type": "string" } },
-        "component_terms": { "type": "array", "items": { "type": "array", "items": { "type": "integer" } } },
-        "combined_terms": { "type": "array", "items": { "type": "integer" } },
+        "component_transforms": { "type": ["array", "null"], "items": { "type": "string" } },
+        "component_terms": { "type": ["array", "null"], "items": { "type": "array", "items": { "type": "integer" } } },
+        "combined_terms": { "type": ["array", "null"], "items": { "type": "integer" } },
         "candidate_provenance": {
-          "type": "array",
+          "type": ["array", "null"],
           "items": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "additionalProperties": true
+    },
+    "explanation": {
+      "type": "object",
+      "required": ["family"],
+      "properties": {
+        "family": {
+          "type": "string",
+          "enum": ["transform", "linear_pair", "linear_triple", "modclass", "pointwise", "convolution"]
         }
       },
       "additionalProperties": true

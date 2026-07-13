@@ -7,9 +7,8 @@ import math
 
 from .matcher import DBExactMatcher, match_exact, candidate_sequences
 from .models import Match, SequenceQuery, SequenceRecord
-from .storage import iter_sequences, iter_sequences_by_prefix, invariant_stats
+from .storage import invariant_stats
 from .transforms import Transform, apply_chain, default_transforms, enumerate_chains, describe_chain
-from .storage import SequenceRecord as _SeqRec  # type alias for hints
 
 def _popularity_bonus(keywords: list[str] | None, weights: dict[str, float] | None) -> float:
     if not keywords or not weights:
@@ -279,7 +278,6 @@ def search_transform_matches(
     # huge intermediate result lists when running in full_scan mode.
     best_by_key: dict[tuple[str, str], Match] = {}
     seen_keys: set[tuple] = set()
-    all_zero_query = all(v == 0 for v in query.terms)
     q_terms_no_none = [v for v in query.terms if v is not None]
     q_distinct = len(set(q_terms_no_none))
     q_var = _variance(q_terms_no_none) if q_terms_no_none else None

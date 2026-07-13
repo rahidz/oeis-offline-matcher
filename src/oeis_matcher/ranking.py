@@ -4,10 +4,10 @@ from dataclasses import dataclass
 from pathlib import Path
 import time
 import heapq
-from typing import Callable, Iterable, List, Sequence
+from typing import Callable, List
 
 from .matcher import candidate_sequences
-from .models import Match, SequenceQuery, SequenceRecord
+from .models import SequenceQuery, SequenceRecord
 from .similarity import correlation, mse_after_scale_offset
 
 
@@ -59,8 +59,6 @@ def rank_candidates_for_query(
         limit=candidate_limit,
     )
     q_terms = query.terms
-    q_len = len(q_terms)
-
     # Keep only the top-k candidates as we stream, to avoid holding/sorting O(N)
     # candidates for wide filters.
     heap: list[tuple[tuple[float, float, str], ScoredCandidate]] = []

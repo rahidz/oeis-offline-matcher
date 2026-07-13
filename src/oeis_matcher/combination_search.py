@@ -395,6 +395,17 @@ class ComponentTransform:
     weight: float = 0.0
 
 
+class _TransformedSequenceCache:
+    def __init__(self) -> None:
+        self._values: dict[tuple[str, str], list[int]] = {}
+
+    def get(self, record: SequenceRecord, transform: ComponentTransform) -> list[int]:
+        key = (record.id, transform.name)
+        if key not in self._values:
+            self._values[key] = transform.func(record.terms)
+        return self._values[key]
+
+
 def _default_component_transforms() -> list[ComponentTransform]:
     return [
         ComponentTransform("id", lambda seq: seq, weight=0.0),
@@ -568,6 +579,60 @@ def _canonicalize_components(
     t_names2 = tuple(t_names[i] for i in order)
     terms2 = tuple(component_terms[i] for i in order) if component_terms is not None else None
     return (ids2, names2, coeffs2, shifts2, t_names2, terms2)
+
+
+def _build_linear_match(
+    records: Sequence[SequenceRecord],
+    coeffs: Sequence,
+    shifts: Sequence[int],
+    transform_names: Sequence[str],
+    transform_weights: Sequence[float],
+    aligned_terms: Sequence[Sequence[int]],
+    target_terms: Sequence[int],
+    *,
+    length: int,
+    snippet_len: int | None,
+    min_score: float | None,
+    max_complexity: float | None,
+) -> CombinationMatch | None:
+    if max_complexity is not None and _combo_complexity(coeffs, shifts, t_weights=transform_weights) > max_complexity:
+        return None
+    score = _combo_score(
+        length,
+        coeffs,
+        shifts,
+        t_weights=transform_weights,
+        pop_bonus=_popularity_bonus(records),
+    )
+    if min_score is not None and score < min_score:
+        return None
+
+    component_terms = combined_terms = None
+    if snippet_len is not None:
+        size = min(snippet_len, length)
+        component_terms = tuple(list(terms[:size]) for terms in aligned_terms)
+        combined_terms = list(target_terms[:size])
+    ids, names, coeffs, shifts, transform_names, component_terms = _canonicalize_components(
+        ids=tuple(record.id for record in records),
+        names=tuple(record.name for record in records),
+        coeffs=coeffs,
+        shifts=shifts,
+        t_names=transform_names,
+        component_terms=component_terms,
+    )
+    return CombinationMatch(
+        ids=ids,
+        names=names,
+        coeffs=coeffs,
+        shifts=shifts,
+        length=length,
+        score=score,
+        expression=_format_expr(ids, coeffs, shifts, transform_names),
+        latex_expression=_format_latex(ids, coeffs, shifts, transform_names),
+        component_transforms=transform_names,
+        component_terms=component_terms,
+        combined_terms=combined_terms,
+    )
 
 
 def _format_pointwise_expr(op: str, ids: Sequence[str], shifts: Sequence[int], t_names: Sequence[str]) -> str:
@@ -1092,17 +1157,7 @@ def search_two_sequence_combinations(
 
     shift_vals = _shift_values(max_shift, max_shift_back)
     transforms = list(component_transforms or [t for t in _default_component_transforms() if t.name == "id"])
-    # Avoid recomputing per-record transforms inside the nested combination loops.
-    transformed: dict[tuple[str, str], list[int]] = {}
-
-    def _get_transformed(rec: SequenceRecord, t: ComponentTransform) -> list[int]:
-        key = (rec.id, t.name)
-        cached = transformed.get(key)
-        if cached is not None:
-            return cached
-        seq = t.func(rec.terms)
-        transformed[key] = seq
-        return seq
+    transformed = _TransformedSequenceCache()
 
     if snippet_len is None:
         snippet_len = len(query.terms)
@@ -1117,11 +1172,11 @@ def search_two_sequence_combinations(
     # self-pairs below.
     for rec1, rec2 in combinations_with_replacement(records, 2):
         for t1 in transforms:
-            seq1 = _get_transformed(rec1, t1)
+            seq1 = transformed.get(rec1, t1)
             for s1 in shift_vals:
                 # If any shift is negative we allow partial overlap; otherwise require full-length match.
                 for t2 in transforms:
-                    seq2 = _get_transformed(rec2, t2)
+                    seq2 = transformed.get(rec2, t2)
                     for s2 in shift_vals:
                         if rec1.id == rec2.id:
                             # Skip identical duplicate components; they only create coefficient-sum variants.
@@ -1163,49 +1218,22 @@ def search_two_sequence_combinations(
                             if key in seen:
                                 continue
                             seen.add(key)
-                            pop_bonus = _popularity_bonus((rec1, rec2))
-                            t_weights = (t1.weight, t2.weight)
-                            comp_val = _combo_complexity((a, b), (s1, s2), t_weights=t_weights)
-                            if max_complexity is not None and comp_val > max_complexity:
-                                continue
-                            score = _combo_score(match_len, (a, b), (s1, s2), t_weights=t_weights, pop_bonus=pop_bonus)
-                            if min_score is not None and score < min_score:
-                                continue
-                            if snippet_len is None:
-                                comp_terms = None
-                                combined_terms = None
-                            else:
-                                snip = min(snippet_len, match_len)
-                                comp_terms = (slice1[:snip], slice2[:snip])
-                                combined_terms = q_slice[:snip]
-
-                            ids_c, names_c, coeffs_c, shifts_c, tnames_c, comp_terms_c = _canonicalize_components(
-                                ids=(rec1.id, rec2.id),
-                                names=(rec1.name, rec2.name),
+                            m = _build_linear_match(
+                                (rec1, rec2),
                                 coeffs=(a, b),
                                 shifts=(s1, s2),
-                                t_names=(t1.name, t2.name),
-                                component_terms=comp_terms,
+                                transform_names=(t1.name, t2.name),
+                                transform_weights=(t1.weight, t2.weight),
+                                aligned_terms=(slice1, slice2),
+                                target_terms=q_slice,
+                                length=match_len,
+                                snippet_len=snippet_len,
+                                min_score=min_score,
+                                max_complexity=max_complexity,
                             )
-                            expr = _format_expr(ids_c, coeffs_c, shifts_c, tnames_c)
-                            latex = _format_latex(ids_c, coeffs_c, shifts_c, tnames_c)
-
-                            results.append(
-                                (m := CombinationMatch(
-                                    ids=ids_c,
-                                    names=names_c,
-                                    coeffs=coeffs_c,
-                                    shifts=shifts_c,
-                                    length=match_len,
-                                    score=score,
-                                    expression=expr,
-                                    latex_expression=latex,
-                                    component_transforms=tnames_c,
-                                    component_terms=comp_terms_c,
-                                    combined_terms=combined_terms,
-                                )
-                            )
-                            )
+                            if m is None:
+                                continue
+                            results.append(m)
                             if on_match is not None:
                                 on_match(m)
                             continue
@@ -1328,52 +1356,25 @@ def search_two_sequence_combinations(
                                 if key in seen:
                                     continue
                                 seen.add(key)
-                                pop_bonus = _popularity_bonus((rec1, rec2))
-                                t_weights = (t1.weight, t2.weight)
-                                comp_val = _combo_complexity((a, b), (s1, s2), t_weights=t_weights)
-                                if max_complexity is not None and comp_val > max_complexity:
-                                    continue
-                                score = _combo_score(match_len, (a, b), (s1, s2), t_weights=t_weights, pop_bonus=pop_bonus)
-                                if min_score is not None and score < min_score:
-                                    continue
-                                if snippet_len is None:
-                                    comp_terms = None
-                                    combined_terms = None
-                                else:
-                                    snip = min(snippet_len, match_len)
-                                    comp_terms = (
-                                        seq1[s1_start : s1_start + snip],
-                                        seq2[s2_start : s2_start + snip],
-                                    )
-                                    combined_terms = query.terms[q_start : q_start + snip]
-
-                                ids_c, names_c, coeffs_c, shifts_c, tnames_c, comp_terms_c = _canonicalize_components(
-                                    ids=(rec1.id, rec2.id),
-                                    names=(rec1.name, rec2.name),
+                                m = _build_linear_match(
+                                    (rec1, rec2),
                                     coeffs=(a, b),
                                     shifts=(s1, s2),
-                                    t_names=(t1.name, t2.name),
-                                    component_terms=comp_terms,
+                                    transform_names=(t1.name, t2.name),
+                                    transform_weights=(t1.weight, t2.weight),
+                                    aligned_terms=(
+                                        seq1[s1_start : s1_start + match_len],
+                                        seq2[s2_start : s2_start + match_len],
+                                    ),
+                                    target_terms=query.terms[q_start : q_start + match_len],
+                                    length=match_len,
+                                    snippet_len=snippet_len,
+                                    min_score=min_score,
+                                    max_complexity=max_complexity,
                                 )
-                                expr = _format_expr(ids_c, coeffs_c, shifts_c, tnames_c)
-                                latex = _format_latex(ids_c, coeffs_c, shifts_c, tnames_c)
-
-                                results.append(
-                                    (m := CombinationMatch(
-                                        ids=ids_c,
-                                        names=names_c,
-                                        coeffs=coeffs_c,
-                                        shifts=shifts_c,
-                                        length=match_len,
-                                        score=score,
-                                        expression=expr,
-                                        latex_expression=latex,
-                                        component_transforms=tnames_c,
-                                        component_terms=comp_terms_c,
-                                        combined_terms=combined_terms,
-                                    )
-                                )
-                                )
+                                if m is None:
+                                    continue
+                                results.append(m)
                                 if on_match is not None:
                                     on_match(m)
                                 continue
@@ -1414,52 +1415,25 @@ def search_two_sequence_combinations(
                                     if key in seen:
                                         continue
                                     seen.add(key)
-                                    pop_bonus = _popularity_bonus((rec1, rec2))
-                                    t_weights = (t1.weight, t2.weight)
-                                    comp_val = _combo_complexity((a, b), (s1, s2), t_weights=t_weights)
-                                    if max_complexity is not None and comp_val > max_complexity:
-                                        continue
-                                    score = _combo_score(match_len, (a, b), (s1, s2), t_weights=t_weights, pop_bonus=pop_bonus)
-                                    if min_score is not None and score < min_score:
-                                        continue
-                                    if snippet_len is None:
-                                        comp_terms = None
-                                        combined_terms = None
-                                    else:
-                                        snip = min(snippet_len, match_len)
-                                        comp_terms = (
-                                            seq1[s1_start : s1_start + snip],
-                                            seq2[s2_start : s2_start + snip],
-                                        )
-                                        combined_terms = query.terms[q_start : q_start + snip]
-
-                                    ids_c, names_c, coeffs_c, shifts_c, tnames_c, comp_terms_c = _canonicalize_components(
-                                        ids=(rec1.id, rec2.id),
-                                        names=(rec1.name, rec2.name),
+                                    m = _build_linear_match(
+                                        (rec1, rec2),
                                         coeffs=(a, b),
                                         shifts=(s1, s2),
-                                        t_names=(t1.name, t2.name),
-                                        component_terms=comp_terms,
+                                        transform_names=(t1.name, t2.name),
+                                        transform_weights=(t1.weight, t2.weight),
+                                        aligned_terms=(
+                                            seq1[s1_start : s1_start + match_len],
+                                            seq2[s2_start : s2_start + match_len],
+                                        ),
+                                        target_terms=query.terms[q_start : q_start + match_len],
+                                        length=match_len,
+                                        snippet_len=snippet_len,
+                                        min_score=min_score,
+                                        max_complexity=max_complexity,
                                     )
-                                    expr = _format_expr(ids_c, coeffs_c, shifts_c, tnames_c)
-                                    latex = _format_latex(ids_c, coeffs_c, shifts_c, tnames_c)
-
-                                    results.append(
-                                        (m := CombinationMatch(
-                                            ids=ids_c,
-                                            names=names_c,
-                                            coeffs=coeffs_c,
-                                            shifts=shifts_c,
-                                            length=match_len,
-                                            score=score,
-                                            expression=expr,
-                                            latex_expression=latex,
-                                            component_transforms=tnames_c,
-                                            component_terms=comp_terms_c,
-                                            combined_terms=combined_terms,
-                                        )
-                                    )
-                                    )
+                                    if m is None:
+                                        continue
+                                    results.append(m)
                                     if on_match is not None:
                                         on_match(m)
 
@@ -1609,16 +1583,7 @@ def search_pointwise_two_sequence_combinations(
 
     shift_vals = range(-max_shift_back, max_shift + 1)
     transforms = list(component_transforms or [t for t in _default_component_transforms() if t.name == "id"])
-    transformed: dict[tuple[str, str], list[int]] = {}
-
-    def _get_transformed(rec: SequenceRecord, t: ComponentTransform) -> list[int]:
-        key = (rec.id, t.name)
-        cached = transformed.get(key)
-        if cached is not None:
-            return cached
-        seq = t.func(rec.terms)
-        transformed[key] = seq
-        return seq
+    transformed = _TransformedSequenceCache()
 
     if snippet_len is None:
         snippet_len = len(query.terms)
@@ -1626,10 +1591,10 @@ def search_pointwise_two_sequence_combinations(
     for rec1, rec2 in combinations_with_replacement(records, 2):
         same_rec = rec1.id == rec2.id
         for t1 in transforms:
-            seq1 = _get_transformed(rec1, t1)
+            seq1 = transformed.get(rec1, t1)
             for s1 in shift_vals:
                 for t2 in transforms:
-                    seq2 = _get_transformed(rec2, t2)
+                    seq2 = transformed.get(rec2, t2)
                     for s2 in shift_vals:
                         if same_rec:
                             # Avoid symmetric duplicates for self-pairs, where multiplication/gcd/lcm are commutative.
@@ -2067,16 +2032,7 @@ def search_convolution_two_sequence_combinations(
     t_start = time_fn()
 
     transforms = list(component_transforms or [t for t in _default_component_transforms() if t.name == "id"])
-    transformed: dict[tuple[str, str], list[int]] = {}
-
-    def _get_transformed(rec: SequenceRecord, t: ComponentTransform) -> list[int]:
-        key = (rec.id, t.name)
-        cached = transformed.get(key)
-        if cached is not None:
-            return cached
-        seq = t.func(rec.terms)
-        transformed[key] = seq
-        return seq
+    transformed = _TransformedSequenceCache()
 
     if snippet_len is None:
         snippet_len = len(query.terms)
@@ -2084,7 +2040,7 @@ def search_convolution_two_sequence_combinations(
     for rec1, rec2 in combinations_with_replacement(records, 2):
         same_rec = rec1.id == rec2.id
         for t1 in transforms:
-            seq1 = _get_transformed(rec1, t1)
+            seq1 = transformed.get(rec1, t1)
             for t2 in transforms:
                 if same_rec:
                     # Avoid symmetric duplicates for self-pairs (A * B == B * A).
@@ -2092,7 +2048,7 @@ def search_convolution_two_sequence_combinations(
                     key2 = (t2.weight, t2.name)
                     if key1 > key2:
                         continue
-                seq2 = _get_transformed(rec2, t2)
+                seq2 = transformed.get(rec2, t2)
                 for op in ops:
                     if max_time_s is not None and (time_fn() - t_start) > max_time_s:
                         return _sorted_and_trim(results, limit)
@@ -2208,16 +2164,7 @@ def search_three_sequence_combinations(
 
     shift_vals = _shift_values(max_shift, max_shift_back)
     transforms = list(component_transforms or [t for t in _default_component_transforms() if t.name == "id"])
-    transformed: dict[tuple[str, str], list[int]] = {}
-
-    def _get_transformed(rec: SequenceRecord, t: ComponentTransform) -> list[int]:
-        key = (rec.id, t.name)
-        cached = transformed.get(key)
-        if cached is not None:
-            return cached
-        seq = t.func(rec.terms)
-        transformed[key] = seq
-        return seq
+    transformed = _TransformedSequenceCache()
 
     if snippet_len is None:
         snippet_len = len(query.terms)
@@ -2357,45 +2304,22 @@ def search_three_sequence_combinations(
                                             continue
                                         seen.add(key)
 
-                                        pop_bonus = _popularity_bonus((rec1, rec2, rec3))
-                                        score = _combo_score(match_len, (a, b, c), (0, 0, 0), t_weights=(0.0, 0.0, 0.0), pop_bonus=pop_bonus)
-                                        if min_score is not None and score < min_score:
-                                            continue
-
-                                        if snippet_len is None:
-                                            comp_terms = None
-                                            combined_terms = None
-                                        else:
-                                            snip = min(snippet_len, match_len)
-                                            comp_terms = (s1[:snip], s2[:snip], s3[:snip])
-                                            combined_terms = q[:snip]
-
-                                        ids_c, names_c, coeffs_c, shifts_c, tnames_c, comp_terms_c = _canonicalize_components(
-                                            ids=(rec1.id, rec2.id, rec3.id),
-                                            names=(rec1.name, rec2.name, rec3.name),
+                                        m = _build_linear_match(
+                                            (rec1, rec2, rec3),
                                             coeffs=(a, b, c),
                                             shifts=(0, 0, 0),
-                                            t_names=("id", "id", "id"),
-                                            component_terms=comp_terms,
+                                            transform_names=("id", "id", "id"),
+                                            transform_weights=(0.0, 0.0, 0.0),
+                                            aligned_terms=(s1, s2, s3),
+                                            target_terms=q,
+                                            length=match_len,
+                                            snippet_len=snippet_len,
+                                            min_score=min_score,
+                                            max_complexity=max_complexity,
                                         )
-                                        expr = _format_expr(ids_c, coeffs_c, shifts_c, tnames_c)
-                                        latex = _format_latex(ids_c, coeffs_c, shifts_c, tnames_c)
-
-                                        results.append(
-                                            (m := CombinationMatch(
-                                                ids=ids_c,
-                                                names=names_c,
-                                                coeffs=coeffs_c,
-                                                shifts=shifts_c,
-                                                length=match_len,
-                                                score=score,
-                                                expression=expr,
-                                                latex_expression=latex,
-                                                component_transforms=tnames_c,
-                                                component_terms=comp_terms_c,
-                                                combined_terms=combined_terms,
-                                            ))
-                                        )
+                                        if m is None:
+                                            continue
+                                        results.append(m)
                                         if on_match is not None:
                                             on_match(m)
                                         if limit and len(results) >= limit:
@@ -2406,13 +2330,13 @@ def search_three_sequence_combinations(
     )
     for rec1, rec2, rec3 in record_triples:
         for t1 in transforms:
-            seq1 = _get_transformed(rec1, t1)
+            seq1 = transformed.get(rec1, t1)
             for s1 in shift_vals:
                 for t2 in transforms:
-                    seq2 = _get_transformed(rec2, t2)
+                    seq2 = transformed.get(rec2, t2)
                     for s2 in shift_vals:
                         for t3 in transforms:
-                            seq3 = _get_transformed(rec3, t3)
+                            seq3 = transformed.get(rec3, t3)
                             for s3 in shift_vals:
                                 # Symmetry guards for repeated component ids.
                                 if rec1.id == rec2.id and (t1.name, s1) > (t2.name, s2):
@@ -2605,56 +2529,28 @@ def search_three_sequence_combinations(
                                     if key in seen:
                                         continue
                                     seen.add(key)
-                                    pop_bonus = _popularity_bonus((rec1, rec2, rec3))
                                     coeff_tuple = (a, b, c)
                                     shift_tuple = (s1, s2, s3)
-                                    t_weights = (t1.weight, t2.weight, t3.weight)
-                                    t_names = (t1.name, t2.name, t3.name)
-                                    comp_val = _combo_complexity(coeff_tuple, shift_tuple, t_weights=t_weights)
-                                    if max_complexity is not None and comp_val > max_complexity:
-                                        continue
-                                    score = _combo_score(match_len, coeff_tuple, shift_tuple, t_weights=t_weights, pop_bonus=pop_bonus)
-                                    if min_score is not None and score < min_score:
-                                        continue
-                                    if snippet_len is None:
-                                        comp_terms = None
-                                        combined_terms = None
-                                    else:
-                                        snip = min(snippet_len, match_len)
-                                        comp_terms = (
-                                            seq1[s1_start : s1_start + snip],
-                                            seq2[s2_start : s2_start + snip],
-                                            seq3[s3_start : s3_start + snip],
-                                        )
-                                        combined_terms = query.terms[q_start : q_start + snip]
-
-                                    ids_c, names_c, coeffs_c, shifts_c, tnames_c, comp_terms_c = _canonicalize_components(
-                                        ids=(rec1.id, rec2.id, rec3.id),
-                                        names=(rec1.name, rec2.name, rec3.name),
+                                    m = _build_linear_match(
+                                        (rec1, rec2, rec3),
                                         coeffs=coeff_tuple,
                                         shifts=shift_tuple,
-                                        t_names=t_names,
-                                        component_terms=comp_terms,
+                                        transform_names=(t1.name, t2.name, t3.name),
+                                        transform_weights=(t1.weight, t2.weight, t3.weight),
+                                        aligned_terms=(
+                                            seq1[s1_start : s1_start + match_len],
+                                            seq2[s2_start : s2_start + match_len],
+                                            seq3[s3_start : s3_start + match_len],
+                                        ),
+                                        target_terms=query.terms[q_start : q_start + match_len],
+                                        length=match_len,
+                                        snippet_len=snippet_len,
+                                        min_score=min_score,
+                                        max_complexity=max_complexity,
                                     )
-                                    expr = _format_expr(ids_c, coeffs_c, shifts_c, tnames_c)
-                                    latex = _format_latex(ids_c, coeffs_c, shifts_c, tnames_c)
-
-                                    results.append(
-                                        (m := CombinationMatch(
-                                            ids=ids_c,
-                                            names=names_c,
-                                            coeffs=coeffs_c,
-                                            shifts=shifts_c,
-                                            length=match_len,
-                                            score=score,
-                                            expression=expr,
-                                            latex_expression=latex,
-                                            component_transforms=tnames_c,
-                                            component_terms=comp_terms_c,
-                                            combined_terms=combined_terms,
-                                        )
-                                    )
-                                    )
+                                    if m is None:
+                                        continue
+                                    results.append(m)
                                     if on_match is not None:
                                         on_match(m)
 
@@ -2882,49 +2778,22 @@ def search_two_sequence_combinations_expanded(
 
                                 coeff_tuple = (a, b)
                                 shift_tuple = (s1_shift, s2_shift)
-                                t_names = ("id", "id")
-                                t_weights = (0.0, 0.0)
-
-                                pop_bonus = _popularity_bonus((rec1, rec2))
-                                score = _combo_score(qlen, coeff_tuple, shift_tuple, t_weights=t_weights, pop_bonus=pop_bonus)
-                                if min_score is not None and score < min_score:
-                                    continue
-
-                                if snippet_len is None:
-                                    comp_terms = None
-                                    combined_terms = None
-                                else:
-                                    snip = min(snippet_len, qlen)
-                                    comp_terms = (s1_terms[:snip], s2_terms[:snip])
-                                    combined_terms = q[:snip]
-
-                                ids_c, names_c, coeffs_c, shifts_c, tnames_c, comp_terms_c = _canonicalize_components(
-                                    ids=(id1, id2),
-                                    names=(rec1.name, rec2.name),
+                                m = _build_linear_match(
+                                    (rec1, rec2),
                                     coeffs=coeff_tuple,
                                     shifts=shift_tuple,
-                                    t_names=t_names,
-                                    component_terms=comp_terms,
+                                    transform_names=("id", "id"),
+                                    transform_weights=(0.0, 0.0),
+                                    aligned_terms=(s1_terms, s2_terms),
+                                    target_terms=q,
+                                    length=qlen,
+                                    snippet_len=snippet_len,
+                                    min_score=min_score,
+                                    max_complexity=max_complexity,
                                 )
-                                expr = _format_expr(ids_c, coeffs_c, shifts_c, tnames_c)
-                                latex = _format_latex(ids_c, coeffs_c, shifts_c, tnames_c)
-
-                                results.append(
-                                    (m := CombinationMatch(
-                                        ids=ids_c,
-                                        names=names_c,
-                                        coeffs=coeffs_c,
-                                        shifts=shifts_c,
-                                        length=qlen,
-                                        score=score,
-                                        expression=expr,
-                                        latex_expression=latex,
-                                        component_transforms=tnames_c,
-                                        component_terms=comp_terms_c,
-                                        combined_terms=combined_terms,
-                                    )
-                                )
-                                )
+                                if m is None:
+                                    continue
+                                results.append(m)
                                 if on_match is not None:
                                     on_match(m)
 
@@ -3202,51 +3071,22 @@ def search_three_sequence_combinations_expanded(
 
                                 coeff_tuple = (a, b, c3)
                                 shift_tuple = (0, 0, 0)
-                                t_names = ("id", "id", "id")
-                                t_weights = (0.0, 0.0, 0.0)
-                                comp_val = _combo_complexity(coeff_tuple, shift_tuple, t_weights=t_weights)
-                                if max_complexity is not None and comp_val > max_complexity:
-                                    continue
-                                pop_bonus = _popularity_bonus((rec1, rec2, rec3))
-                                score = _combo_score(qlen, coeff_tuple, shift_tuple, t_weights=t_weights, pop_bonus=pop_bonus)
-                                if min_score is not None and score < min_score:
-                                    continue
-
-                                if snippet_len is None:
-                                    comp_terms = None
-                                    combined_terms = None
-                                else:
-                                    snip = min(snippet_len, qlen)
-                                    comp_terms = (rec1.terms[:snip], rec2.terms[:snip], rec3.terms[:snip])
-                                    combined_terms = q[:snip]
-
-                                ids_c, names_c, coeffs_c, shifts_c, tnames_c, comp_terms_c = _canonicalize_components(
-                                    ids=(id1, id2, id3),
-                                    names=(rec1.name, rec2.name, rec3.name),
+                                m = _build_linear_match(
+                                    (rec1, rec2, rec3),
                                     coeffs=coeff_tuple,
                                     shifts=shift_tuple,
-                                    t_names=t_names,
-                                    component_terms=comp_terms,
+                                    transform_names=("id", "id", "id"),
+                                    transform_weights=(0.0, 0.0, 0.0),
+                                    aligned_terms=(s1, s2, s3),
+                                    target_terms=q,
+                                    length=qlen,
+                                    snippet_len=snippet_len,
+                                    min_score=min_score,
+                                    max_complexity=max_complexity,
                                 )
-                                expr = _format_expr(ids_c, coeffs_c, shifts_c, tnames_c)
-                                latex = _format_latex(ids_c, coeffs_c, shifts_c, tnames_c)
-
-                                results.append(
-                                    (m := CombinationMatch(
-                                        ids=ids_c,
-                                        names=names_c,
-                                        coeffs=coeffs_c,
-                                        shifts=shifts_c,
-                                        length=qlen,
-                                        score=score,
-                                        expression=expr,
-                                        latex_expression=latex,
-                                        component_transforms=tnames_c,
-                                        component_terms=comp_terms_c,
-                                        combined_terms=combined_terms,
-                                    )
-                                )
-                                )
+                                if m is None:
+                                    continue
+                                results.append(m)
                                 if on_match is not None:
                                     on_match(m)
 

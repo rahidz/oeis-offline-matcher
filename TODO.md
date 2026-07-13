@@ -38,10 +38,10 @@ Complete this gate before declaring the feature-complete phases or milestones do
 - [x] Keep the default search CLI preset-first and concise while restoring expert access through `--help-advanced` and hidden-but-supported advanced flags.
 - [x] Ensure `--max` actually enables every intended exhaustive transform/search family, including newly added advanced transforms.
 - [x] Restore a fully green test suite after the CLI contract migration.
-- [ ] Establish one shared analysis orchestration path for CLI and API, including streaming/stage events, budgets, ranking, and result serialization.
-- [ ] Break up the monolithic CLI command dispatcher and combination-search hotspots only where extraction removes duplication or materially reduces complexity.
-- [ ] Remove dead/shadowed code and generated repository artifacts (`$DB`, tracked `*.egg-info`).
-- [ ] Repair CLI/API/JSON schema parity and add explicit additive `schema_version` contracts.
+- [x] Establish one shared analysis orchestration path for CLI and API, including streaming/stage events, budgets, ranking, and result serialization.
+- [x] Break up the monolithic CLI command dispatcher and combination-search hotspots only where extraction removes duplication or materially reduces complexity.
+- [x] Remove dead/shadowed code and generated repository artifacts (`$DB`, tracked `*.egg-info`).
+- [x] Repair CLI/API/JSON schema parity and add explicit additive `schema_version` contracts.
 - [ ] Refresh README, FAQ, architecture, preset guidance, reproducibility guidance, changelog, and benchmark results against the consolidated implementation.
 - [ ] Expand real-snapshot regressions, diversity assertions, transform inverse/property tests, fuzz replay seeds, and machine-readable command contract tests.
 - [ ] Profile current workloads, optimize measured Python/SQLite bottlenecks, and add repeatable performance envelopes before introducing native complexity.

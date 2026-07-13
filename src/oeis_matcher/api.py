@@ -1,40 +1,21 @@
 from __future__ import annotations
 
-from dataclasses import replace
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence
-import time
+from typing import Callable, Dict, Iterable, List, Optional, Sequence
 
 from .config import load_config
-from .matcher import candidate_sequences, match_exact, match_exact_db
-from .models import AnalysisResult, CombinationMatch, Match, SequenceQuery
+from .analysis import AnalysisEvent, AnalysisOptions, attach_candidate_provenance as _attach_candidate_provenance, run_analysis
+from .matcher import match_exact, match_exact_db
+from .models import AnalysisResult, Match, SequenceQuery
 from .query import parse_query
-from .ranking import rank_candidates_for_query
 from .transform_search import search_transform_matches
 from .transforms import default_transforms
 from .candidates import get_candidate_bucket
 from .combination_search import (
-    merge_combination_families,
     resolve_component_transforms,
-    search_convolution_two_sequence_combinations,
-    search_pointwise_two_sequence_combinations,
     search_three_sequence_combinations,
     search_two_sequence_combinations,
 )
-from .similarity import growth_rate
-
-
-def _attach_candidate_provenance(
-    matches: list[CombinationMatch],
-    provenance: dict[str, list[str]] | None,
-) -> list[CombinationMatch]:
-    if not matches or not provenance:
-        return matches
-    out: list[CombinationMatch] = []
-    for m in matches:
-        prov = tuple(tuple(sorted(set(provenance.get(seq_id, [])))) for seq_id in m.ids)
-        out.append(replace(m, candidate_provenance=(prov if any(prov) else None)))
-    return out
 
 
 def _normalize_provider_names(provider_names: Iterable[str] | str | None) -> tuple[str, ...] | None:
@@ -151,6 +132,7 @@ def search_transforms(
     allow_index_square: bool = False,
     allow_prime_index: bool = False,
     allow_constant_outputs: bool = False,
+    on_match: Callable[[Match], None] | None = None,
 ) -> List[Match]:
     cfg = load_config()
     db_path = Path(db_path or cfg["paths"]["db"])
@@ -231,6 +213,7 @@ def search_transforms(
         variance_band=variance_band,
         growth_band=growth_band,
         allow_constant_outputs=allow_constant_outputs,
+        on_match=on_match,
     )
 
 
@@ -401,7 +384,7 @@ def analyze_sequence(
     triple_max_time: float | None = None,
     triple_max_combinations: int | None = None,
     triple_max_shift_back: int = 0,
-    combo_component_transforms: Iterable[str] | None = None,
+    combo_component_transforms: Iterable[str] | str | None = None,
     triple_rational: bool = False,
     combo_allow_self_reference: bool = False,
     combo_min_score: float | None = None,
@@ -409,10 +392,10 @@ def analyze_sequence(
     triple_min_score: float | None = None,
     triple_max_complexity: float | None = None,
     pointwise_limit: int = 0,
-    pointwise_ops: Iterable[str] = (),
+    pointwise_ops: Iterable[str] | str = (),
     pointwise_max_time: float | None = None,
     convolution_limit: int = 0,
-    convolution_ops: Iterable[str] = (),
+    convolution_ops: Iterable[str] | str = (),
     convolution_max_time: float | None = None,
     convolution_max_length: int = 32,
     combined_limit: int | None = None,
@@ -420,6 +403,7 @@ def analyze_sequence(
     fallback_subsequence: bool = True,
     fallback_full_scan: bool = False,
     show_terms: int | None = None,
+    show_formula: bool = True,
     as_dataclass: bool = False,
     collect_timings: bool = False,
     full_transform_scan: bool = False,
@@ -430,334 +414,137 @@ def analyze_sequence(
     combo_discovery_limit: int = 16,
     combo_discovery_max_time: float | None = 2.0,
     combo_discovery_tools: Iterable[str] = ("sympy",),
-    combo_candidate_providers: Iterable[str] | None = None,
+    combo_candidate_providers: Iterable[str] | str | None = None,
     combo_wide_prefilter: bool = False,
-) -> Dict[str, object]:
-    """
-    High-level, deterministic analysis pipeline used by CLI but available as a library call.
-    Returns a dict (default) or AnalysisResult dataclass with exact, transform, similarity, and combination matches.
-    """
+    preset: str | None = None,
+    total_max_time: float | None = None,
+    exact_max_time: float | None = None,
+    similarity_max_time: float | None = None,
+    combo_candidate_max_time: float | None = None,
+    modclass_limit: int = 0,
+    modclass_moduli: Iterable[int] = (2, 3),
+    modclass_max_time: float | None = None,
+    combo_expanded: bool = False,
+    combo_expanded_max_time: float | None = None,
+    combo_expanded_anchors: int = 400,
+    combo_expanded_pointwise: bool | None = None,
+    combo_expanded_pointwise_max_time: float | None = None,
+    rerank: bool | None = None,
+    rerank_limit: int = 0,
+    rerank_default_quota: int = 1,
+    rerank_quotas: dict[str, int] | None = None,
+    exclude_exact_from_derived: bool | None = None,
+    on_event: Callable[[AnalysisEvent], None] | None = None,
+) -> Dict[str, object] | AnalysisResult:
+    """Run the shared exact/transform/similarity/combination analysis pipeline."""
     cfg = load_config()
     db_path = Path(db_path or cfg["paths"]["db"])
+    query = (
+        parse_query(sequence_text, min_match_length=min_match_length, allow_subsequence=allow_subsequence)
+        if isinstance(sequence_text, str)
+        else SequenceQuery(list(sequence_text), min_match_length, allow_subsequence)
+    )
+    snippet_len = show_terms if show_terms is not None else min(len(query.terms), 20)
+    transform_options = dict(transform_args or {})
 
-    if isinstance(sequence_text, str):
-        query = parse_query(sequence_text, min_match_length=min_match_length, allow_subsequence=allow_subsequence)
-    else:
-        query = SequenceQuery(terms=list(sequence_text), min_match_length=min_match_length, allow_subsequence=allow_subsequence)
-
-    timings: dict[str, float] = {}
-    t0 = time.perf_counter()
-
-    def _variance(vals: list[int]) -> float | None:
-        if len(vals) < 2:
-            return None
-        m = sum(vals) / len(vals)
-        return sum((v - m) ** 2 for v in vals) / len(vals)
-
-    # Exact
-    exact = match_exact_db(query, db_path, limit=exact_limit, snippet_len=show_terms)
-    fallback_used = False
-    if not exact and not query.allow_subsequence and fallback_subsequence:
-        fb_query = SequenceQuery(terms=query.terms, min_match_length=min_match_length, allow_subsequence=True)
-        exact = match_exact_db(fb_query, db_path, limit=exact_limit, snippet_len=show_terms)
-        if not exact and fallback_full_scan:
-            from .storage import iter_sequences
-
-            exact = match_exact(fb_query, iter_sequences(db_path), limit=exact_limit, snippet_len=show_terms)
-        fallback_used = bool(exact)
-    if collect_timings:
-        timings["exact_ms"] = 1000 * (time.perf_counter() - t0)
-    t1 = time.perf_counter()
-
-    # Transforms
-    t_args = transform_args or {}
-    snip_len = show_terms if show_terms is not None else (min(len(query.terms), 20) if query.terms else None)
-
-    if transform_limit and transform_limit > 0:
-        t_matches = search_transforms(
+    def run_transforms(max_time: float | None, callback: Callable[[Match], None] | None) -> list[Match]:
+        return search_transforms(
             query.terms,
             db_path=db_path,
             min_match_length=min_match_length,
             allow_subsequence=allow_subsequence,
             max_depth=transform_depth,
             limit=transform_limit,
-            show_terms=snip_len,
+            show_terms=snippet_len,
             full_scan=full_transform_scan,
-            max_time=transform_max_time,
-            **t_args,
+            max_time=max_time,
+            on_match=callback,
+            **transform_options,
         )
-    else:
-        t_matches = []
-    if collect_timings:
-        timings["transform_ms"] = 1000 * (time.perf_counter() - t1)
-    t2 = time.perf_counter()
 
-    sim_matches = rank_candidates_for_query(
-        query,
-        db_path,
-        top_k=similarity,
+    def names(value: Iterable[str] | str | None, default: tuple[str, ...] = ()) -> tuple[str, ...]:
+        if value is None:
+            return default
+        if isinstance(value, str):
+            return tuple(part.strip() for part in value.split(",") if part.strip())
+        return tuple(str(part).strip() for part in value if str(part).strip())
+
+    options = AnalysisOptions(
+        preset=preset,
+        exact_limit=exact_limit,
+        show_terms=show_terms,
+        derived_terms=snippet_len,
+        fallback_subsequence=fallback_subsequence,
+        fallback_full_scan=fallback_full_scan,
+        exact_max_time=exact_max_time,
+        transform_limit=transform_limit,
+        transform_max_time=transform_max_time,
+        similarity_limit=similarity,
+        similarity_max_time=similarity_max_time,
         min_corr=similarity_min_corr,
         max_mse=similarity_max_mse,
         variance_band=variance_band,
         growth_band=growth_band,
-    ) if similarity else []
-    if collect_timings:
-        timings["similarity_ms"] = 1000 * (time.perf_counter() - t2)
-
-    combo_matches = []
-    triple_matches = []
-    pointwise_matches = []
-    convolution_matches = []
-    combined_explanations: list[tuple[str, object]] = []
-    if combos or triples or (pointwise_limit and pointwise_ops) or (convolution_limit and convolution_ops):
-        combo_coeffs_seq = combo_coeffs
-        cap = max(int(combo_candidates or 0), int(triple_candidates or 0))
-        if cap <= 0:
-            cap = max(int(combo_candidates or 0), 1)
-
-        bucket = get_candidate_bucket(
-            query,
-            db_path,
-            exact_limit=cap,
-            similar_limit=cap,
-            max_records=cap,
-            fill_unfiltered=True,
-            skip_prefix_filter=combo_unfiltered,
-            variance_band=variance_band,
-            growth_band=growth_band,
-            enable_discovery=combo_discovery,
-            discovery_limit=combo_discovery_limit,
-            discovery_max_time_s=combo_discovery_max_time,
-            discovery_tools=tuple(combo_discovery_tools),
-            candidate_providers=_normalize_provider_names(combo_candidate_providers),
-            widen_prefilter=combo_wide_prefilter,
-        )
-        if combo_component_transforms is None:
-            comp_names = None
-        elif isinstance(combo_component_transforms, str):
-            comp_names = [t.strip() for t in combo_component_transforms.split(",") if t.strip()]
-        else:
-            comp_names = list(combo_component_transforms)
-        comp_transforms = resolve_component_transforms(comp_names)
-
-        if combos:
-            combo_start = time.perf_counter()
-            combo_matches = search_two_sequence_combinations(
-                query,
-                bucket.records,
-                coeffs=tuple(combo_coeffs_seq),
-                max_shift=combo_max_shift,
-                max_shift_back=combo_max_shift_back,
-                limit=combos,
-                max_candidates=combo_candidates,
-                max_checks=combo_max_checks,
-                max_time_s=combo_max_time,
-                max_combinations=combo_max_combinations,
-                component_transforms=comp_transforms,
-                snippet_len=snip_len,
-                use_rational=combo_rational,
-                min_score=combo_min_score,
-                max_complexity=combo_max_complexity,
-            )
-            combo_matches = _attach_candidate_provenance(combo_matches, bucket.provenance)
-            combo_end = time.perf_counter()
-        else:
-            combo_start = combo_end = None
-
-        if triples:
-            triple_start = time.perf_counter()
-            triple_matches = search_three_sequence_combinations(
-                query,
-                bucket.records,
-                coeffs=tuple(combo_coeffs_seq),
-                max_shift=combo_max_shift,
-                max_shift_back=triple_max_shift_back,
-                limit=triples,
-                max_candidates=triple_candidates,
-                max_checks=triple_max_checks,
-                max_time_s=triple_max_time,
-                max_combinations=triple_max_combinations,
-                component_transforms=comp_transforms,
-                snippet_len=snip_len,
-                use_rational=triple_rational,
-                allow_self_reference=combo_allow_self_reference,
-                min_score=triple_min_score,
-                max_complexity=triple_max_complexity,
-            )
-            triple_matches = _attach_candidate_provenance(triple_matches, bucket.provenance)
-            triple_end = time.perf_counter()
-        else:
-            triple_start = triple_end = None
-
-        pw_ops = []
-        if isinstance(pointwise_ops, str):
-            pw_ops = [t.strip() for t in pointwise_ops.split(",") if t.strip()]
-        else:
-            pw_ops = list(pointwise_ops or ())
-        if pointwise_limit and pw_ops:
-            pw_start = time.perf_counter()
-            pointwise_matches = search_pointwise_two_sequence_combinations(
-                query,
-                bucket.records,
-                ops=tuple(pw_ops),
-                max_shift=combo_max_shift,
-                max_shift_back=combo_max_shift_back,
-                limit=pointwise_limit,
-                max_candidates=combo_candidates,
-                max_checks=combo_max_checks,
-                max_time_s=pointwise_max_time if pointwise_max_time is not None else combo_max_time,
-                component_transforms=comp_transforms,
-                snippet_len=snip_len,
-                min_score=combo_min_score,
-                max_complexity=combo_max_complexity,
-            )
-            pointwise_matches = _attach_candidate_provenance(pointwise_matches, bucket.provenance)
-            pw_end = time.perf_counter()
-        else:
-            pw_start = pw_end = None
-
-        conv_ops = []
-        if isinstance(convolution_ops, str):
-            conv_ops = [t.strip() for t in convolution_ops.split(",") if t.strip()]
-        else:
-            conv_ops = list(convolution_ops or ())
-        if convolution_limit and conv_ops:
-            conv_start = time.perf_counter()
-            convolution_matches = search_convolution_two_sequence_combinations(
-                query,
-                bucket.records,
-                ops=tuple(conv_ops),
-                max_length=int(convolution_max_length),
-                limit=convolution_limit,
-                max_candidates=combo_candidates,
-                max_checks=combo_max_checks,
-                max_time_s=convolution_max_time if convolution_max_time is not None else combo_max_time,
-                component_transforms=comp_transforms,
-                snippet_len=snip_len,
-                min_score=combo_min_score,
-                max_complexity=combo_max_complexity,
-            )
-            convolution_matches = _attach_candidate_provenance(convolution_matches, bucket.provenance)
-            conv_end = time.perf_counter()
-        else:
-            conv_start = conv_end = None
-
-        if collect_timings:
-            if combo_start is not None and combo_end is not None:
-                timings["combination_ms"] = 1000 * (combo_end - combo_start)
-            if triple_start is not None and triple_end is not None:
-                timings["triple_ms"] = 1000 * (triple_end - triple_start)
-            if pw_start is not None and pw_end is not None:
-                timings["pointwise_ms"] = 1000 * (pw_end - pw_start)
-            if conv_start is not None and conv_end is not None:
-                timings["convolution_ms"] = 1000 * (conv_end - conv_start)
-
-    fam_pool = {
-        "linear_pair": combo_matches,
-        "linear_triple": triple_matches,
-        "pointwise": pointwise_matches,
-        "convolution": convolution_matches,
-    }
-    if combined_limit is None:
-        auto_limit = max(int(combos or 0), int(triples or 0), int(pointwise_limit or 0), int(convolution_limit or 0), 0)
-        combined_limit_eff = auto_limit if auto_limit > 0 else None
-    else:
-        try:
-            combined_limit_eff = int(combined_limit)
-        except (TypeError, ValueError):
-            combined_limit_eff = None
-    combined_explanations = merge_combination_families(
-        fam_pool,
-        limit=combined_limit_eff,
-        per_family_quota=max(1, int(combined_family_quota)),
+        modclass_limit=modclass_limit,
+        modclass_moduli=tuple(int(value) for value in modclass_moduli),
+        modclass_max_time=modclass_max_time,
+        combo_limit=combos,
+        triple_limit=triples,
+        pointwise_limit=pointwise_limit,
+        pointwise_ops=names(pointwise_ops),
+        pointwise_max_time=pointwise_max_time,
+        convolution_limit=convolution_limit,
+        convolution_ops=names(convolution_ops),
+        convolution_max_time=convolution_max_time,
+        convolution_max_length=convolution_max_length,
+        combo_coeffs=tuple(combo_coeffs),
+        combo_candidates=combo_candidates,
+        combo_candidate_max_time=combo_candidate_max_time,
+        combo_discovery=combo_discovery,
+        combo_discovery_limit=combo_discovery_limit,
+        combo_discovery_max_time=combo_discovery_max_time,
+        combo_discovery_tools=names(combo_discovery_tools, ("sympy",)),
+        combo_candidate_providers=_normalize_provider_names(combo_candidate_providers),
+        combo_wide_prefilter=combo_wide_prefilter,
+        combo_max_shift=combo_max_shift,
+        combo_max_shift_back=combo_max_shift_back,
+        combo_max_checks=combo_max_checks,
+        combo_max_time=combo_max_time,
+        combo_max_combinations=combo_max_combinations,
+        combo_rational=combo_rational,
+        combo_min_score=combo_min_score,
+        combo_max_complexity=combo_max_complexity,
+        component_transforms=names(combo_component_transforms, ("id",)),
+        triple_candidates=triple_candidates,
+        triple_max_shift_back=triple_max_shift_back,
+        triple_max_checks=triple_max_checks,
+        triple_max_time=triple_max_time,
+        triple_max_combinations=triple_max_combinations,
+        triple_rational=triple_rational,
+        triple_allow_self_reference=combo_allow_self_reference,
+        triple_min_score=triple_min_score,
+        triple_max_complexity=triple_max_complexity,
+        combo_unfiltered=combo_unfiltered,
+        combo_expanded=combo_expanded,
+        combo_expanded_max_time=combo_expanded_max_time,
+        combo_expanded_anchors=combo_expanded_anchors,
+        combo_expanded_pointwise=combo_expanded_pointwise,
+        combo_expanded_pointwise_max_time=combo_expanded_pointwise_max_time,
+        combined_limit=combined_limit,
+        combined_family_quota=combined_family_quota,
+        rerank=rerank,
+        rerank_limit=rerank_limit,
+        rerank_default_quota=rerank_default_quota,
+        rerank_quotas=dict(rerank_quotas or {}),
+        total_max_time=total_max_time,
+        collect_timings=collect_timings,
+        exclude_exact_from_derived=exclude_exact_from_derived,
     )
-
-    similarity_rows = [
-        {
-            "id": c.record.id,
-            "name": c.record.name,
-            "corr": c.corr,
-            "mse": c.mse,
-            "scale": c.scale,
-            "offset": c.offset,
-        }
-        for c in sim_matches
-    ]
-
-    query_var = _variance(query.terms)
-    query_diff_var = _variance([query.terms[i + 1] - query.terms[i] for i in range(len(query.terms) - 1)]) if len(query.terms) > 1 else None
-    query_growth = growth_rate([t for t in query.terms if t is not None])
-
-    diag = {
-        "query_length": len(query.terms),
-        "exact_limit": exact_limit,
-        "transform_limit": transform_limit,
-        "similarity_limit": similarity,
-        "combination_limit": combos,
-        "combo_candidate_cap": combo_candidates,
-        "combo_max_checks": combo_max_checks,
-        "triple_limit": triples,
-        "triple_candidate_cap": triple_candidates,
-        "triple_max_checks": triple_max_checks,
-        "pointwise_limit": pointwise_limit,
-        "convolution_limit": convolution_limit,
-        "variance_band": variance_band,
-        "growth_band": growth_band,
-        "query_var": query_var,
-        "query_diff_var": query_diff_var,
-        "query_growth": query_growth,
-        **(
-            {
-                "candidate_bucket": {
-                    "size": len(bucket.records),
-                    "exact": len(bucket.exact_ids),
-                    "similar": len(bucket.similar_ids),
-                    "discovery": len(bucket.discovery_ids),
-                    "provenance_counts": {
-                        reason: sum(1 for rs in bucket.provenance.values() if reason in rs)
-                        for reason in sorted({r for rs in bucket.provenance.values() for r in rs})
-                    },
-                    **({"discovery_diagnostics": bucket.discovery_diagnostics} if bucket.discovery_diagnostics else {}),
-                    **({"provider_diagnostics": bucket.provider_diagnostics} if bucket.provider_diagnostics else {}),
-                }
-            }
-            if (combos or triples or (pointwise_limit and pointwise_ops) or (convolution_limit and convolution_ops))
-            else {}
-        ),
-    }
-    if fallback_used:
-        diag["subsequence_fallback"] = True
-    if combined_explanations:
-        diag["combined_explanations"] = [
-            {
-                "family": fam,
-                "expression": m.expression,
-                "score": m.score,
-                "length": m.length,
-                "ids": list(m.ids),
-                "coeffs": [str(c) for c in m.coeffs],
-                "shifts": list(m.shifts),
-                **(
-                    {"candidate_provenance": [list(rs) for rs in m.candidate_provenance]}
-                    if m.candidate_provenance
-                    else {}
-                ),
-            }
-            for fam, m in combined_explanations
-        ]
-    if collect_timings:
-        diag["timings_ms"] = timings
-
-    result = AnalysisResult(
-        query=query.terms,
-        exact_matches=exact,
-        transform_matches=t_matches,
-        similarity=similarity_rows,
-        combinations=combo_matches,
-        triple_combinations=triple_matches,
-        pointwise_combinations=pointwise_matches,
-        convolution_combinations=convolution_matches,
-        diagnostics=diag,
+    result = run_analysis(
+        query,
+        db_path,
+        options,
+        transform_runner=run_transforms if transform_limit > 0 else None,
+        on_event=on_event,
     )
-
-    return result if as_dataclass else result.to_dict()
+    return result if as_dataclass else result.to_dict(show_formula=show_formula)

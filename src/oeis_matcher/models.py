@@ -78,50 +78,20 @@ class CombinationMatch:
 
 @dataclass
 class AnalysisResult:
-    query: list[int]
+    query: list[int | None]
     exact_matches: list[Match]
     transform_matches: list[Match]
     similarity: list[dict]
     combinations: list[CombinationMatch]
     triple_combinations: list[CombinationMatch] | None = None
+    modclass_combinations: list[CombinationMatch] | None = None
     pointwise_combinations: list[CombinationMatch] | None = None
     convolution_combinations: list[CombinationMatch] | None = None
+    combined_combinations: list[tuple[str, CombinationMatch]] | None = None
+    ranked_explanations: list[tuple[str, Match | CombinationMatch]] | None = None
     diagnostics: Optional[dict] = None
 
-    def to_dict(self) -> dict:
-        from dataclasses import asdict
+    def to_dict(self, *, show_formula: bool = True) -> dict:
+        from .serialization import analysis_to_dict
 
-        def _coeffs_to_json(coeffs):
-            out = []
-            for c in coeffs:
-                try:
-                    from fractions import Fraction
-                    if isinstance(c, Fraction) and c.denominator != 1:
-                        out.append(f"{c.numerator}/{c.denominator}")
-                        continue
-                except Exception:
-                    pass
-                if isinstance(c, (int, float)) and float(c).is_integer():
-                    out.append(str(int(c)))
-                else:
-                    out.append(str(c))
-            return out
-
-        def _combo_to_dict(m):
-            d = asdict(m)
-            d["coeffs"] = _coeffs_to_json(m.coeffs)
-            return d
-
-        # asdict cannot handle non-serializable nested SequenceRecord; we already flatten similarity to dicts.
-        diag = self.diagnostics or {}
-        return {
-            "query": self.query,
-            "exact_matches": [asdict(m) for m in self.exact_matches],
-            "transform_matches": [asdict(m) for m in self.transform_matches],
-            "similarity": self.similarity,
-            "combinations": [_combo_to_dict(m) for m in self.combinations],
-            "triple_combinations": [_combo_to_dict(m) for m in self.triple_combinations] if self.triple_combinations is not None else [],
-            "pointwise_combinations": [_combo_to_dict(m) for m in self.pointwise_combinations] if self.pointwise_combinations is not None else [],
-            "convolution_combinations": [_combo_to_dict(m) for m in self.convolution_combinations] if self.convolution_combinations is not None else [],
-            "diagnostics": diag,
-        }
+        return analysis_to_dict(self, show_formula=show_formula)

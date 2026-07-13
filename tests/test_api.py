@@ -428,3 +428,58 @@ def test_analyze_combined_explanations_are_cross_family_and_fair(tmp_path: Path)
     assert len(mixed) == 2
     families = {m["family"] for m in mixed}
     assert len(families) == 2
+
+
+def test_analyze_sequence_exposes_ordered_stage_events_and_global_budget(tmp_path: Path):
+    stripped, names = _make_sample_raw(tmp_path)
+    db = tmp_path / "oeis.db"
+    build_index(stripped, names, None, db, max_terms=10)
+    events = []
+
+    result = analyze_sequence(
+        "1,2,3,4,5,6",
+        db_path=db,
+        exact_limit=5,
+        transform_limit=5,
+        similarity=5,
+        combos=5,
+        pointwise_limit=5,
+        pointwise_ops=("mul",),
+        convolution_limit=5,
+        convolution_ops=("cauchy",),
+        triples=2,
+        total_max_time=0,
+        on_event=events.append,
+    )
+
+    assert result["diagnostics"]["time_budget_exhausted"] is True
+    assert result["transform_matches"] == result["similarity"] == result["combinations"] == []
+    assert [(event.kind, event.stage) for event in events[:4]] == [
+        ("stage_start", "exact"),
+        ("stage_end", "exact"),
+        ("stage_start", "transform"),
+        ("stage_end", "transform"),
+    ]
+    assert events[-1].stage == "ranking"
+
+
+def test_api_deep_preset_uses_shared_reranking_contract(tmp_path: Path):
+    stripped, names = _make_sample_raw(tmp_path)
+    db = tmp_path / "oeis.db"
+    build_index(stripped, names, None, db, max_terms=10)
+
+    result = analyze_sequence(
+        "1,2,3,4,5,6",
+        db_path=db,
+        exact_limit=0,
+        transform_limit=0,
+        combos=5,
+        pointwise_limit=5,
+        pointwise_ops=("mul",),
+        preset="deep",
+    )
+
+    ranking = result["diagnostics"]["ranking"]
+    assert ranking["enabled"] is True
+    assert ranking["mode"] == "auto_preset_deepmax"
+    assert result["ranked_explanations"]

@@ -3,6 +3,7 @@
   "title": "oeis combo --json output schema",
   "type": "object",
   "required": [
+    "schema_version",
     "query",
     "combinations",
     "triple_combinations",
@@ -11,6 +12,7 @@
     "convolution_combinations"
   ],
   "properties": {
+    "schema_version": { "const": 1 },
     "query": {
       "type": "array",
       "items": { "type": ["integer", "null"] }
@@ -52,11 +54,11 @@
         "length": { "type": "integer" },
         "score": { "type": "number" },
         "expression": { "type": "string" },
-        "component_transforms": { "type": "array", "items": { "type": "string" } },
-        "component_terms": { "type": "array", "items": { "type": "array", "items": { "type": "integer" } } },
-        "combined_terms": { "type": "array", "items": { "type": "integer" } },
+        "component_transforms": { "type": ["array", "null"], "items": { "type": "string" } },
+        "component_terms": { "type": ["array", "null"], "items": { "type": "array", "items": { "type": "integer" } } },
+        "combined_terms": { "type": ["array", "null"], "items": { "type": "integer" } },
         "candidate_provenance": {
-          "type": "array",
+          "type": ["array", "null"],
           "items": { "type": "array", "items": { "type": "string" } }
         }
       },

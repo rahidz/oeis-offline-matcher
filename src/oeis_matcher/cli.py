@@ -7,7 +7,7 @@ from pathlib import Path
 import math
 import os
 import shlex
-from dataclasses import asdict, dataclass, field, replace
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from fractions import Fraction
 
@@ -466,18 +466,6 @@ def _suppress_advanced_search_flags(parser, keep: set[str]) -> None:
         action.help = argparse.SUPPRESS
 
 
-def _fmt_coeff_json(c) -> str:
-    try:
-        import fractions
-    except Exception:
-        fractions = None
-    if fractions and isinstance(c, fractions.Fraction) and c.denominator != 1:
-        return f"{c.numerator}/{c.denominator}"
-    if isinstance(c, (int, float)) and float(c).is_integer():
-        return str(int(c))
-    return str(c)
-
-
 def _choose_snippet_len(query_terms: list[int | None], show_terms: int | None) -> int | None:
     if show_terms is not None:
         return show_terms
@@ -715,18 +703,6 @@ def _combos_from_checkpoint(rows: list[dict]) -> list[CombinationMatch]:
     return out
 
 
-def _attach_combo_candidate_provenance(
-    matches: list[CombinationMatch],
-    provenance: dict[str, list[str]] | None,
-) -> list[CombinationMatch]:
-    if not matches or not provenance:
-        return matches
-    out: list[CombinationMatch] = []
-    for m in matches:
-        prov = tuple(tuple(sorted(set(provenance.get(seq_id, [])))) for seq_id in m.ids)
-        out.append(replace(m, candidate_provenance=(prov if any(prov) else None)))
-    return out
-
 from .combination_search import (
     merge_combination_families,
     search_two_sequence_combinations,
@@ -740,9 +716,16 @@ from .combination_search import (
     resolve_component_transforms,
 )
 from .config import load_config
+from .analysis import (
+    AnalysisEvent,
+    AnalysisOptions,
+    attach_candidate_provenance as _attach_combo_candidate_provenance,
+    run_analysis,
+)
 from .build_index import build_index
-from .matcher import candidate_sequences, match_exact, match_exact_db
+from .matcher import match_exact_db
 from .models import CombinationMatch, Match, SequenceRecord
+from .serialization import SCHEMA_VERSION, combination_to_dict, format_coefficient as _fmt_coeff_json
 from .ranking import rank_candidates_for_query
 from .candidates import get_candidate_bucket
 from .query import QueryParseError, parse_query
@@ -751,8 +734,950 @@ from .transforms import default_transforms
 from .sync import DEFAULT_NAMES_URL, DEFAULT_OEISDATA_REPO, DEFAULT_STRIPPED_URL, sync_data
 from .storage import ensure_db_indexes, get_sequence_by_id, iter_sequences
 from .freshness import build_status_report, update_build_metadata, update_sync_metadata
-from .explanation_ranking import parse_family_quotas, rerank_explanations
+from .explanation_ranking import parse_family_quotas
 from .bfiles import build_bfile_index, fetch_bfiles, search_bfile_index
+
+
+def _run_combo_command(args) -> int:
+    import time
+
+    timings: dict[str, float] = {}
+    t_start = time.perf_counter()
+    stream_text = bool(getattr(args, "stream", False) and not args.as_json)
+    time_budget_exhausted = False
+
+    def _elapsed_s() -> float:
+        return time.perf_counter() - t_start
+
+    def _remaining_s() -> float | None:
+        total = getattr(args, "total_max_time", None)
+        if total is None:
+            return None
+        try:
+            return max(0.0, float(total) - _elapsed_s())
+        except (TypeError, ValueError):
+            return None
+
+    def _cap_by_total(stage_cap: float | None) -> float | None:
+        rem = _remaining_s()
+        if rem is None:
+            return stage_cap
+        if rem <= 0:
+            return 0.0
+        if stage_cap is None:
+            return rem
+        try:
+            stage_cap_f = float(stage_cap)
+        except (TypeError, ValueError):
+            return rem
+        return min(stage_cap_f, rem)
+
+    try:
+        query = parse_query(
+            args.sequence,
+            min_match_length=args.min_match_length,
+            allow_subsequence=False,
+        )
+    except QueryParseError as e:
+        print(f"Invalid query: {e}")
+        return 2
+    db_path = Path(args.db)
+    coeffs = _parse_int_list(args.coeffs)
+    triple_candidates = args.triple_candidates or args.candidates
+    cap = max(args.candidates, triple_candidates)
+    if stream_text:
+        mode = "unfiltered" if args.combo_unfiltered else "prefix+invariants"
+        disc = "on" if bool(getattr(args, "discovery", False)) else "off"
+        pref = "wide" if bool(getattr(args, "wide_prefilter", False)) else "default"
+        print(
+            f"Building candidate bucket (cap={cap}, mode={mode}, discovery={disc}, prefilter={pref})…",
+            flush=True,
+        )
+    t0 = time.perf_counter()
+    cand_cap = _cap_by_total(getattr(args, "candidate_max_time", None))
+    if cand_cap is None:
+        bucket_deadline_s = None
+    elif cand_cap <= 0:
+        bucket_deadline_s = time.perf_counter()
+    else:
+        bucket_deadline_s = time.perf_counter() + float(cand_cap)
+    bucket = get_candidate_bucket(
+        query,
+        db_path,
+        exact_limit=cap,
+        similar_limit=cap,
+        max_records=cap,
+        fill_unfiltered=True,
+        skip_prefix_filter=args.combo_unfiltered,
+        variance_band=args.variance_band,
+        growth_band=args.growth_band,
+        deadline_s=bucket_deadline_s,
+        time_fn=time.perf_counter,
+        enable_discovery=bool(getattr(args, "discovery", False)),
+        discovery_limit=int(getattr(args, "discovery_limit", 16)),
+        discovery_max_time_s=getattr(args, "discovery_max_time", None),
+        discovery_tools=tuple(_parse_transform_names(getattr(args, "discovery_tools", "sympy"))),
+        widen_prefilter=bool(getattr(args, "wide_prefilter", False)),
+    )
+    candidate_provenance = bucket.provenance
+    if args.timings:
+        timings["candidates_ms"] = 1000 * (time.perf_counter() - t0)
+    include_ids = _parse_oeis_ids(args.include_ids)
+    records = list(bucket.records)
+    if include_ids:
+        for sid in include_ids:
+            rec = get_sequence_by_id(db_path, sid)
+            if rec:
+                records.append(rec)
+        # De-dupe; included ids should never be dropped later due to candidate trimming.
+        records_by_id = {r.id: r for r in records}
+        records = list(records_by_id.values())
+    if stream_text:
+        note = ""
+        if bucket_deadline_s is not None and time.perf_counter() >= bucket_deadline_s:
+            note = " (time-capped)"
+        print(
+            f"Candidate bucket: {len(records)} sequences "
+            f"(exact={len(bucket.exact_ids)} similar={len(bucket.similar_ids)} discovery={len(bucket.discovery_ids)}){note}",
+            flush=True,
+        )
+    comp_transforms = resolve_component_transforms(_parse_transform_names(args.component_transforms))
+    snip = _choose_snippet_len(query.terms, args.show_terms)
+    max_candidates = None if include_ids else args.candidates
+    triple_max_candidates = None if include_ids else triple_candidates
+
+    if args.total_max_time is not None and _remaining_s() == 0:
+        time_budget_exhausted = True
+
+    def _fmt_combo_line(m, *, show_coeffs: bool = True) -> str:
+        if len(m.ids) == 2:
+            n1 = f" - {m.names[0]}" if m.names[0] else ""
+            n2 = f" - {m.names[1]}" if m.names[1] else ""
+            extra = ""
+            if m.component_terms:
+                extra = f" terms1={_fmt_terms(m.component_terms[0])} terms2={_fmt_terms(m.component_terms[1])}"
+            if m.combined_terms:
+                extra += f" result={_fmt_terms(m.combined_terms)}"
+            coeffs_disp = ",".join(_fmt_coeff_json(c) for c in m.coeffs)
+            coeffs_txt = f" coeffs={coeffs_disp}" if show_coeffs else ""
+            return f"  {m.expression} len={m.length}{coeffs_txt} score={m.score:.2f} [{m.ids[0]}{n1}; {m.ids[1]}{n2}]{extra}"
+        name_parts = [f"{id_}{' - ' + nm if nm else ''}" for id_, nm in zip(m.ids, m.names)]
+        extra = ""
+        if m.component_terms:
+            extra = " " + " ".join(f"terms{i+1}={_fmt_terms(ts)}" for i, ts in enumerate(m.component_terms))
+        if m.combined_terms:
+            extra += f" result={_fmt_terms(m.combined_terms)}"
+        return f"  {m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}"
+
+    combos = []
+    modclass_matches = []
+    need_expanded_pairs = False
+    if not time_budget_exhausted:
+        t1 = time.perf_counter()
+        if stream_text:
+            print("Pair combinations:", flush=True)
+        combos = search_two_sequence_combinations(
+            query,
+            records,
+            coeffs=coeffs,
+            max_shift=args.max_shift,
+            max_shift_back=args.max_shift_back,
+            limit=args.limit,
+            max_candidates=max_candidates,
+            max_checks=args.max_checks,
+            max_time_s=_cap_by_total(args.max_time),
+            max_combinations=args.max_combinations,
+            component_transforms=comp_transforms,
+            snippet_len=snip,
+            use_rational=args.rational,
+            min_score=args.min_score,
+            max_complexity=args.max_complexity,
+            on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=True), flush=True)) if stream_text else None,
+        )
+        combos = _attach_combo_candidate_provenance(combos, candidate_provenance)
+        if args.timings:
+            timings["pair_ms"] = 1000 * (time.perf_counter() - t1)
+
+        # Expanded DB-wide searches can be expensive (especially pairs).
+        # To improve time-to-first-hit for triples, defer the expanded pair
+        # fallback until after pointwise/convolution/triple stages.
+        if args.expanded and not combos and (args.total_max_time is None or _remaining_s() > 0):
+            if len(query.terms) < 5:
+                if stream_text:
+                    print("  (expanded DB-wide search needs >= 5 terms; skipping)", flush=True)
+            else:
+                exp_time = args.expanded_max_time if args.expanded_max_time and args.expanded_max_time > 0 else None
+                exp_time = _cap_by_total(exp_time)
+                if exp_time is None or exp_time > 0:
+                    need_expanded_pairs = True
+                    if stream_text:
+                        print("  (no regular pair combos found; will try expanded DB-wide search later…)", flush=True)
+
+        if stream_text and (not combos) and (not need_expanded_pairs):
+            print("  (none)", flush=True)
+        if args.total_max_time is not None and _remaining_s() == 0:
+            time_budget_exhausted = True
+
+    if args.modclass and int(args.modclass) > 0 and not time_budget_exhausted and (args.total_max_time is None or _remaining_s() > 0):
+        t_mc = time.perf_counter()
+        if stream_text:
+            print("\nMod-class combinations:", flush=True)
+        mc_time = _cap_by_total(getattr(args, "modclass_max_time", None))
+        if mc_time is None or mc_time > 0:
+            moduli = _parse_int_list(str(getattr(args, "modclass_moduli", "2,3")).replace(" ", ","))
+            moduli = [m for m in moduli if m > 1]
+            modclass_matches = search_mod_class_combinations(
+                query,
+                db_path,
+                moduli=tuple(moduli) if moduli else (2, 3),
+                limit=int(args.modclass),
+                max_shift=args.max_shift,
+                max_time_s=mc_time,
+                snippet_len=snip,
+                min_score=args.min_score,
+                max_complexity=args.max_complexity,
+                on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=False), flush=True)) if stream_text else None,
+            )
+            modclass_matches = _attach_combo_candidate_provenance(modclass_matches, candidate_provenance)
+        if args.timings:
+            timings["modclass_ms"] = 1000 * (time.perf_counter() - t_mc)
+        if stream_text and not modclass_matches:
+            print("  (none)", flush=True)
+        if args.total_max_time is not None and _remaining_s() == 0:
+            time_budget_exhausted = True
+    pointwise_matches = []
+    conv_matches: list = []
+    pw_ops = _parse_pointwise_ops(args.pointwise_ops)
+    if pw_ops:
+        if not time_budget_exhausted:
+            expanded_pointwise = args.expanded if getattr(args, "expanded_pointwise", None) is None else bool(getattr(args, "expanded_pointwise"))
+            t_pw = time.perf_counter()
+            if stream_text:
+                print("\nPointwise combinations:", flush=True)
+            pointwise_matches = search_pointwise_two_sequence_combinations(
+                query,
+                records,
+                ops=pw_ops,
+                max_shift=args.max_shift,
+                max_shift_back=args.max_shift_back,
+                limit=args.limit,
+                max_candidates=max_candidates,
+                max_checks=args.max_checks,
+                max_time_s=_cap_by_total(args.max_time),
+                component_transforms=comp_transforms,
+                snippet_len=snip,
+                min_score=args.min_score,
+                max_complexity=args.max_complexity,
+                on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=False), flush=True)) if stream_text else None,
+            )
+            pointwise_matches = _attach_combo_candidate_provenance(pointwise_matches, candidate_provenance)
+            # Expanded DB-wide fallback for pointwise multiplication. This is
+            # important for cases where the multiplicative "mask" component
+            # (0/1/2-valued, sparse, etc.) does not resemble the product.
+            if (
+                expanded_pointwise
+                and ("mul" in pw_ops)
+                and (not pointwise_matches)
+                and (args.total_max_time is None or _remaining_s() > 0)
+                and len(query.terms) >= 5
+            ):
+                raw_cap = getattr(args, "expanded_pointwise_max_time", None)
+                if raw_cap is None:
+                    raw_cap = args.expanded_max_time
+                exp_time = raw_cap if raw_cap and raw_cap > 0 else None
+                exp_time = _cap_by_total(exp_time)
+                if exp_time is None or exp_time > 0:
+                    t_pwe = time.perf_counter()
+                    if stream_text:
+                        print("  (no in-bucket mul hits; trying expanded DB-wide mul…)", flush=True)
+                    pointwise_matches = search_pointwise_two_sequence_combinations_expanded(
+                        query,
+                        db_path,
+                        ops=("mul",),
+                        max_shift=args.max_shift,
+                        limit=args.limit,
+                        max_time_s=exp_time,
+                        snippet_len=snip,
+                        min_score=args.min_score,
+                        max_complexity=args.max_complexity,
+                        on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=False), flush=True)) if stream_text else None,
+                    )
+                    pointwise_matches = _attach_combo_candidate_provenance(pointwise_matches, candidate_provenance)
+                    if args.timings:
+                        timings["expanded_pointwise_ms"] = 1000 * (time.perf_counter() - t_pwe)
+            if args.timings:
+                timings["pointwise_ms"] = 1000 * (time.perf_counter() - t_pw)
+            if stream_text and not pointwise_matches:
+                print("  (none)", flush=True)
+            if args.total_max_time is not None and _remaining_s() == 0:
+                time_budget_exhausted = True
+    conv_ops = _parse_conv_ops(args.convolution_ops)
+    if conv_ops:
+        if not time_budget_exhausted:
+            t_conv = time.perf_counter()
+            if stream_text:
+                print("\nConvolution combinations:", flush=True)
+            conv_matches = search_convolution_two_sequence_combinations(
+                query,
+                records,
+                ops=conv_ops,
+                max_length=32,
+                limit=args.limit,
+                max_candidates=max_candidates,
+                max_checks=args.max_checks,
+                max_time_s=_cap_by_total(args.max_time),
+                component_transforms=comp_transforms,
+                snippet_len=snip,
+                min_score=args.min_score,
+                max_complexity=args.max_complexity,
+                on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=False), flush=True)) if stream_text else None,
+            )
+            conv_matches = _attach_combo_candidate_provenance(conv_matches, candidate_provenance)
+            if args.timings:
+                timings["convolution_ms"] = 1000 * (time.perf_counter() - t_conv)
+            if stream_text and not conv_matches:
+                print("  (none)", flush=True)
+            if args.total_max_time is not None and _remaining_s() == 0:
+                time_budget_exhausted = True
+    triples = []
+    if args.triples:
+        if not time_budget_exhausted:
+            t3 = time.perf_counter()
+            if stream_text:
+                print("\nTriple combinations:", flush=True)
+            triples = search_three_sequence_combinations(
+                query,
+                records,
+                coeffs=coeffs,
+                max_shift=args.max_shift,
+                max_shift_back=args.max_shift_back,
+                limit=args.triples,
+                max_candidates=triple_max_candidates,
+                max_checks=args.triple_max_checks,
+                max_time_s=_cap_by_total(args.triple_max_time),
+                max_combinations=args.triple_max_combinations,
+                component_transforms=comp_transforms,
+                snippet_len=snip,
+                min_score=args.triple_min_score,
+                max_complexity=args.triple_max_complexity,
+                use_rational=args.triple_rational,
+                allow_self_reference=bool(getattr(args, "preset", "") == "max"),
+                on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=False), flush=True)) if stream_text else None,
+            )
+            triples = _attach_combo_candidate_provenance(triples, candidate_provenance)
+            if args.timings:
+                timings["triples_ms"] = 1000 * (time.perf_counter() - t3)
+            if args.expanded and not triples and (args.total_max_time is None or _remaining_s() > 0):
+                if len(query.terms) < 5:
+                    if stream_text:
+                        print("  (expanded DB-wide search needs >= 5 terms; skipping)", flush=True)
+                else:
+                    exp_time = args.expanded_max_time if args.expanded_max_time and args.expanded_max_time > 0 else None
+                    exp_time = _cap_by_total(exp_time)
+                    if exp_time is None or exp_time > 0:
+                        t3e = time.perf_counter()
+                        if stream_text:
+                            print("  (no regular triple combos found; trying expanded DB-wide search…)", flush=True)
+                        triples = search_three_sequence_combinations_expanded(
+                            query,
+                            db_path,
+                            coeffs=coeffs,
+                            limit=args.triples,
+                            max_anchors=args.expanded_anchors,
+                            max_time_s=exp_time,
+                            snippet_len=snip,
+                            min_score=args.triple_min_score,
+                            max_complexity=args.triple_max_complexity,
+                            on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=False), flush=True)) if stream_text else None,
+                        )
+                        triples = _attach_combo_candidate_provenance(triples, candidate_provenance)
+                        if args.timings:
+                            timings["expanded_triples_ms"] = 1000 * (time.perf_counter() - t3e)
+            if stream_text and not triples:
+                print("  (none)", flush=True)
+            if args.total_max_time is not None and _remaining_s() == 0:
+                time_budget_exhausted = True
+
+    if need_expanded_pairs and not combos and not time_budget_exhausted and (args.total_max_time is None or _remaining_s() > 0):
+        if len(query.terms) < 5:
+            if stream_text:
+                print("\nExpanded pair combinations:", flush=True)
+                print("  (expanded DB-wide search needs >= 5 terms; skipping)", flush=True)
+        else:
+            exp_time = args.expanded_max_time if args.expanded_max_time and args.expanded_max_time > 0 else None
+            exp_time = _cap_by_total(exp_time)
+            if exp_time is None or exp_time > 0:
+                t1e = time.perf_counter()
+                if stream_text:
+                    print("\nExpanded pair combinations:", flush=True)
+                combos = search_two_sequence_combinations_expanded(
+                    query,
+                    db_path,
+                    coeffs=coeffs,
+                    limit=args.limit,
+                    max_shift=args.max_shift,
+                    max_time_s=exp_time,
+                    snippet_len=snip,
+                    min_score=args.min_score,
+                    max_complexity=args.max_complexity,
+                    on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=True), flush=True)) if stream_text else None,
+                )
+                combos = _attach_combo_candidate_provenance(combos, candidate_provenance)
+                if args.timings:
+                    timings["expanded_pair_ms"] = 1000 * (time.perf_counter() - t1e)
+            if stream_text and not combos:
+                print("  (none)", flush=True)
+            if args.total_max_time is not None and _remaining_s() == 0:
+                time_budget_exhausted = True
+    if args.as_json:
+        if args.timings:
+            timings["total_ms"] = 1000 * (time.perf_counter() - t_start)
+        combined_limit = max(
+            int(getattr(args, "limit", 0) or 0),
+            int(getattr(args, "triples", 0) or 0),
+            int(getattr(args, "modclass", 0) or 0),
+            int(getattr(args, "pointwise_limit", 0) or 0),
+            int(getattr(args, "convolution_limit", 0) or 0),
+            0,
+        )
+        combined_matches = merge_combination_families(
+            {
+                "linear_pair": combos,
+                "linear_triple": triples,
+                "modclass": modclass_matches,
+                "pointwise": pointwise_matches,
+                "convolution": conv_matches,
+            },
+            limit=combined_limit if combined_limit > 0 else None,
+            per_family_quota=1,
+        )
+        out = [combination_to_dict(m) for m in combos]
+        out3 = [combination_to_dict(m) for m in triples]
+        out_modclass = [combination_to_dict(m) for m in modclass_matches]
+        out_pw = [combination_to_dict(m) for m in pointwise_matches]
+        out_conv = [combination_to_dict(m) for m in conv_matches]
+        out_combined = [{"family": fam, **combination_to_dict(m)} for fam, m in combined_matches]
+        print(
+            json.dumps(
+                {
+                    "schema_version": SCHEMA_VERSION,
+                    "query": query.terms,
+                    "combinations": out,
+                    "triple_combinations": out3,
+                    "modclass_combinations": out_modclass,
+                    "pointwise_combinations": out_pw,
+                    "convolution_combinations": out_conv,
+                    "combined_combinations": out_combined,
+                    "diagnostics": {
+                        **({"timings_ms": timings} if args.timings else {}),
+                        "variance_band": args.variance_band,
+                        "growth_band": args.growth_band,
+                        "combined_combinations_count": len(combined_matches),
+                        "candidate_bucket": {
+                            "size": len(records),
+                            "exact": len(bucket.exact_ids),
+                            "similar": len(bucket.similar_ids),
+                            "discovery": len(bucket.discovery_ids),
+                            "provenance_counts": {
+                                reason: sum(1 for rs in bucket.provenance.values() if reason in rs)
+                                for reason in sorted({r for rs in bucket.provenance.values() for r in rs})
+                            },
+                            **(
+                                {"discovery_diagnostics": bucket.discovery_diagnostics}
+                                if bucket.discovery_diagnostics
+                                else {}
+                            ),
+                            **(
+                                {"provider_diagnostics": bucket.provider_diagnostics}
+                                if bucket.provider_diagnostics
+                                else {}
+                            ),
+                        },
+                        **({"time_budget_exhausted": True} if time_budget_exhausted else {}),
+                    },
+                },
+                indent=2,
+            )
+        )
+    else:
+        if stream_text:
+            if time_budget_exhausted:
+                print("\n(Time budget reached; stopping early.)", flush=True)
+            if args.timings:
+                timings["total_ms"] = 1000 * (time.perf_counter() - t_start)
+                print("\nTimings (ms):", flush=True)
+                for k, v in timings.items():
+                    print(f"  {k}: {v:.1f}", flush=True)
+            if not combos and not triples and not modclass_matches and not pointwise_matches and not conv_matches:
+                if not args.expanded:
+                    print("\nNo combinations found. Tip: try --expanded or --preset max.", flush=True)
+                else:
+                    print("\nNo combinations found.", flush=True)
+            return 0
+        if not combos and not triples and not modclass_matches and not pointwise_matches and not conv_matches:
+            if not args.expanded:
+                print("No combinations found. Tip: try --expanded or --preset max.")
+            else:
+                print("No combinations found.")
+        for m in combos:
+            n1 = f" - {m.names[0]}" if m.names[0] else ""
+            n2 = f" - {m.names[1]}" if m.names[1] else ""
+            extra = ""
+            if m.component_terms:
+                t1 = _fmt_terms(m.component_terms[0])
+                t2 = _fmt_terms(m.component_terms[1])
+                extra = f" terms1={t1} terms2={t2}"
+            if m.combined_terms:
+                extra += f" result={_fmt_terms(m.combined_terms)}"
+            print(f"{m.expression} len={m.length} score={m.score:.2f} [{m.ids[0]}{n1}; {m.ids[1]}{n2}]{extra}")
+        if modclass_matches:
+            print("\nMod-class combinations:")
+            for m in modclass_matches:
+                name_parts = [f"{id_}{f' - {nm}' if nm else ''}" for id_, nm in zip(m.ids, m.names)]
+                extra = ""
+                if m.component_terms:
+                    extra = " " + " ".join(f"terms{i+1}={_fmt_terms(ts)}" for i, ts in enumerate(m.component_terms))
+                if m.combined_terms:
+                    extra += f" result={_fmt_terms(m.combined_terms)}"
+                print(f"{m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}")
+        if triples:
+            print("\nTriple combinations:")
+            for m in triples:
+                name_parts = [f"{id_}{f' - {nm}' if nm else ''}" for id_, nm in zip(m.ids, m.names)]
+                extra = ""
+                if m.component_terms:
+                    extra = " " + " ".join(f"terms{i+1}={_fmt_terms(ts)}" for i, ts in enumerate(m.component_terms))
+                if m.combined_terms:
+                    extra += f" result={_fmt_terms(m.combined_terms)}"
+                print(f"{m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}")
+        if pointwise_matches:
+            print("\nPointwise combinations:")
+            for m in pointwise_matches:
+                name_parts = [f"{id_}{f' - {nm}' if nm else ''}" for id_, nm in zip(m.ids, m.names)]
+                extra = ""
+                if m.component_terms:
+                    extra = f" terms1={_fmt_terms(m.component_terms[0])} terms2={_fmt_terms(m.component_terms[1])}"
+                if m.combined_terms:
+                    extra += f" result={_fmt_terms(m.combined_terms)}"
+                print(f"{m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}")
+        if conv_matches:
+            print("\nConvolution combinations:")
+            for m in conv_matches:
+                name_parts = [f"{id_}{f' - {nm}' if nm else ''}" for id_, nm in zip(m.ids, m.names)]
+                extra = ""
+                if m.component_terms:
+                    extra = f" terms1={_fmt_terms(m.component_terms[0])} terms2={_fmt_terms(m.component_terms[1])}"
+                if m.combined_terms:
+                    extra += f" result={_fmt_terms(m.combined_terms)}"
+                print(f"{m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}")
+        if time_budget_exhausted:
+            print("\n(Time budget reached; stopping early.)")
+        if args.timings:
+            timings["total_ms"] = 1000 * (time.perf_counter() - t_start)
+            print("\nTimings (ms):")
+            for k, v in timings.items():
+                print(f"  {k}: {v:.1f}")
+    return 0
+
+
+
+def _run_analyze_command(args) -> int:
+    try:
+        query = parse_query(
+            args.sequence,
+            min_match_length=args.min_match_length,
+            allow_subsequence=args.subsequence,
+        )
+    except QueryParseError as exc:
+        print(f"Invalid query: {exc}")
+        return 2
+
+    db_path = Path(args.db)
+    snippet_len = _choose_snippet_len(query.terms, args.show_terms)
+    extras = _parse_extra_transforms(args.extra_transforms)
+    transforms = default_transforms(
+        scale_values=_parse_int_list(args.scale_values),
+        beta_values=_parse_int_list(args.beta_values),
+        shift_values=_parse_int_list(args.shift_values),
+        allow_alt_sign=extras["alt_sign"],
+        allow_diff=not args.no_diff,
+        diff_orders=(1, 2) if (not args.no_diff and extras["diff2"]) else (1,),
+        allow_partial_sum=not args.no_partial_sum,
+        allow_cumprod=extras["cumprod"],
+        allow_abs=not args.no_abs,
+        allow_gcd_norm=not args.no_gcd_norm,
+        decimate_params=_parse_decimate(args.decimate),
+        allow_reverse=extras["reverse"],
+        allow_even_odd=extras["evenodd"],
+        moving_sum_windows=tuple(sorted(set((2,) if extras["movsum2"] else ()) | set(extras["movsum_windows"]))),
+        allow_popcount=extras["popcount"],
+        allow_digit_sum=extras["digitsum"],
+        digit_sum_bases=extras["digit_bases"],
+        modulus_values=extras["mod_values"],
+        allow_xor_index=extras["xor_index"],
+        allow_rle=extras["rle"],
+        allow_rle_decode=extras["rle_dec"],
+        allow_concat=extras["concat"],
+        allow_binomial=extras["binomial"],
+        allow_inverse_binomial=extras["inv_binomial"],
+        allow_euler=extras["euler"],
+        allow_euler_ogf=extras["euler_ogf"],
+        allow_inverse_euler_ogf=extras["inv_euler_ogf"],
+        allow_stirling1=extras["stirling1"],
+        allow_stirling2=extras["stirling2"],
+        allow_inverse_stirling1=extras["inv_stirling1"],
+        allow_inverse_stirling2=extras["inv_stirling2"],
+        allow_ogf_inverse=extras["ogf_inverse"],
+        allow_series_reversion=extras["series_reversion"],
+        allow_mobius=extras["mobius"],
+        allow_log=bool(extras["log_bases"]),
+        log_bases=extras["log_bases"],
+        allow_exp=bool(extras["exp_bases"]),
+        exp_bases=extras["exp_bases"],
+        allow_omega=extras["omega"],
+        allow_bigomega=extras["bigomega"],
+        allow_tau=extras["tau"],
+        allow_sigma=extras["sigma"],
+        allow_phi=extras["phi"],
+        allow_v2=extras["v2"],
+        vp_values=extras["vp_values"],
+        allow_lpf=extras["lpf"],
+        allow_gpf=extras["gpf"],
+        allow_rad=extras["rad"],
+        allow_squarefree=extras["squarefree"],
+        allow_liouville=extras["liouville"],
+        allow_ratio_int=extras["ratio_int"],
+        allow_index_square=extras["index_square"],
+        allow_prime_index=extras["prime_index"],
+        allow_index_pow2=extras["index_pow2"],
+        allow_index_factorial=extras["index_factorial"],
+        allow_index_triangular=extras["index_triangular"],
+        allow_index_fibonacci=extras["index_fibonacci"],
+        index_power_values=extras["index_power_values"],
+    )
+
+    def transform_runner(max_time, callback):
+        return search_transform_matches(
+            query,
+            db_path,
+            max_depth=args.max_depth,
+            transforms=transforms,
+            limit=args.tlimit,
+            snippet_len=snippet_len,
+            full_scan=args.preset in ("deep", "max"),
+            max_time_s=max_time,
+            min_score=args.transform_min_score,
+            max_complexity=args.transform_max_complexity,
+            variance_band=args.variance_band,
+            growth_band=args.growth_band,
+            allow_constant_outputs=args.allow_constant_transforms,
+            on_match=callback,
+        )
+
+    checkpoint_path = Path(args.checkpoint) if str(args.checkpoint).strip() else None
+    checkpoint_state: dict | None = None
+    checkpoint_loaded = False
+    resumed_stages: list[str] = []
+    saved_stages: list[str] = []
+    if checkpoint_path is not None:
+        context = _checkpoint_context(args, query_terms=query.terms, db_path=db_path)
+        if args.resume and checkpoint_path.exists():
+            loaded = _read_checkpoint(checkpoint_path)
+            if loaded and _checkpoint_compatible(loaded, context=context):
+                checkpoint_state = loaded
+                checkpoint_loaded = True
+            else:
+                print(f"Warning: checkpoint at {checkpoint_path} is incompatible; starting fresh.", file=sys.stderr)
+        if checkpoint_state is None:
+            checkpoint_state = _new_checkpoint(context)
+            try:
+                _write_checkpoint(checkpoint_path, checkpoint_state)
+            except Exception as exc:
+                print(f"Warning: failed to initialize checkpoint {checkpoint_path}: {exc}", file=sys.stderr)
+                checkpoint_path = None
+                checkpoint_state = None
+
+    checkpoint_names = {"combination": "combo"}
+
+    def cache_get(stage: str) -> dict | None:
+        stored_stage = checkpoint_names.get(stage, stage)
+        row = _checkpoint_get(checkpoint_state, stored_stage)
+        if row is None:
+            return None
+        resumed_stages.append(stored_stage)
+        if stage in {"exact", "transform"}:
+            return {**row, "matches": _matches_from_checkpoint(list(row.get("matches") or []))}
+        if stage in {"combination", "triple", "modclass", "pointwise", "convolution"}:
+            return {**row, "matches": _combos_from_checkpoint(list(row.get("matches") or []))}
+        return row
+
+    def cache_put(stage: str, payload: dict) -> None:
+        if checkpoint_path is None:
+            return
+        stored_stage = checkpoint_names.get(stage, stage)
+        row = dict(payload)
+        matches = list(row.get("matches") or [])
+        if stage in {"exact", "transform"}:
+            row["matches"] = _matches_to_checkpoint(matches)
+        elif stage in {"combination", "triple", "modclass", "pointwise", "convolution"}:
+            row["matches"] = [_combo_to_checkpoint(match) for match in matches]
+        _checkpoint_put(checkpoint_state, stored_stage, row)
+        saved_stages.append(stored_stage)
+        try:
+            _write_checkpoint(checkpoint_path, checkpoint_state or {})
+        except Exception as exc:
+            print(f"Warning: failed to write checkpoint {checkpoint_path}: {exc}", file=sys.stderr)
+
+    options = AnalysisOptions(
+        preset=args.preset,
+        exact_limit=args.limit,
+        show_terms=args.show_terms,
+        derived_terms=snippet_len,
+        fallback_subsequence=not args.no_subsequence_fallback,
+        exact_max_time=args.exact_max_time,
+        transform_limit=args.tlimit,
+        transform_max_time=args.transform_max_time,
+        similarity_limit=args.similar,
+        similarity_max_time=args.similarity_max_time,
+        min_corr=args.min_corr,
+        max_mse=args.max_mse,
+        variance_band=args.variance_band,
+        growth_band=args.growth_band,
+        modclass_limit=args.modclass,
+        modclass_moduli=tuple(value for value in _parse_int_list(args.modclass_moduli) if value > 1) or (2, 3),
+        modclass_max_time=args.modclass_max_time,
+        combo_limit=args.combos,
+        triple_limit=args.triples,
+        pointwise_limit=args.pointwise_limit,
+        pointwise_ops=tuple(_parse_pointwise_ops(args.pointwise_ops)),
+        convolution_limit=args.convolution_limit,
+        convolution_ops=tuple(_parse_conv_ops(args.convolution_ops)),
+        combo_coeffs=tuple(_parse_int_list(args.combo_coeffs)),
+        combo_candidates=args.combo_candidates,
+        combo_candidate_max_time=args.combo_candidate_max_time,
+        combo_discovery=args.combo_discovery,
+        combo_discovery_limit=args.combo_discovery_limit,
+        combo_discovery_max_time=args.combo_discovery_max_time,
+        combo_discovery_tools=tuple(_parse_transform_names(args.combo_discovery_tools)),
+        combo_wide_prefilter=args.combo_wide_prefilter,
+        combo_max_shift=args.combo_max_shift,
+        combo_max_shift_back=args.combo_max_shift_back,
+        combo_max_checks=args.combo_max_checks,
+        combo_max_time=args.combo_max_time,
+        combo_max_combinations=args.combo_max_combinations,
+        combo_rational=args.combo_rational,
+        combo_min_score=args.combo_min_score,
+        combo_max_complexity=args.combo_max_complexity,
+        component_transforms=tuple(_parse_transform_names(args.combo_component_transforms)),
+        triple_candidates=args.triple_candidates or args.combo_candidates,
+        triple_max_shift_back=args.combo_max_shift_back,
+        triple_max_checks=args.triple_max_checks,
+        triple_max_time=args.triple_max_time,
+        triple_max_combinations=args.triple_max_combinations,
+        triple_rational=args.triple_rational,
+        triple_allow_self_reference=args.preset == "max",
+        triple_min_score=args.triple_min_score,
+        triple_max_complexity=args.triple_max_complexity,
+        combo_unfiltered=args.combo_unfiltered,
+        combo_expanded=args.combo_expanded,
+        combo_expanded_max_time=args.combo_expanded_max_time or None,
+        combo_expanded_anchors=args.combo_expanded_anchors,
+        combo_expanded_pointwise=args.combo_expanded_pointwise,
+        combo_expanded_pointwise_max_time=args.combo_expanded_pointwise_max_time,
+        rerank=args.rerank,
+        rerank_limit=args.rerank_limit,
+        rerank_default_quota=args.rerank_default_quota,
+        rerank_quotas=parse_family_quotas(args.rerank_quotas),
+        total_max_time=args.total_max_time,
+        collect_timings=args.timings,
+    )
+
+    def format_match(match: Match, *, transform: bool = False) -> str:
+        name = f" - {match.name}" if match.name else ""
+        snippet = f" terms={','.join(str(term) for term in match.snippet)}" if match.snippet else ""
+        score = f" score={match.score:.2f}" if match.score is not None else ""
+        if transform:
+            if match.transformed_terms:
+                snippet += f" transformed={','.join(str(term) for term in match.transformed_terms)}"
+            explanation = match.explanation or match.transform_desc or ""
+            via = f" via {explanation}" if explanation else ""
+            if match.symbolic:
+                via += f" [{match.symbolic}]"
+        else:
+            via = ""
+        formula = _fmt_formula(match.formula) if args.show_formula else ""
+        return (
+            f"  {match.id} [{match.match_type} @ {match.offset}] len={match.length}"
+            f"{name}{via}{score}{snippet}{f' formula={formula}' if formula else ''}"
+        )
+
+    def format_combo(match: CombinationMatch, *, show_coeffs: bool = False) -> str:
+        names = [f"{seq_id}{' - ' + name if name else ''}" for seq_id, name in zip(match.ids, match.names)]
+        coeffs = f" coeffs={','.join(_fmt_coeff_json(c) for c in match.coeffs)}" if show_coeffs else ""
+        terms = ""
+        if match.component_terms:
+            terms = " " + " ".join(f"terms{i + 1}={_fmt_terms(values)}" for i, values in enumerate(match.component_terms))
+        if match.combined_terms:
+            terms += f" result={_fmt_terms(match.combined_terms)}"
+        return f"  {match.expression} len={match.length}{coeffs} score={match.score:.2f} [{'; '.join(names)}]{terms}"
+
+    stream = bool(args.stream and not args.as_json)
+    printed: dict[str, set[tuple]] = {}
+    excluded_ids: set[str] = set()
+    headings = {
+        "exact": "Exact matches:",
+        "transform": "Transform matches:",
+        "modclass": "Mod-class combinations:",
+        "combination": "Combination matches:",
+        "pointwise": "Pointwise combination matches:",
+        "convolution": "Convolution combination matches:",
+        "triple": "Triple combination matches:",
+        "expanded_pair": "Expanded pair combinations:",
+    }
+
+    def event_key(value) -> tuple:
+        if isinstance(value, Match):
+            return value.id, value.match_type, value.transform_desc, value.score
+        return value.expression, value.score
+
+    def print_value(stage: str, value) -> None:
+        if isinstance(value, Match):
+            print(format_match(value, transform=stage.startswith("transform")), flush=True)
+        else:
+            print(format_combo(value, show_coeffs=stage in {"combination", "expanded_pair"}), flush=True)
+
+    def on_event(event: AnalysisEvent) -> None:
+        nonlocal excluded_ids
+        if not stream:
+            return
+        if event.kind == "stage_start":
+            if event.stage == "candidates":
+                mode = "unfiltered" if args.combo_unfiltered else "prefix+invariants"
+                print(f"\nBuilding combo candidate bucket (mode={mode})…", flush=True)
+            elif event.stage in headings:
+                prefix = "" if event.stage == "exact" else "\n"
+                print(prefix + headings[event.stage], flush=True)
+        elif event.kind == "message":
+            if event.stage == "pointwise":
+                print("  (no in-bucket mul hits; trying expanded DB-wide mul…)", flush=True)
+            elif event.stage == "triple":
+                print("  (no regular triple combos found; trying expanded DB-wide search…)", flush=True)
+        elif event.kind == "match" and event.value is not None:
+            if isinstance(event.value, CombinationMatch) and any(seq_id in excluded_ids for seq_id in event.value.ids):
+                return
+            key = event_key(event.value)
+            if key not in printed.setdefault(event.stage, set()):
+                printed[event.stage].add(key)
+                print_value(event.stage, event.value)
+        elif event.kind == "stage_end":
+            values = list(event.value or ())
+            if event.stage == "exact":
+                if args.preset in {"deep", "max"}:
+                    excluded_ids = {match.id for match in values}
+            if event.stage == "candidates":
+                diag = event.details.get("diagnostics") or {}
+                print(
+                    f"Combo candidate bucket: {diag.get('size', len(values))} sequences "
+                    f"(exact={diag.get('exact', 0)} similar={diag.get('similar', 0)} discovery={diag.get('discovery', 0)})",
+                    flush=True,
+                )
+                return
+            if event.stage == "similarity" and values:
+                print("\nSimilarity candidates:", flush=True)
+                for row in values:
+                    print(
+                        f"  {row['id']} corr={float(row['corr']):.3f} mse={float(row['mse']):.3g} "
+                        f"scale={float(row['scale']):.3g} offset={float(row['offset']):.3g} - {row.get('name')}",
+                        flush=True,
+                    )
+                return
+            output_stage = "transform" if event.stage == "transform_refine" else event.stage
+            if output_stage not in headings:
+                return
+            for value in values:
+                key = event_key(value)
+                if key not in printed.setdefault(output_stage, set()):
+                    printed[output_stage].add(key)
+                    print_value(output_stage, value)
+            if not values and event.stage != "transform_refine":
+                if event.stage == "combination" and event.details.get("expanded_pending"):
+                    print("  (no regular pair combos found; will try expanded DB-wide search later…)", flush=True)
+                else:
+                    print("  (none)", flush=True)
+
+    result = run_analysis(
+        query,
+        db_path,
+        options,
+        transform_runner=transform_runner if args.tlimit > 0 else None,
+        on_event=on_event,
+        cache_get=cache_get if checkpoint_path is not None else None,
+        cache_put=cache_put if checkpoint_path is not None else None,
+    )
+    if checkpoint_path is not None:
+        result.diagnostics["checkpoint"] = {
+            "enabled": True,
+            "path": str(checkpoint_path),
+            "resumed": checkpoint_loaded,
+            "resumed_stages": resumed_stages,
+            "saved_stages": saved_stages,
+        }
+
+    if args.as_json:
+        print(json.dumps(result.to_dict(show_formula=args.show_formula), indent=2))
+        return 0
+
+    def print_combo_section(title: str, matches: list[CombinationMatch], *, coeffs: bool = False) -> None:
+        if matches:
+            print(f"\n{title}:")
+            for match in matches:
+                print(format_combo(match, show_coeffs=coeffs))
+
+    if stream:
+        if result.diagnostics.get("time_budget_exhausted"):
+            print("\n(Time budget reached; stopping early.)", flush=True)
+        if result.ranked_explanations:
+            print("\nTop explanations:", flush=True)
+            for family, match in result.ranked_explanations:
+                line = format_match(match, transform=True) if family == "transform" else format_combo(match, show_coeffs=family.startswith("linear"))
+                print(f"  [{family}] {line.strip()}", flush=True)
+    else:
+        if result.ranked_explanations:
+            print("Top explanations:")
+            for family, match in result.ranked_explanations:
+                line = format_match(match, transform=True) if family == "transform" else format_combo(match, show_coeffs=family.startswith("linear"))
+                print(f"  [{family}] {line.strip()}")
+            print()
+        print("Exact matches:")
+        for match in result.exact_matches:
+            print(format_match(match))
+        if not result.exact_matches:
+            print("  (none)")
+        print("\nTransform matches:")
+        for match in result.transform_matches:
+            print(format_match(match, transform=True))
+        if not result.transform_matches:
+            print("  (none)")
+        if result.similarity:
+            print("\nSimilarity candidates:")
+            for row in result.similarity:
+                print(
+                    f"  {row['id']} corr={float(row['corr']):.3f} mse={float(row['mse']):.3g} "
+                    f"scale={float(row['scale']):.3g} offset={float(row['offset']):.3g} - {row.get('name')}"
+                )
+        print_combo_section("Combination matches", result.combinations, coeffs=True)
+        print_combo_section("Mod-class combinations", result.modclass_combinations or [])
+        print_combo_section("Triple combination matches", result.triple_combinations or [])
+        print_combo_section("Pointwise combination matches", result.pointwise_combinations or [])
+        print_combo_section("Convolution combination matches", result.convolution_combinations or [])
+        if result.diagnostics.get("time_budget_exhausted"):
+            print("\n(Time budget reached; stopping early.)")
+    timings = result.diagnostics.get("timings_ms") or {}
+    if timings:
+        print("\nTimings (ms):")
+        for name, value in timings.items():
+            print(f"  {name}: {float(value):.1f}")
+    return 0
 
 
 def _main(argv=None):
@@ -1926,571 +2851,7 @@ def _main(argv=None):
             return 0
 
     if args.cmd == "combo":
-        import time
-
-        timings: dict[str, float] = {}
-        t_start = time.perf_counter()
-        stream_text = bool(getattr(args, "stream", False) and not args.as_json)
-        time_budget_exhausted = False
-
-        def _elapsed_s() -> float:
-            return time.perf_counter() - t_start
-
-        def _remaining_s() -> float | None:
-            total = getattr(args, "total_max_time", None)
-            if total is None:
-                return None
-            try:
-                return max(0.0, float(total) - _elapsed_s())
-            except (TypeError, ValueError):
-                return None
-
-        def _cap_by_total(stage_cap: float | None) -> float | None:
-            rem = _remaining_s()
-            if rem is None:
-                return stage_cap
-            if rem <= 0:
-                return 0.0
-            if stage_cap is None:
-                return rem
-            try:
-                stage_cap_f = float(stage_cap)
-            except (TypeError, ValueError):
-                return rem
-            return min(stage_cap_f, rem)
-
-        deadline_s: float | None = None
-        if getattr(args, "total_max_time", None) is not None:
-            try:
-                deadline_s = t_start + float(args.total_max_time)
-            except (TypeError, ValueError):
-                deadline_s = None
-
-        try:
-            query = parse_query(
-                args.sequence,
-                min_match_length=args.min_match_length,
-                allow_subsequence=False,
-            )
-        except QueryParseError as e:
-            print(f"Invalid query: {e}")
-            return 2
-        db_path = Path(args.db)
-        coeffs = _parse_int_list(args.coeffs)
-        triple_candidates = args.triple_candidates or args.candidates
-        cap = max(args.candidates, triple_candidates)
-        if stream_text:
-            mode = "unfiltered" if args.combo_unfiltered else "prefix+invariants"
-            disc = "on" if bool(getattr(args, "discovery", False)) else "off"
-            pref = "wide" if bool(getattr(args, "wide_prefilter", False)) else "default"
-            print(
-                f"Building candidate bucket (cap={cap}, mode={mode}, discovery={disc}, prefilter={pref})…",
-                flush=True,
-            )
-        t0 = time.perf_counter()
-        cand_cap = _cap_by_total(getattr(args, "candidate_max_time", None))
-        if cand_cap is None:
-            bucket_deadline_s = None
-        elif cand_cap <= 0:
-            bucket_deadline_s = time.perf_counter()
-        else:
-            bucket_deadline_s = time.perf_counter() + float(cand_cap)
-        bucket = get_candidate_bucket(
-            query,
-            db_path,
-            exact_limit=cap,
-            similar_limit=cap,
-            max_records=cap,
-            fill_unfiltered=True,
-            skip_prefix_filter=args.combo_unfiltered,
-            variance_band=args.variance_band,
-            growth_band=args.growth_band,
-            deadline_s=bucket_deadline_s,
-            time_fn=time.perf_counter,
-            enable_discovery=bool(getattr(args, "discovery", False)),
-            discovery_limit=int(getattr(args, "discovery_limit", 16)),
-            discovery_max_time_s=getattr(args, "discovery_max_time", None),
-            discovery_tools=tuple(_parse_transform_names(getattr(args, "discovery_tools", "sympy"))),
-            widen_prefilter=bool(getattr(args, "wide_prefilter", False)),
-        )
-        candidate_provenance = bucket.provenance
-        if args.timings:
-            timings["candidates_ms"] = 1000 * (time.perf_counter() - t0)
-        include_ids = _parse_oeis_ids(args.include_ids)
-        records = list(bucket.records)
-        if include_ids:
-            for sid in include_ids:
-                rec = get_sequence_by_id(db_path, sid)
-                if rec:
-                    records.append(rec)
-            # De-dupe; included ids should never be dropped later due to candidate trimming.
-            records_by_id = {r.id: r for r in records}
-            records = list(records_by_id.values())
-        if stream_text:
-            note = ""
-            if bucket_deadline_s is not None and time.perf_counter() >= bucket_deadline_s:
-                note = " (time-capped)"
-            print(
-                f"Candidate bucket: {len(records)} sequences "
-                f"(exact={len(bucket.exact_ids)} similar={len(bucket.similar_ids)} discovery={len(bucket.discovery_ids)}){note}",
-                flush=True,
-            )
-        comp_transforms = resolve_component_transforms(_parse_transform_names(args.component_transforms))
-        snip = _choose_snippet_len(query.terms, args.show_terms)
-        max_candidates = None if include_ids else args.candidates
-        triple_max_candidates = None if include_ids else triple_candidates
-
-        if args.total_max_time is not None and _remaining_s() == 0:
-            time_budget_exhausted = True
-
-        def _fmt_combo_line(m, *, show_coeffs: bool = True) -> str:
-            if len(m.ids) == 2:
-                n1 = f" - {m.names[0]}" if m.names[0] else ""
-                n2 = f" - {m.names[1]}" if m.names[1] else ""
-                extra = ""
-                if m.component_terms:
-                    extra = f" terms1={_fmt_terms(m.component_terms[0])} terms2={_fmt_terms(m.component_terms[1])}"
-                if m.combined_terms:
-                    extra += f" result={_fmt_terms(m.combined_terms)}"
-                coeffs_disp = ",".join(_fmt_coeff_json(c) for c in m.coeffs)
-                coeffs_txt = f" coeffs={coeffs_disp}" if show_coeffs else ""
-                return f"  {m.expression} len={m.length}{coeffs_txt} score={m.score:.2f} [{m.ids[0]}{n1}; {m.ids[1]}{n2}]{extra}"
-            name_parts = [f"{id_}{' - ' + nm if nm else ''}" for id_, nm in zip(m.ids, m.names)]
-            extra = ""
-            if m.component_terms:
-                extra = " " + " ".join(f"terms{i+1}={_fmt_terms(ts)}" for i, ts in enumerate(m.component_terms))
-            if m.combined_terms:
-                extra += f" result={_fmt_terms(m.combined_terms)}"
-            return f"  {m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}"
-
-        combos = []
-        modclass_matches = []
-        need_expanded_pairs = False
-        if not time_budget_exhausted:
-            t1 = time.perf_counter()
-            if stream_text:
-                print("Pair combinations:", flush=True)
-            combos = search_two_sequence_combinations(
-                query,
-                records,
-                coeffs=coeffs,
-                max_shift=args.max_shift,
-                max_shift_back=args.max_shift_back,
-                limit=args.limit,
-                max_candidates=max_candidates,
-                max_checks=args.max_checks,
-                max_time_s=_cap_by_total(args.max_time),
-                max_combinations=args.max_combinations,
-                component_transforms=comp_transforms,
-                snippet_len=snip,
-                use_rational=args.rational,
-                min_score=args.min_score,
-                max_complexity=args.max_complexity,
-                on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=True), flush=True)) if stream_text else None,
-            )
-            combos = _attach_combo_candidate_provenance(combos, candidate_provenance)
-            if args.timings:
-                timings["pair_ms"] = 1000 * (time.perf_counter() - t1)
-
-            # Expanded DB-wide searches can be expensive (especially pairs).
-            # To improve time-to-first-hit for triples, defer the expanded pair
-            # fallback until after pointwise/convolution/triple stages.
-            if args.expanded and not combos and (args.total_max_time is None or _remaining_s() > 0):
-                if len(query.terms) < 5:
-                    if stream_text:
-                        print("  (expanded DB-wide search needs >= 5 terms; skipping)", flush=True)
-                else:
-                    exp_time = args.expanded_max_time if args.expanded_max_time and args.expanded_max_time > 0 else None
-                    exp_time = _cap_by_total(exp_time)
-                    if exp_time is None or exp_time > 0:
-                        need_expanded_pairs = True
-                        if stream_text:
-                            print("  (no regular pair combos found; will try expanded DB-wide search later…)", flush=True)
-
-            if stream_text and (not combos) and (not need_expanded_pairs):
-                print("  (none)", flush=True)
-            if args.total_max_time is not None and _remaining_s() == 0:
-                time_budget_exhausted = True
-
-        if args.modclass and int(args.modclass) > 0 and not time_budget_exhausted and (args.total_max_time is None or _remaining_s() > 0):
-            t_mc = time.perf_counter()
-            if stream_text:
-                print("\nMod-class combinations:", flush=True)
-            mc_time = _cap_by_total(getattr(args, "modclass_max_time", None))
-            if mc_time is None or mc_time > 0:
-                moduli = _parse_int_list(str(getattr(args, "modclass_moduli", "2,3")).replace(" ", ","))
-                moduli = [m for m in moduli if m > 1]
-                modclass_matches = search_mod_class_combinations(
-                    query,
-                    db_path,
-                    moduli=tuple(moduli) if moduli else (2, 3),
-                    limit=int(args.modclass),
-                    max_shift=args.max_shift,
-                    max_time_s=mc_time,
-                    snippet_len=snip,
-                    min_score=args.min_score,
-                    max_complexity=args.max_complexity,
-                    on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=False), flush=True)) if stream_text else None,
-                )
-                modclass_matches = _attach_combo_candidate_provenance(modclass_matches, candidate_provenance)
-            if args.timings:
-                timings["modclass_ms"] = 1000 * (time.perf_counter() - t_mc)
-            if stream_text and not modclass_matches:
-                print("  (none)", flush=True)
-            if args.total_max_time is not None and _remaining_s() == 0:
-                time_budget_exhausted = True
-        pointwise_matches = []
-        conv_matches: list = []
-        pw_ops = _parse_pointwise_ops(args.pointwise_ops)
-        if pw_ops:
-            if not time_budget_exhausted:
-                expanded_pointwise = args.expanded if getattr(args, "expanded_pointwise", None) is None else bool(getattr(args, "expanded_pointwise"))
-                t_pw = time.perf_counter()
-                if stream_text:
-                    print("\nPointwise combinations:", flush=True)
-                pointwise_matches = search_pointwise_two_sequence_combinations(
-                    query,
-                    records,
-                    ops=pw_ops,
-                    max_shift=args.max_shift,
-                    max_shift_back=args.max_shift_back,
-                    limit=args.limit,
-                    max_candidates=max_candidates,
-                    max_checks=args.max_checks,
-                    max_time_s=_cap_by_total(args.max_time),
-                    component_transforms=comp_transforms,
-                    snippet_len=snip,
-                    min_score=args.min_score,
-                    max_complexity=args.max_complexity,
-                    on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=False), flush=True)) if stream_text else None,
-                )
-                pointwise_matches = _attach_combo_candidate_provenance(pointwise_matches, candidate_provenance)
-                # Expanded DB-wide fallback for pointwise multiplication. This is
-                # important for cases where the multiplicative "mask" component
-                # (0/1/2-valued, sparse, etc.) does not resemble the product.
-                if (
-                    expanded_pointwise
-                    and ("mul" in pw_ops)
-                    and (not pointwise_matches)
-                    and (args.total_max_time is None or _remaining_s() > 0)
-                    and len(query.terms) >= 5
-                ):
-                    raw_cap = getattr(args, "expanded_pointwise_max_time", None)
-                    if raw_cap is None:
-                        raw_cap = args.expanded_max_time
-                    exp_time = raw_cap if raw_cap and raw_cap > 0 else None
-                    exp_time = _cap_by_total(exp_time)
-                    if exp_time is None or exp_time > 0:
-                        t_pwe = time.perf_counter()
-                        if stream_text:
-                            print("  (no in-bucket mul hits; trying expanded DB-wide mul…)", flush=True)
-                        pointwise_matches = search_pointwise_two_sequence_combinations_expanded(
-                            query,
-                            db_path,
-                            ops=("mul",),
-                            max_shift=args.max_shift,
-                            limit=args.limit,
-                            max_time_s=exp_time,
-                            snippet_len=snip,
-                            min_score=args.min_score,
-                            max_complexity=args.max_complexity,
-                            on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=False), flush=True)) if stream_text else None,
-                        )
-                        pointwise_matches = _attach_combo_candidate_provenance(pointwise_matches, candidate_provenance)
-                        if args.timings:
-                            timings["expanded_pointwise_ms"] = 1000 * (time.perf_counter() - t_pwe)
-                if args.timings:
-                    timings["pointwise_ms"] = 1000 * (time.perf_counter() - t_pw)
-                if stream_text and not pointwise_matches:
-                    print("  (none)", flush=True)
-                if args.total_max_time is not None and _remaining_s() == 0:
-                    time_budget_exhausted = True
-        conv_ops = _parse_conv_ops(args.convolution_ops)
-        if conv_ops:
-            if not time_budget_exhausted:
-                t_conv = time.perf_counter()
-                if stream_text:
-                    print("\nConvolution combinations:", flush=True)
-                conv_matches = search_convolution_two_sequence_combinations(
-                    query,
-                    records,
-                    ops=conv_ops,
-                    max_length=32,
-                    limit=args.limit,
-                    max_candidates=max_candidates,
-                    max_checks=args.max_checks,
-                    max_time_s=_cap_by_total(args.max_time),
-                    component_transforms=comp_transforms,
-                    snippet_len=snip,
-                    min_score=args.min_score,
-                    max_complexity=args.max_complexity,
-                    on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=False), flush=True)) if stream_text else None,
-                )
-                conv_matches = _attach_combo_candidate_provenance(conv_matches, candidate_provenance)
-                if args.timings:
-                    timings["convolution_ms"] = 1000 * (time.perf_counter() - t_conv)
-                if stream_text and not conv_matches:
-                    print("  (none)", flush=True)
-                if args.total_max_time is not None and _remaining_s() == 0:
-                    time_budget_exhausted = True
-        triples = []
-        if args.triples:
-            if not time_budget_exhausted:
-                t3 = time.perf_counter()
-                if stream_text:
-                    print("\nTriple combinations:", flush=True)
-                triples = search_three_sequence_combinations(
-                    query,
-                    records,
-                    coeffs=coeffs,
-                    max_shift=args.max_shift,
-                    max_shift_back=args.max_shift_back,
-                    limit=args.triples,
-                    max_candidates=triple_max_candidates,
-                    max_checks=args.triple_max_checks,
-                    max_time_s=_cap_by_total(args.triple_max_time),
-                    max_combinations=args.triple_max_combinations,
-                    component_transforms=comp_transforms,
-                    snippet_len=snip,
-                    min_score=args.triple_min_score,
-                    max_complexity=args.triple_max_complexity,
-                    use_rational=args.triple_rational,
-                    allow_self_reference=bool(getattr(args, "preset", "") == "max"),
-                    on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=False), flush=True)) if stream_text else None,
-                )
-                triples = _attach_combo_candidate_provenance(triples, candidate_provenance)
-                if args.timings:
-                    timings["triples_ms"] = 1000 * (time.perf_counter() - t3)
-                if args.expanded and not triples and (args.total_max_time is None or _remaining_s() > 0):
-                    if len(query.terms) < 5:
-                        if stream_text:
-                            print("  (expanded DB-wide search needs >= 5 terms; skipping)", flush=True)
-                    else:
-                        exp_time = args.expanded_max_time if args.expanded_max_time and args.expanded_max_time > 0 else None
-                        exp_time = _cap_by_total(exp_time)
-                        if exp_time is None or exp_time > 0:
-                            t3e = time.perf_counter()
-                            if stream_text:
-                                print("  (no regular triple combos found; trying expanded DB-wide search…)", flush=True)
-                            triples = search_three_sequence_combinations_expanded(
-                                query,
-                                db_path,
-                                coeffs=coeffs,
-                                limit=args.triples,
-                                max_anchors=args.expanded_anchors,
-                                max_time_s=exp_time,
-                                snippet_len=snip,
-                                min_score=args.triple_min_score,
-                                max_complexity=args.triple_max_complexity,
-                                on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=False), flush=True)) if stream_text else None,
-                            )
-                            triples = _attach_combo_candidate_provenance(triples, candidate_provenance)
-                            if args.timings:
-                                timings["expanded_triples_ms"] = 1000 * (time.perf_counter() - t3e)
-                if stream_text and not triples:
-                    print("  (none)", flush=True)
-                if args.total_max_time is not None and _remaining_s() == 0:
-                    time_budget_exhausted = True
-
-        if need_expanded_pairs and not combos and not time_budget_exhausted and (args.total_max_time is None or _remaining_s() > 0):
-            if len(query.terms) < 5:
-                if stream_text:
-                    print("\nExpanded pair combinations:", flush=True)
-                    print("  (expanded DB-wide search needs >= 5 terms; skipping)", flush=True)
-            else:
-                exp_time = args.expanded_max_time if args.expanded_max_time and args.expanded_max_time > 0 else None
-                exp_time = _cap_by_total(exp_time)
-                if exp_time is None or exp_time > 0:
-                    t1e = time.perf_counter()
-                    if stream_text:
-                        print("\nExpanded pair combinations:", flush=True)
-                    combos = search_two_sequence_combinations_expanded(
-                        query,
-                        db_path,
-                        coeffs=coeffs,
-                        limit=args.limit,
-                        max_shift=args.max_shift,
-                        max_time_s=exp_time,
-                        snippet_len=snip,
-                        min_score=args.min_score,
-                        max_complexity=args.max_complexity,
-                        on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=True), flush=True)) if stream_text else None,
-                    )
-                    combos = _attach_combo_candidate_provenance(combos, candidate_provenance)
-                    if args.timings:
-                        timings["expanded_pair_ms"] = 1000 * (time.perf_counter() - t1e)
-                if stream_text and not combos:
-                    print("  (none)", flush=True)
-                if args.total_max_time is not None and _remaining_s() == 0:
-                    time_budget_exhausted = True
-        if args.as_json:
-            if args.timings:
-                timings["total_ms"] = 1000 * (time.perf_counter() - t_start)
-            combined_limit = max(
-                int(getattr(args, "limit", 0) or 0),
-                int(getattr(args, "triples", 0) or 0),
-                int(getattr(args, "modclass", 0) or 0),
-                int(getattr(args, "pointwise_limit", 0) or 0),
-                int(getattr(args, "convolution_limit", 0) or 0),
-                0,
-            )
-            combined_matches = merge_combination_families(
-                {
-                    "linear_pair": combos,
-                    "linear_triple": triples,
-                    "modclass": modclass_matches,
-                    "pointwise": pointwise_matches,
-                    "convolution": conv_matches,
-                },
-                limit=combined_limit if combined_limit > 0 else None,
-                per_family_quota=1,
-            )
-            def _crow(m):
-                return {
-                    "ids": list(m.ids),
-                    "names": list(m.names),
-                    "coeffs": [_fmt_coeff_json(c) for c in m.coeffs],
-                    "shifts": list(m.shifts),
-                    "length": m.length,
-                    "score": m.score,
-                    "expression": m.expression,
-                    **({"component_transforms": list(m.component_transforms)} if m.component_transforms else {}),
-                    **({"component_terms": [list(t) for t in m.component_terms]} if m.component_terms else {}),
-                    **({"combined_terms": m.combined_terms} if m.combined_terms else {}),
-                    **(
-                        {"candidate_provenance": [list(rs) for rs in m.candidate_provenance]}
-                        if m.candidate_provenance
-                        else {}
-                    ),
-                }
-
-            out = [_crow(m) for m in combos]
-            out3 = [_crow(m) for m in triples]
-            out_modclass = [_crow(m) for m in modclass_matches]
-            out_pw = [_crow(m) for m in pointwise_matches]
-            out_conv = [_crow(m) for m in conv_matches]
-            out_combined = [{"family": fam, **_crow(m)} for fam, m in combined_matches]
-            print(
-                json.dumps(
-                    {
-                        "query": query.terms,
-                        "combinations": out,
-                        "triple_combinations": out3,
-                        "modclass_combinations": out_modclass,
-                        "pointwise_combinations": out_pw,
-                        "convolution_combinations": out_conv,
-                        "combined_combinations": out_combined,
-                        "diagnostics": {
-                            **({"timings_ms": timings} if args.timings else {}),
-                            "variance_band": args.variance_band,
-                            "growth_band": args.growth_band,
-                            "combined_combinations_count": len(combined_matches),
-                            "candidate_bucket": {
-                                "size": len(records),
-                                "exact": len(bucket.exact_ids),
-                                "similar": len(bucket.similar_ids),
-                                "discovery": len(bucket.discovery_ids),
-                                "provenance_counts": {
-                                    reason: sum(1 for rs in bucket.provenance.values() if reason in rs)
-                                    for reason in sorted({r for rs in bucket.provenance.values() for r in rs})
-                                },
-                                **(
-                                    {"discovery_diagnostics": bucket.discovery_diagnostics}
-                                    if bucket.discovery_diagnostics
-                                    else {}
-                                ),
-                                **(
-                                    {"provider_diagnostics": bucket.provider_diagnostics}
-                                    if bucket.provider_diagnostics
-                                    else {}
-                                ),
-                            },
-                            **({"time_budget_exhausted": True} if time_budget_exhausted else {}),
-                        },
-                    },
-                    indent=2,
-                )
-            )
-        else:
-            if stream_text:
-                if time_budget_exhausted:
-                    print("\n(Time budget reached; stopping early.)", flush=True)
-                if args.timings:
-                    timings["total_ms"] = 1000 * (time.perf_counter() - t_start)
-                    print("\nTimings (ms):", flush=True)
-                    for k, v in timings.items():
-                        print(f"  {k}: {v:.1f}", flush=True)
-                if not combos and not triples and not modclass_matches and not pointwise_matches and not conv_matches:
-                    if not args.expanded:
-                        print("\nNo combinations found. Tip: try --expanded or --preset max.", flush=True)
-                    else:
-                        print("\nNo combinations found.", flush=True)
-                return 0
-            if not combos and not triples and not modclass_matches and not pointwise_matches and not conv_matches:
-                if not args.expanded:
-                    print("No combinations found. Tip: try --expanded or --preset max.")
-                else:
-                    print("No combinations found.")
-            for m in combos:
-                n1 = f" - {m.names[0]}" if m.names[0] else ""
-                n2 = f" - {m.names[1]}" if m.names[1] else ""
-                extra = ""
-                if m.component_terms:
-                    t1 = _fmt_terms(m.component_terms[0])
-                    t2 = _fmt_terms(m.component_terms[1])
-                    extra = f" terms1={t1} terms2={t2}"
-                if m.combined_terms:
-                    extra += f" result={_fmt_terms(m.combined_terms)}"
-                print(f"{m.expression} len={m.length} score={m.score:.2f} [{m.ids[0]}{n1}; {m.ids[1]}{n2}]{extra}")
-            if modclass_matches:
-                print("\nMod-class combinations:")
-                for m in modclass_matches:
-                    name_parts = [f"{id_}{f' - {nm}' if nm else ''}" for id_, nm in zip(m.ids, m.names)]
-                    extra = ""
-                    if m.component_terms:
-                        extra = " " + " ".join(f"terms{i+1}={_fmt_terms(ts)}" for i, ts in enumerate(m.component_terms))
-                    if m.combined_terms:
-                        extra += f" result={_fmt_terms(m.combined_terms)}"
-                    print(f"{m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}")
-            if triples:
-                print("\nTriple combinations:")
-                for m in triples:
-                    name_parts = [f"{id_}{f' - {nm}' if nm else ''}" for id_, nm in zip(m.ids, m.names)]
-                    extra = ""
-                    if m.component_terms:
-                        extra = " " + " ".join(f"terms{i+1}={_fmt_terms(ts)}" for i, ts in enumerate(m.component_terms))
-                    if m.combined_terms:
-                        extra += f" result={_fmt_terms(m.combined_terms)}"
-                    print(f"{m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}")
-            if pointwise_matches:
-                print("\nPointwise combinations:")
-                for m in pointwise_matches:
-                    name_parts = [f"{id_}{f' - {nm}' if nm else ''}" for id_, nm in zip(m.ids, m.names)]
-                    extra = ""
-                    if m.component_terms:
-                        extra = f" terms1={_fmt_terms(m.component_terms[0])} terms2={_fmt_terms(m.component_terms[1])}"
-                    if m.combined_terms:
-                        extra += f" result={_fmt_terms(m.combined_terms)}"
-                    print(f"{m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}")
-            if conv_matches:
-                print("\nConvolution combinations:")
-                for m in conv_matches:
-                    name_parts = [f"{id_}{f' - {nm}' if nm else ''}" for id_, nm in zip(m.ids, m.names)]
-                    extra = ""
-                    if m.component_terms:
-                        extra = f" terms1={_fmt_terms(m.component_terms[0])} terms2={_fmt_terms(m.component_terms[1])}"
-                    if m.combined_terms:
-                        extra += f" result={_fmt_terms(m.combined_terms)}"
-                    print(f"{m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}")
-            if time_budget_exhausted:
-                print("\n(Time budget reached; stopping early.)")
-            if args.timings:
-                timings["total_ms"] = 1000 * (time.perf_counter() - t_start)
-                print("\nTimings (ms):")
-                for k, v in timings.items():
-                    print(f"  {k}: {v:.1f}")
-        return 0
-
+        return _run_combo_command(args)
     if args.cmd == "selfcheck":
         from .selfcheck import run_random_combo_trials, run_regressions
 
@@ -2558,1229 +2919,7 @@ def _main(argv=None):
         return 0 if ok else 2
 
     if args.cmd == "analyze":
-        import time
-        timings: dict[str, float] = {}
-        t_start = time.perf_counter()
-        deadline_s: float | None = None
-        if args.total_max_time is not None:
-            try:
-                deadline_s = t_start + float(args.total_max_time)
-            except (TypeError, ValueError):
-                deadline_s = None
-        stream_text = bool(args.stream and not args.as_json)
-        time_budget_exhausted = False
-
-        def _elapsed_s() -> float:
-            return time.perf_counter() - t_start
-
-        def _remaining_s() -> float | None:
-            if args.total_max_time is None:
-                return None
-            return max(0.0, float(args.total_max_time) - _elapsed_s())
-
-        def _cap_by_total(stage_cap: float | None) -> float | None:
-            rem = _remaining_s()
-            if rem is None:
-                return stage_cap
-            if rem <= 0:
-                return 0.0
-            if stage_cap is None:
-                return rem
-            try:
-                stage_cap_f = float(stage_cap)
-            except (TypeError, ValueError):
-                return rem
-            return min(stage_cap_f, rem)
-
-        def _fmt_combo_line(m, *, show_coeffs: bool = True) -> str:
-            if len(m.ids) == 2:
-                n1 = f" - {m.names[0]}" if m.names[0] else ""
-                n2 = f" - {m.names[1]}" if m.names[1] else ""
-                extra = ""
-                if m.component_terms:
-                    extra = f" terms1={_fmt_terms(m.component_terms[0])} terms2={_fmt_terms(m.component_terms[1])}"
-                if m.combined_terms:
-                    extra += f" result={_fmt_terms(m.combined_terms)}"
-                coeffs_disp = ",".join(_fmt_coeff_json(c) for c in m.coeffs)
-                coeffs_txt = f" coeffs={coeffs_disp}" if show_coeffs else ""
-                return f"  {m.expression} len={m.length}{coeffs_txt} score={m.score:.2f} [{m.ids[0]}{n1}; {m.ids[1]}{n2}]{extra}"
-            name_parts = [f"{id_}{' - ' + nm if nm else ''}" for id_, nm in zip(m.ids, m.names)]
-            extra = ""
-            if m.component_terms:
-                extra = " " + " ".join(f"terms{i+1}={_fmt_terms(ts)}" for i, ts in enumerate(m.component_terms))
-            if m.combined_terms:
-                extra += f" result={_fmt_terms(m.combined_terms)}"
-            return f"  {m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}"
-
-        try:
-            query = parse_query(
-                args.sequence,
-                min_match_length=args.min_match_length,
-                allow_subsequence=args.subsequence,
-            )
-        except QueryParseError as e:
-            print(f"Invalid query: {e}")
-            return 2
-        db_path = Path(args.db)
-        combo_stage_requested = bool(
-            (args.modclass and int(args.modclass) > 0)
-            or bool(getattr(args, "combos", 0))
-            or bool(getattr(args, "triples", 0))
-            or bool(getattr(args, "pointwise_limit", 0) > 0 and getattr(args, "pointwise_ops", ""))
-            or bool(getattr(args, "convolution_limit", 0) > 0 and getattr(args, "convolution_ops", ""))
-        )
-        schedule_mode = "latency_first" if getattr(args, "preset", None) in ("deep", "max") else "default"
-        transform_probe_used = False
-        transform_probe_cap_s: float | None = None
-        transform_refined = False
-        checkpoint_path = Path(args.checkpoint) if str(getattr(args, "checkpoint", "")).strip() else None
-        checkpoint_state: dict | None = None
-        checkpoint_loaded = False
-        checkpoint_resumed_stages: list[str] = []
-        checkpoint_saved_stages: list[str] = []
-
-        if checkpoint_path is not None:
-            checkpoint_ctx = _checkpoint_context(args, query_terms=query.terms, db_path=db_path)
-            if bool(getattr(args, "resume", False)) and checkpoint_path.exists():
-                loaded = _read_checkpoint(checkpoint_path)
-                if loaded and _checkpoint_compatible(loaded, context=checkpoint_ctx):
-                    checkpoint_state = loaded
-                    checkpoint_loaded = True
-                else:
-                    print(
-                        f"Warning: checkpoint at {checkpoint_path} is incompatible with this analyze run; starting fresh.",
-                        file=sys.stderr,
-                    )
-            if checkpoint_state is None:
-                checkpoint_state = _new_checkpoint(checkpoint_ctx)
-                try:
-                    _write_checkpoint(checkpoint_path, checkpoint_state)
-                except Exception as exc:
-                    print(f"Warning: failed to initialize checkpoint {checkpoint_path}: {exc}", file=sys.stderr)
-                    checkpoint_path = None
-                    checkpoint_state = None
-                    checkpoint_loaded = False
-
-        def _cp_get(stage: str) -> dict | None:
-            entry = _checkpoint_get(checkpoint_state, stage)
-            if entry is not None:
-                checkpoint_resumed_stages.append(stage)
-            return entry
-
-        def _cp_put(stage: str, payload: dict) -> None:
-            if checkpoint_path is None:
-                return
-            _checkpoint_put(checkpoint_state, stage, payload)
-            checkpoint_saved_stages.append(stage)
-            try:
-                _write_checkpoint(checkpoint_path, checkpoint_state or {})
-            except Exception as exc:
-                print(f"Warning: failed to write checkpoint {checkpoint_path}: {exc}", file=sys.stderr)
-
-        # Exact matches (with optional fallback to subsequence)
-        t0 = time.perf_counter()
-        exact_cached = _cp_get("exact")
-        if exact_cached is not None:
-            exact_matches = _matches_from_checkpoint(list(exact_cached.get("matches") or []))
-            fallback_used = bool(exact_cached.get("fallback_used"))
-        else:
-            exact_stage_cap = _cap_by_total(args.exact_max_time)
-            if exact_stage_cap is None:
-                exact_deadline_s = None
-            elif exact_stage_cap <= 0:
-                exact_deadline_s = time.perf_counter()
-            else:
-                exact_deadline_s = time.perf_counter() + float(exact_stage_cap)
-            exact_matches = match_exact_db(
-                query,
-                db_path,
-                limit=args.limit,
-                snippet_len=args.show_terms,
-                deadline_s=exact_deadline_s,
-                time_fn=time.perf_counter,
-            )
-            fallback_used = False
-            if (
-                not exact_matches
-                and not args.subsequence
-                and not args.no_subsequence_fallback
-                and (exact_deadline_s is None or time.perf_counter() < exact_deadline_s)
-            ):
-                try:
-                    fb_query = parse_query(
-                        args.sequence,
-                        min_match_length=args.min_match_length,
-                        allow_subsequence=True,
-                    )
-                except QueryParseError as e:
-                    print(f"Invalid query (fallback): {e}")
-                    return 2
-                exact_matches = match_exact_db(
-                    fb_query,
-                    db_path,
-                    limit=args.limit,
-                    snippet_len=args.show_terms,
-                    deadline_s=exact_deadline_s,
-                    time_fn=time.perf_counter,
-                )
-                fallback_used = True
-            _cp_put(
-                "exact",
-                {
-                    "matches": _matches_to_checkpoint(exact_matches),
-                    "fallback_used": bool(fallback_used),
-                },
-            )
-        if args.timings:
-            timings["exact_ms"] = 1000 * (time.perf_counter() - t0)
-        if stream_text:
-            print("Exact matches:", flush=True)
-            if not exact_matches:
-                print("  (none)", flush=True)
-            for m in exact_matches:
-                name = f" - {m.name}" if m.name else ""
-                snippet = f" terms={','.join(str(t) for t in m.snippet)}" if m.snippet else ""
-                score = f" score={m.score:.2f}" if m.score is not None else ""
-                formula_txt = _fmt_formula(m.formula) if args.show_formula else ""
-                formula_disp = f" formula={formula_txt}" if formula_txt else ""
-                print(f"  {m.id} [{m.match_type} @ {m.offset}] len={m.length}{name}{score}{snippet}{formula_disp}", flush=True)
-        if args.total_max_time is not None and _remaining_s() == 0:
-            time_budget_exhausted = True
-
-        exclude_exact_from_derived = bool(getattr(args, "preset", None) in ("deep", "max") and exact_matches)
-        excluded_exact_ids = {m.id for m in exact_matches} if exclude_exact_from_derived else set()
-
-        def _transform_is_excluded(m) -> bool:
-            return bool(excluded_exact_ids) and m.id in excluded_exact_ids
-
-        def _combo_is_excluded(m) -> bool:
-            return bool(excluded_exact_ids) and any(seq_id in excluded_exact_ids for seq_id in m.ids)
-
-        def _filter_transform_matches(matches: list) -> list:
-            if not excluded_exact_ids:
-                return matches
-            return [m for m in matches if not _transform_is_excluded(m)]
-
-        def _filter_combo_matches(matches: list) -> list:
-            if not excluded_exact_ids:
-                return matches
-            return [m for m in matches if not _combo_is_excluded(m)]
-
-        def _filter_similarity_rows(rows: list[dict]) -> list[dict]:
-            if not excluded_exact_ids:
-                return rows
-            return [row for row in rows if row.get("id") not in excluded_exact_ids]
-
-        def _filter_candidate_bucket(bucket):
-            if not excluded_exact_ids:
-                return bucket
-            filtered_records = [rec for rec in bucket.records if rec.id not in excluded_exact_ids]
-            if len(filtered_records) == len(bucket.records):
-                return bucket
-            keep_ids = {rec.id for rec in filtered_records}
-            return replace(
-                bucket,
-                exact_ids=[sid for sid in bucket.exact_ids if sid in keep_ids],
-                transform_ids=[sid for sid in bucket.transform_ids if sid in keep_ids],
-                similar_ids=[sid for sid in bucket.similar_ids if sid in keep_ids],
-                discovery_ids=[sid for sid in bucket.discovery_ids if sid in keep_ids],
-                records=filtered_records,
-                provenance={sid: rs for sid, rs in bucket.provenance.items() if sid in keep_ids},
-            )
-
-        def _combo_on_match(show_coeffs: bool):
-            if not stream_text:
-                return None
-
-            def _emit(m) -> None:
-                if _combo_is_excluded(m):
-                    return
-                print(_fmt_combo_line(m, show_coeffs=show_coeffs), flush=True)
-
-            return _emit
-
-        # Transform matches
-        scale_vals = _parse_int_list(args.scale_values)
-        shift_vals = _parse_int_list(args.shift_values)
-        beta_vals = _parse_int_list(args.beta_values)
-        decimate_params = _parse_decimate(args.decimate)
-        extras = _parse_extra_transforms(args.extra_transforms)
-        transforms = default_transforms(
-            scale_values=scale_vals,
-            beta_values=beta_vals,
-            shift_values=shift_vals,
-            allow_alt_sign=extras["alt_sign"],
-            allow_diff=not args.no_diff,
-            diff_orders=(1, 2) if (not args.no_diff and extras["diff2"]) else (1,),
-            allow_partial_sum=not args.no_partial_sum,
-            allow_cumprod=extras["cumprod"],
-            allow_abs=not args.no_abs,
-            allow_gcd_norm=not args.no_gcd_norm,
-            decimate_params=decimate_params,
-            allow_reverse=extras["reverse"],
-            allow_even_odd=extras["evenodd"],
-            moving_sum_windows=tuple(sorted(set((2,) if extras["movsum2"] else ()) | set(extras["movsum_windows"]))),
-            allow_popcount=extras["popcount"],
-            allow_digit_sum=extras["digitsum"],
-            digit_sum_bases=extras["digit_bases"],
-            modulus_values=extras["mod_values"],
-            allow_xor_index=extras["xor_index"],
-            allow_rle=extras["rle"],
-            allow_rle_decode=extras["rle_dec"],
-            allow_concat=extras["concat"],
-            allow_binomial=extras["binomial"],
-            allow_euler=extras["euler"],
-            allow_mobius=extras["mobius"],
-            allow_log=bool(extras["log_bases"]),
-            log_bases=extras["log_bases"],
-            allow_exp=bool(extras["exp_bases"]),
-            exp_bases=extras["exp_bases"],
-            allow_omega=extras["omega"],
-            allow_bigomega=extras["bigomega"],
-            allow_tau=extras["tau"],
-            allow_sigma=extras["sigma"],
-            allow_phi=extras["phi"],
-            allow_v2=extras["v2"],
-            vp_values=extras["vp_values"],
-            allow_lpf=extras["lpf"],
-            allow_gpf=extras["gpf"],
-            allow_rad=extras["rad"],
-            allow_squarefree=extras["squarefree"],
-            allow_liouville=extras["liouville"],
-            allow_ratio_int=extras["ratio_int"],
-            allow_index_square=extras["index_square"],
-            allow_prime_index=extras["prime_index"],
-            allow_index_pow2=extras["index_pow2"],
-            allow_index_factorial=extras["index_factorial"],
-            allow_index_triangular=extras["index_triangular"],
-            allow_index_fibonacci=extras["index_fibonacci"],
-            index_power_values=extras["index_power_values"],
-            allow_inverse_binomial=extras["inv_binomial"],
-            allow_euler_ogf=extras["euler_ogf"],
-            allow_inverse_euler_ogf=extras["inv_euler_ogf"],
-            allow_stirling1=extras["stirling1"],
-            allow_stirling2=extras["stirling2"],
-            allow_inverse_stirling1=extras["inv_stirling1"],
-            allow_inverse_stirling2=extras["inv_stirling2"],
-            allow_ogf_inverse=extras["ogf_inverse"],
-            allow_series_reversion=extras["series_reversion"],
-        )
-
-        combo_snip = _choose_snippet_len(query.terms, args.show_terms)
-
-        def _fmt_transform_line(m) -> str:
-            name = f" - {m.name}" if m.name else ""
-            snippet = f" terms={','.join(str(t) for t in m.snippet)}" if m.snippet else ""
-            if m.transformed_terms:
-                snippet += f" transformed={','.join(str(t) for t in m.transformed_terms)}"
-            expl = m.explanation or m.transform_desc or ""
-            tdesc = f" via {expl}" if expl else ""
-            if m.symbolic:
-                tdesc += f" [{m.symbolic}]"
-            score = f" score={m.score:.2f}" if m.score is not None else ""
-            formula_txt = _fmt_formula(m.formula) if args.show_formula else ""
-            formula_disp = f" formula={formula_txt}" if formula_txt else ""
-            return f"  {m.id} [{m.match_type} @ {m.offset}] len={m.length}{name}{tdesc}{score}{snippet}{formula_disp}"
-
-        printed_transform: dict[tuple[str, str], tuple[str, float | None]] = {}
-        printed_transform_count = 0
-
-        def _on_transform_match(m) -> None:
-            nonlocal printed_transform_count
-            if _transform_is_excluded(m):
-                return
-            key = (m.id, m.match_type)
-            if key in printed_transform:
-                return
-            # Keep streaming output bounded even when full_scan produces many candidates.
-            if args.tlimit is not None and printed_transform_count >= int(args.tlimit):
-                return
-            printed_transform[key] = (m.transform_desc or "", m.score)
-            printed_transform_count += 1
-            print(_fmt_transform_line(m), flush=True)
-
-        transform_cached = _cp_get("transform")
-        defer_transform_refine = False
-        if stream_text:
-            print("\nTransform matches:", flush=True)
-        if transform_cached is not None:
-            t_matches = _matches_from_checkpoint(list(transform_cached.get("matches") or []))
-            t_matches = _filter_transform_matches(t_matches)
-        elif args.tlimit and args.tlimit > 0 and (_remaining_s() is None or _remaining_s() > 0):
-            transform_time_cap = _cap_by_total(args.transform_max_time)
-            if transform_time_cap is not None and transform_time_cap <= 0:
-                t_matches = []
-            else:
-                effective_transform_cap = transform_time_cap
-                if schedule_mode == "latency_first" and combo_stage_requested:
-                    probe_target = 5.0
-                    if transform_time_cap is None:
-                        effective_transform_cap = probe_target
-                        defer_transform_refine = True
-                    elif transform_time_cap > probe_target:
-                        effective_transform_cap = probe_target
-                        defer_transform_refine = True
-                    if effective_transform_cap is not None:
-                        transform_probe_cap_s = float(effective_transform_cap)
-                        transform_probe_used = bool(defer_transform_refine)
-                t_matches = search_transform_matches(
-                    query,
-                    db_path,
-                    max_depth=args.max_depth,
-                    transforms=transforms,
-                    limit=args.tlimit,
-                    snippet_len=combo_snip,
-                    full_scan=args.preset in ("deep", "max"),
-                    max_time_s=effective_transform_cap,
-                    min_score=args.transform_min_score,
-                    max_complexity=args.transform_max_complexity,
-                    variance_band=args.variance_band,
-                    growth_band=args.growth_band,
-                    allow_constant_outputs=args.allow_constant_transforms,
-                    on_match=_on_transform_match if stream_text else None,
-                )
-            t_matches = _filter_transform_matches(t_matches)
-            if not defer_transform_refine:
-                _cp_put("transform", {"matches": _matches_to_checkpoint(t_matches)})
-        else:
-            t_matches = []
-            if args.total_max_time is not None and _remaining_s() == 0:
-                time_budget_exhausted = True
-        t1 = time.perf_counter()
-        if args.timings:
-            timings["transform_ms"] = 1000 * (t1 - t0) - timings.get("exact_ms", 0.0)
-        if stream_text:
-            if not t_matches:
-                print("  (none)", flush=True)
-            else:
-                # Print any new/better final results not already streamed.
-                for m in t_matches:
-                    key = (m.id, m.match_type)
-                    cur = (m.transform_desc or "", m.score)
-                    if printed_transform.get(key) != cur:
-                        print(_fmt_transform_line(m), flush=True)
-        if args.total_max_time is not None and _remaining_s() == 0:
-            time_budget_exhausted = True
-
-        sim_cached = _cp_get("similarity")
-        sim_rows: list[dict] = []
-        if sim_cached is not None:
-            sim_rows = [dict(r) for r in list(sim_cached.get("matches") or []) if isinstance(r, dict)]
-        else:
-            sim_matches: list = []
-            sim_stage_cap = _cap_by_total(args.similarity_max_time)
-            if args.similar and (_remaining_s() is None or _remaining_s() > 0):
-                if sim_stage_cap is None:
-                    sim_deadline_s = None
-                elif sim_stage_cap <= 0:
-                    sim_deadline_s = time.perf_counter()
-                else:
-                    sim_deadline_s = time.perf_counter() + float(sim_stage_cap)
-                if sim_deadline_s is None or time.perf_counter() < sim_deadline_s:
-                    sim_matches = rank_candidates_for_query(
-                        query,
-                        db_path,
-                        top_k=args.similar,
-                        min_corr=args.min_corr,
-                        max_mse=args.max_mse,
-                        variance_band=args.variance_band,
-                        growth_band=args.growth_band,
-                        deadline_s=sim_deadline_s,
-                        time_fn=time.perf_counter,
-                    )
-            sim_rows = [
-                {
-                    "id": c.record.id,
-                    "name": c.record.name,
-                    "corr": c.corr,
-                    "mse": c.mse,
-                    "scale": c.scale,
-                    "offset": c.offset,
-                }
-                for c in sim_matches
-            ]
-            sim_rows = _filter_similarity_rows(sim_rows)
-            _cp_put("similarity", {"matches": sim_rows})
-        sim_rows = _filter_similarity_rows(sim_rows)
-        t2 = time.perf_counter()
-        if args.timings and args.similar:
-            timings["similarity_ms"] = 1000 * (t2 - t1)
-        if stream_text and sim_rows:
-            print("\nSimilarity candidates:", flush=True)
-            for c in sim_rows:
-                print(
-                    f"  {c['id']} corr={float(c['corr']):.3f} mse={float(c['mse']):.3g} "
-                    f"scale={float(c['scale']):.3g} offset={float(c['offset']):.3g} - {c.get('name')}",
-                    flush=True,
-                )
-        if args.total_max_time is not None and _remaining_s() == 0:
-            time_budget_exhausted = True
-        modclass_cached = _cp_get("modclass") if args.modclass and int(args.modclass) > 0 else None
-        modclass_matches: list = (
-            _combos_from_checkpoint(list(modclass_cached.get("matches") or [])) if modclass_cached is not None else []
-        )
-        modclass_matches = _filter_combo_matches(modclass_matches)
-        if modclass_cached is None and args.modclass and int(args.modclass) > 0 and (_remaining_s() is None or _remaining_s() > 0):
-            mc_start = time.perf_counter()
-            mc_time_cap = _cap_by_total(args.modclass_max_time)
-            if mc_time_cap is not None and mc_time_cap <= 0:
-                modclass_matches = []
-                if args.total_max_time is not None and _remaining_s() == 0:
-                    time_budget_exhausted = True
-            else:
-                if stream_text:
-                    print("\nMod-class combinations:", flush=True)
-                moduli = _parse_int_list(str(getattr(args, "modclass_moduli", "2,3")).replace(" ", ","))
-                moduli = [m for m in moduli if m > 1]
-                modclass_matches = search_mod_class_combinations(
-                    query,
-                    db_path,
-                    moduli=tuple(moduli) if moduli else (2, 3),
-                    limit=int(args.modclass),
-                    max_shift=args.combo_max_shift,
-                    max_time_s=mc_time_cap,
-                    snippet_len=combo_snip,
-                    min_score=args.combo_min_score,
-                    max_complexity=args.combo_max_complexity,
-                    on_match=_combo_on_match(False),
-                )
-                modclass_matches = _filter_combo_matches(modclass_matches)
-                _cp_put("modclass", {"matches": [_combo_to_checkpoint(m) for m in modclass_matches]})
-                if stream_text and not modclass_matches:
-                    print("  (none)", flush=True)
-                if args.timings:
-                    timings["modclass_ms"] = 1000 * (time.perf_counter() - mc_start)
-                if args.total_max_time is not None and _remaining_s() == 0:
-                    time_budget_exhausted = True
-        combo_cached = _cp_get("combo") if args.combos else None
-        triple_cached = _cp_get("triple") if args.triples else None
-        pointwise_cached = _cp_get("pointwise") if (getattr(args, "pointwise_limit", 0) > 0 and args.pointwise_ops) else None
-        conv_cached = _cp_get("convolution") if (getattr(args, "convolution_limit", 0) > 0 and args.convolution_ops) else None
-        combo_matches: list = _combos_from_checkpoint(list(combo_cached.get("matches") or [])) if combo_cached is not None else []
-        triple_matches: list = _combos_from_checkpoint(list(triple_cached.get("matches") or [])) if triple_cached is not None else []
-        pointwise_matches: list = (
-            _combos_from_checkpoint(list(pointwise_cached.get("matches") or [])) if pointwise_cached is not None else []
-        )
-        conv_matches: list = _combos_from_checkpoint(list(conv_cached.get("matches") or [])) if conv_cached is not None else []
-        combo_matches = _filter_combo_matches(combo_matches)
-        triple_matches = _filter_combo_matches(triple_matches)
-        pointwise_matches = _filter_combo_matches(pointwise_matches)
-        conv_matches = _filter_combo_matches(conv_matches)
-        candidate_bucket_diag: dict[str, object] | None = None
-        candidate_provenance_map: dict[str, list[str]] | None = None
-        need_combo_compute = bool(args.combos) and combo_cached is None
-        need_triple_compute = bool(args.triples) and triple_cached is None
-        need_pointwise_compute = bool(getattr(args, "pointwise_limit", 0) > 0 and args.pointwise_ops) and pointwise_cached is None
-        need_conv_compute = bool(getattr(args, "convolution_limit", 0) > 0 and args.convolution_ops) and conv_cached is None
-        if (
-            (need_combo_compute or need_triple_compute or need_pointwise_compute or need_conv_compute)
-            and (_remaining_s() is None or _remaining_s() > 0)
-        ):
-            combo_coeffs = _parse_int_list(args.combo_coeffs)
-            triple_candidates = args.triple_candidates or args.combo_candidates
-            cap = max(args.combo_candidates, triple_candidates)
-            comp_transforms = resolve_component_transforms(_parse_transform_names(args.combo_component_transforms))
-            combo_snip = _choose_snippet_len(query.terms, args.show_terms)
-            combo_cand_cap = _cap_by_total(args.combo_candidate_max_time)
-            if combo_cand_cap is None:
-                bucket_deadline_s = None
-            elif combo_cand_cap <= 0:
-                bucket_deadline_s = time.perf_counter()
-            else:
-                bucket_deadline_s = time.perf_counter() + float(combo_cand_cap)
-            if stream_text:
-                mode = "unfiltered" if args.combo_unfiltered else "prefix+invariants"
-                disc = "on" if bool(getattr(args, "combo_discovery", False)) else "off"
-                pref = "wide" if bool(getattr(args, "combo_wide_prefilter", False)) else "default"
-                print(
-                    f"\nBuilding combo candidate bucket (cap={cap}, mode={mode}, discovery={disc}, prefilter={pref})…",
-                    flush=True,
-                )
-            bucket = get_candidate_bucket(
-                query,
-                db_path,
-                exact_limit=cap,
-                similar_limit=cap,
-                max_records=cap,
-                fill_unfiltered=True,
-                skip_prefix_filter=args.combo_unfiltered,
-                variance_band=args.variance_band,
-                growth_band=args.growth_band,
-                deadline_s=bucket_deadline_s,
-                time_fn=time.perf_counter,
-                enable_discovery=bool(getattr(args, "combo_discovery", False)),
-                discovery_limit=int(getattr(args, "combo_discovery_limit", 16)),
-                discovery_max_time_s=getattr(args, "combo_discovery_max_time", None),
-                discovery_tools=tuple(_parse_transform_names(getattr(args, "combo_discovery_tools", "sympy"))),
-                widen_prefilter=bool(getattr(args, "combo_wide_prefilter", False)),
-            )
-            bucket = _filter_candidate_bucket(bucket)
-            candidate_provenance_map = bucket.provenance
-            candidate_bucket_diag = {
-                "size": len(bucket.records),
-                "exact": len(bucket.exact_ids),
-                "similar": len(bucket.similar_ids),
-                "discovery": len(bucket.discovery_ids),
-                "provenance_counts": {
-                    reason: sum(1 for rs in bucket.provenance.values() if reason in rs)
-                    for reason in sorted({r for rs in bucket.provenance.values() for r in rs})
-                },
-                **({"discovery_diagnostics": bucket.discovery_diagnostics} if bucket.discovery_diagnostics else {}),
-                **({"provider_diagnostics": bucket.provider_diagnostics} if bucket.provider_diagnostics else {}),
-            }
-            if stream_text:
-                note = ""
-                if bucket_deadline_s is not None and time.perf_counter() >= bucket_deadline_s:
-                    note = " (time-capped)"
-                print(
-                    f"Combo candidate bucket: {len(bucket.records)} sequences "
-                    f"(exact={len(bucket.exact_ids)} similar={len(bucket.similar_ids)} discovery={len(bucket.discovery_ids)}){note}",
-                    flush=True,
-                )
-
-            need_expanded_pairs = False
-            expanded_pair_start = expanded_pair_end = None
-            if need_combo_compute:
-                combo_start = time.perf_counter()
-                combo_time_cap = _cap_by_total(args.combo_max_time)
-                if combo_time_cap is not None and combo_time_cap <= 0:
-                    combo_matches = []
-                    if args.total_max_time is not None and _remaining_s() == 0:
-                        time_budget_exhausted = True
-                else:
-                    if stream_text:
-                        print("\nCombination matches:", flush=True)
-                    combo_matches = search_two_sequence_combinations(
-                        query,
-                        bucket.records,
-                        coeffs=combo_coeffs,
-                        max_shift=args.combo_max_shift,
-                        max_shift_back=args.combo_max_shift_back,
-                        limit=args.combos,
-                        max_candidates=args.combo_candidates,
-                        max_checks=args.combo_max_checks,
-                        max_time_s=combo_time_cap,
-                        max_combinations=args.combo_max_combinations,
-                        component_transforms=comp_transforms,
-                        snippet_len=combo_snip,
-                        min_score=args.combo_min_score,
-                        max_complexity=args.combo_max_complexity,
-                        use_rational=args.combo_rational,
-                        on_match=_combo_on_match(True),
-                    )
-                    combo_matches = _attach_combo_candidate_provenance(combo_matches, candidate_provenance_map)
-                    combo_matches = _filter_combo_matches(combo_matches)
-                    # Expanded DB-wide pair search can be expensive; defer it until after
-                    # pointwise/convolution/triple stages for better time-to-first-hit.
-                    if args.combo_expanded and not combo_matches and (_remaining_s() is None or _remaining_s() > 0):
-                        if len(query.terms) < 5:
-                            if stream_text:
-                                print("  (expanded DB-wide search needs >= 5 terms; skipping)", flush=True)
-                        else:
-                            exp_time = args.combo_expanded_max_time if args.combo_expanded_max_time and args.combo_expanded_max_time > 0 else None
-                            exp_time = _cap_by_total(exp_time)
-                            if exp_time is not None and exp_time <= 0:
-                                if args.total_max_time is not None and _remaining_s() == 0:
-                                    time_budget_exhausted = True
-                            else:
-                                need_expanded_pairs = True
-                                if stream_text:
-                                    print("  (no regular pair combos found; will try expanded DB-wide search later…)", flush=True)
-                    if stream_text and not combo_matches and not need_expanded_pairs:
-                        print("  (none)", flush=True)
-                    _cp_put("combo", {"matches": [_combo_to_checkpoint(m) for m in combo_matches]})
-                combo_end = time.perf_counter()
-            else:
-                combo_start = combo_end = None
-
-            pw_ops = _parse_pointwise_ops(getattr(args, "pointwise_ops", ""))
-            if need_pointwise_compute and getattr(args, "pointwise_limit", 0) > 0 and pw_ops:
-                pw_start = time.perf_counter()
-                pw_time_cap = _cap_by_total(args.combo_max_time)
-                if pw_time_cap is not None and pw_time_cap <= 0:
-                    pointwise_matches = []
-                    if args.total_max_time is not None and _remaining_s() == 0:
-                        time_budget_exhausted = True
-                else:
-                    if stream_text:
-                        print("\nPointwise combination matches:", flush=True)
-                    combo_expanded_pointwise = (
-                        args.combo_expanded
-                        if getattr(args, "combo_expanded_pointwise", None) is None
-                        else bool(getattr(args, "combo_expanded_pointwise"))
-                    )
-                    pointwise_matches = search_pointwise_two_sequence_combinations(
-                        query,
-                        bucket.records,
-                        ops=pw_ops,
-                        max_shift=args.combo_max_shift,
-                        max_shift_back=args.combo_max_shift_back,
-                        limit=args.pointwise_limit,
-                        max_candidates=args.combo_candidates,
-                        max_checks=args.combo_max_checks,
-                        max_time_s=pw_time_cap,
-                        component_transforms=comp_transforms,
-                        snippet_len=combo_snip,
-                        min_score=args.combo_min_score,
-                        max_complexity=args.combo_max_complexity,
-                        on_match=_combo_on_match(False),
-                    )
-                    pointwise_matches = _attach_combo_candidate_provenance(pointwise_matches, candidate_provenance_map)
-                    pointwise_matches = _filter_combo_matches(pointwise_matches)
-                    # Expanded DB-wide fallback for pointwise multiplication (mul).
-                    # This helps recover factor-style explanations even when a
-                    # multiplicative component doesn't resemble the product.
-                    if (
-                        combo_expanded_pointwise
-                        and ("mul" in pw_ops)
-                        and (not pointwise_matches)
-                        and (_remaining_s() is None or _remaining_s() > 0)
-                        and len(query.terms) >= 5
-                    ):
-                        raw_cap = getattr(args, "combo_expanded_pointwise_max_time", None)
-                        if raw_cap is None:
-                            raw_cap = args.combo_expanded_max_time
-                        exp_time = raw_cap if raw_cap and raw_cap > 0 else None
-                        exp_time = _cap_by_total(exp_time)
-                        if exp_time is None or exp_time > 0:
-                            t_pwe = time.perf_counter()
-                            if stream_text:
-                                print("  (no in-bucket mul hits; trying expanded DB-wide mul…)", flush=True)
-                            pointwise_matches = search_pointwise_two_sequence_combinations_expanded(
-                                query,
-                                db_path,
-                                ops=("mul",),
-                                max_shift=args.combo_max_shift,
-                                limit=args.pointwise_limit,
-                                max_time_s=exp_time,
-                                snippet_len=combo_snip,
-                                min_score=args.combo_min_score,
-                                max_complexity=args.combo_max_complexity,
-                                on_match=_combo_on_match(False),
-                            )
-                            pointwise_matches = _attach_combo_candidate_provenance(pointwise_matches, candidate_provenance_map)
-                            pointwise_matches = _filter_combo_matches(pointwise_matches)
-                            if args.timings:
-                                timings["expanded_pointwise_ms"] = 1000 * (time.perf_counter() - t_pwe)
-                    if stream_text and not pointwise_matches:
-                        print("  (none)", flush=True)
-                    _cp_put("pointwise", {"matches": [_combo_to_checkpoint(m) for m in pointwise_matches]})
-                pw_end = time.perf_counter()
-            else:
-                pw_start = pw_end = None
-
-            conv_ops = _parse_conv_ops(getattr(args, "convolution_ops", ""))
-            if need_conv_compute and getattr(args, "convolution_limit", 0) > 0 and conv_ops:
-                conv_start = time.perf_counter()
-                conv_time_cap = _cap_by_total(args.combo_max_time)
-                if conv_time_cap is not None and conv_time_cap <= 0:
-                    conv_matches = []
-                    if args.total_max_time is not None and _remaining_s() == 0:
-                        time_budget_exhausted = True
-                else:
-                    if stream_text:
-                        print("\nConvolution combination matches:", flush=True)
-                    conv_matches = search_convolution_two_sequence_combinations(
-                        query,
-                        bucket.records,
-                        ops=conv_ops,
-                        max_length=32,
-                        limit=args.convolution_limit,
-                        max_candidates=args.combo_candidates,
-                        max_checks=args.combo_max_checks,
-                        max_time_s=conv_time_cap,
-                        component_transforms=comp_transforms,
-                        snippet_len=combo_snip,
-                        min_score=args.combo_min_score,
-                        max_complexity=args.combo_max_complexity,
-                        on_match=_combo_on_match(False),
-                    )
-                    conv_matches = _attach_combo_candidate_provenance(conv_matches, candidate_provenance_map)
-                    conv_matches = _filter_combo_matches(conv_matches)
-                    if stream_text and not conv_matches:
-                        print("  (none)", flush=True)
-                    _cp_put("convolution", {"matches": [_combo_to_checkpoint(m) for m in conv_matches]})
-                conv_end = time.perf_counter()
-            else:
-                conv_start = conv_end = None
-
-            # Triples can be significantly more expensive than pair/pointwise/convolution
-            # searches, so run them later to improve time-to-first-hit for simpler combo
-            # explanations under `--preset max`.
-            if need_triple_compute:
-                triple_start = time.perf_counter()
-                triple_time_cap = _cap_by_total(args.triple_max_time)
-                if triple_time_cap is not None and triple_time_cap <= 0:
-                    triple_matches = []
-                    if args.total_max_time is not None and _remaining_s() == 0:
-                        time_budget_exhausted = True
-                else:
-                    if stream_text:
-                        print("\nTriple combination matches:", flush=True)
-                    triple_matches = search_three_sequence_combinations(
-                        query,
-                        bucket.records,
-                        coeffs=combo_coeffs,
-                        max_shift=args.combo_max_shift,
-                        max_shift_back=args.combo_max_shift_back,
-                        limit=args.triples,
-                        max_candidates=triple_candidates,
-                        max_checks=args.triple_max_checks,
-                        max_time_s=triple_time_cap,
-                        max_combinations=args.triple_max_combinations,
-                        component_transforms=comp_transforms,
-                        snippet_len=combo_snip,
-                        min_score=args.triple_min_score,
-                        max_complexity=args.triple_max_complexity,
-                        use_rational=args.triple_rational,
-                        allow_self_reference=bool(getattr(args, "preset", "") == "max"),
-                        on_match=_combo_on_match(False),
-                    )
-                    triple_matches = _attach_combo_candidate_provenance(triple_matches, candidate_provenance_map)
-                    triple_matches = _filter_combo_matches(triple_matches)
-                    if args.combo_expanded and not triple_matches:
-                        exp_time = args.combo_expanded_max_time if args.combo_expanded_max_time and args.combo_expanded_max_time > 0 else None
-                        exp_time = _cap_by_total(exp_time)
-                        if exp_time is not None and exp_time <= 0:
-                            if args.total_max_time is not None and _remaining_s() == 0:
-                                time_budget_exhausted = True
-                        else:
-                            if len(query.terms) < 5:
-                                if stream_text:
-                                    print("  (expanded DB-wide search needs >= 5 terms; skipping)", flush=True)
-                            else:
-                                if stream_text:
-                                    print("  (no regular triple combos found; trying expanded DB-wide search…)", flush=True)
-                                triple_matches = search_three_sequence_combinations_expanded(
-                                    query,
-                                    db_path,
-                                    coeffs=combo_coeffs,
-                                    limit=args.triples,
-                                    max_anchors=args.combo_expanded_anchors,
-                                    max_time_s=exp_time,
-                                    snippet_len=combo_snip,
-                                    min_score=args.triple_min_score,
-                                    max_complexity=args.triple_max_complexity,
-                                    on_match=_combo_on_match(False),
-                                )
-                                triple_matches = _attach_combo_candidate_provenance(
-                                    triple_matches, candidate_provenance_map
-                                )
-                                triple_matches = _filter_combo_matches(triple_matches)
-                    if stream_text and not triple_matches:
-                        print("  (none)", flush=True)
-                    _cp_put("triple", {"matches": [_combo_to_checkpoint(m) for m in triple_matches]})
-                triple_end = time.perf_counter()
-            else:
-                triple_start = triple_end = None
-
-            if need_combo_compute and need_expanded_pairs and not combo_matches and not time_budget_exhausted and (_remaining_s() is None or _remaining_s() > 0):
-                exp_time = args.combo_expanded_max_time if args.combo_expanded_max_time and args.combo_expanded_max_time > 0 else None
-                exp_time = _cap_by_total(exp_time)
-                if exp_time is not None and exp_time <= 0:
-                    if args.total_max_time is not None and _remaining_s() == 0:
-                        time_budget_exhausted = True
-                else:
-                    expanded_pair_start = time.perf_counter()
-                    if stream_text:
-                        print("\nExpanded pair combinations:", flush=True)
-                    combo_matches = search_two_sequence_combinations_expanded(
-                        query,
-                        db_path,
-                        coeffs=combo_coeffs,
-                        limit=args.combos,
-                        max_shift=args.combo_max_shift,
-                        max_time_s=exp_time,
-                        snippet_len=combo_snip,
-                        min_score=args.combo_min_score,
-                        max_complexity=args.combo_max_complexity,
-                        on_match=_combo_on_match(True),
-                    )
-                    combo_matches = _attach_combo_candidate_provenance(combo_matches, candidate_provenance_map)
-                    combo_matches = _filter_combo_matches(combo_matches)
-                    _cp_put("combo", {"matches": [_combo_to_checkpoint(m) for m in combo_matches]})
-                    expanded_pair_end = time.perf_counter()
-                    if stream_text and not combo_matches:
-                        print("  (none)", flush=True)
-                if args.total_max_time is not None and _remaining_s() == 0:
-                    time_budget_exhausted = True
-
-            if args.timings:
-                if combo_start is not None and combo_end is not None:
-                    pair_ms = 1000 * (combo_end - combo_start)
-                    if expanded_pair_start is not None and expanded_pair_end is not None:
-                        expanded_ms = 1000 * (expanded_pair_end - expanded_pair_start)
-                        timings["expanded_pair_ms"] = expanded_ms
-                        pair_ms += expanded_ms
-                    timings["combination_ms"] = pair_ms
-                if triple_start is not None and triple_end is not None:
-                    timings["triple_ms"] = 1000 * (triple_end - triple_start)
-                if pw_start is not None and pw_end is not None:
-                    timings["pointwise_ms"] = 1000 * (pw_end - pw_start)
-                if conv_start is not None and conv_end is not None:
-                    timings["convolution_ms"] = 1000 * (conv_end - conv_start)
-
-        if candidate_provenance_map:
-            combo_matches = _attach_combo_candidate_provenance(combo_matches, candidate_provenance_map)
-            triple_matches = _attach_combo_candidate_provenance(triple_matches, candidate_provenance_map)
-            pointwise_matches = _attach_combo_candidate_provenance(pointwise_matches, candidate_provenance_map)
-            conv_matches = _attach_combo_candidate_provenance(conv_matches, candidate_provenance_map)
-            modclass_matches = _attach_combo_candidate_provenance(modclass_matches, candidate_provenance_map)
-
-        if defer_transform_refine and args.tlimit and args.tlimit > 0 and (_remaining_s() is None or _remaining_s() > 0):
-            refine_cap = _cap_by_total(args.transform_max_time)
-            if refine_cap is None or refine_cap > 0:
-                t_refine = time.perf_counter()
-                refined_matches = search_transform_matches(
-                    query,
-                    db_path,
-                    max_depth=args.max_depth,
-                    transforms=transforms,
-                    limit=args.tlimit,
-                    snippet_len=combo_snip,
-                    full_scan=args.preset in ("deep", "max"),
-                    max_time_s=refine_cap,
-                    min_score=args.transform_min_score,
-                    max_complexity=args.transform_max_complexity,
-                    variance_band=args.variance_band,
-                    growth_band=args.growth_band,
-                    allow_constant_outputs=args.allow_constant_transforms,
-                    on_match=None,
-                )
-                t_matches = _filter_transform_matches(refined_matches)
-                transform_refined = True
-                if args.timings:
-                    refine_ms = 1000 * (time.perf_counter() - t_refine)
-                    timings["transform_refine_ms"] = refine_ms
-                    timings["transform_ms"] = timings.get("transform_ms", 0.0) + refine_ms
-                _cp_put("transform", {"matches": _matches_to_checkpoint(t_matches)})
-                if stream_text:
-                    for m in t_matches:
-                        key = (m.id, m.match_type)
-                        cur = (m.transform_desc or "", m.score)
-                        if printed_transform.get(key) != cur:
-                            print(_fmt_transform_line(m), flush=True)
-            else:
-                _cp_put("transform", {"matches": _matches_to_checkpoint(t_matches)})
-        elif defer_transform_refine:
-            _cp_put("transform", {"matches": _matches_to_checkpoint(t_matches)})
-
-        if args.total_max_time is not None and _remaining_s() == 0:
-            time_budget_exhausted = True
-
-        combined_limit = max(
-            int(getattr(args, "combos", 0) or 0),
-            int(getattr(args, "triples", 0) or 0),
-            int(getattr(args, "modclass", 0) or 0),
-            int(getattr(args, "pointwise_limit", 0) or 0),
-            int(getattr(args, "convolution_limit", 0) or 0),
-            0,
-        )
-        combined_matches = merge_combination_families(
-            {
-                "linear_pair": combo_matches,
-                "linear_triple": triple_matches,
-                "modclass": modclass_matches,
-                "pointwise": pointwise_matches,
-                "convolution": conv_matches,
-            },
-            limit=combined_limit if combined_limit > 0 else None,
-            per_family_quota=1,
-        )
-        ranking_families = {
-            "linear_pair": combo_matches,
-            "linear_triple": triple_matches,
-            "modclass": modclass_matches,
-            "pointwise": pointwise_matches,
-            "convolution": conv_matches,
-        }
-        if args.rerank is None:
-            rerank_enabled = bool(getattr(args, "preset", None) in ("deep", "max"))
-            rerank_mode = "auto_preset_deepmax" if rerank_enabled else "off_default"
-        else:
-            rerank_enabled = bool(args.rerank)
-            rerank_mode = "explicit_on" if rerank_enabled else "explicit_off"
-
-        auto_ranking_limit = max(
-            int(getattr(args, "tlimit", 0) or 0),
-            int(getattr(args, "combos", 0) or 0),
-            int(getattr(args, "triples", 0) or 0),
-            int(getattr(args, "modclass", 0) or 0),
-            int(getattr(args, "pointwise_limit", 0) or 0),
-            int(getattr(args, "convolution_limit", 0) or 0),
-            0,
-        )
-        configured_ranking_limit = int(getattr(args, "rerank_limit", 0) or 0)
-        ranking_limit = configured_ranking_limit if configured_ranking_limit > 0 else (auto_ranking_limit if auto_ranking_limit > 0 else None)
-        default_quota = max(0, int(getattr(args, "rerank_default_quota", 1)))
-        quota_overrides = parse_family_quotas(getattr(args, "rerank_quotas", ""))
-
-        if rerank_enabled:
-            ranked_explanations, ranking_info = rerank_explanations(
-                transform_matches=t_matches,
-                family_matches=ranking_families,
-                limit=ranking_limit,
-                default_quota=default_quota,
-                quotas=quota_overrides,
-                diversity=True,
-            )
-        else:
-            ranked_explanations, ranking_info = rerank_explanations(
-                transform_matches=t_matches,
-                family_matches=ranking_families,
-                limit=ranking_limit,
-                default_quota=0,
-                quotas={},
-                diversity=False,
-            )
-        ranking_diag = {
-            "enabled": rerank_enabled,
-            "mode": rerank_mode,
-            "configured_limit": configured_ranking_limit,
-            "default_quota": default_quota,
-            "quota_overrides": quota_overrides,
-            **ranking_info,
-        }
-        scheduling_diag = {
-            "mode": schedule_mode,
-            "combo_stage_requested": combo_stage_requested,
-            "transform_probe_used": transform_probe_used,
-            "transform_refined": transform_refined,
-            **({"transform_probe_cap_s": transform_probe_cap_s} if transform_probe_cap_s is not None else {}),
-        }
-
-        if args.as_json:
-            def _crow(m):
-                return {
-                    "ids": list(m.ids),
-                    "names": list(m.names),
-                    "coeffs": [_fmt_coeff_json(c) for c in m.coeffs],
-                    "shifts": list(m.shifts),
-                    "length": m.length,
-                    "score": m.score,
-                    "expression": m.expression,
-                    **({"component_transforms": list(m.component_transforms)} if m.component_transforms else {}),
-                    **({"component_terms": [list(t) for t in m.component_terms]} if m.component_terms else {}),
-                    **({"combined_terms": m.combined_terms} if m.combined_terms else {}),
-                    **(
-                        {"candidate_provenance": [list(rs) for rs in m.candidate_provenance]}
-                        if m.candidate_provenance
-                        else {}
-                    ),
-                }
-
-            def _mrow(m):
-                row = {
-                    "id": m.id,
-                    "name": m.name,
-                    "match_type": m.match_type,
-                    "offset": m.offset,
-                    "length": m.length,
-                    "score": m.score,
-                }
-                if m.transform_desc:
-                    row["transform"] = m.transform_desc
-                if m.explanation:
-                    row["explanation"] = m.explanation
-                if m.latex:
-                    row["latex"] = m.latex
-                if m.symbolic:
-                    row["symbolic"] = m.symbolic
-                if m.symbolic_latex:
-                    row["symbolic_latex"] = m.symbolic_latex
-                if args.show_formula and m.formula:
-                    row["formula"] = m.formula
-                if m.snippet is not None:
-                    row["terms"] = m.snippet
-                if m.transformed_terms is not None:
-                    row["transformed_terms"] = m.transformed_terms
-                return row
-
-            def _erow(fam: str, m):
-                if fam == "transform":
-                    row = {
-                        "family": "transform",
-                        "id": m.id,
-                        "name": m.name,
-                        "match_type": m.match_type,
-                        "offset": m.offset,
-                        "length": m.length,
-                        "score": m.score,
-                    }
-                    if m.transform_desc:
-                        row["transform"] = m.transform_desc
-                    if m.explanation:
-                        row["explanation"] = m.explanation
-                    if m.latex:
-                        row["latex"] = m.latex
-                    if m.symbolic:
-                        row["symbolic"] = m.symbolic
-                    if m.symbolic_latex:
-                        row["symbolic_latex"] = m.symbolic_latex
-                    return row
-                return {"family": fam, **_crow(m)}
-
-            payload = {
-                "query": query.terms,
-                "exact_matches": [_mrow(m) for m in exact_matches],
-                "transform_matches": [_mrow(m) for m in t_matches],
-                "similarity": sim_rows,
-                "combinations": [_crow(m) for m in combo_matches],
-                "triple_combinations": [_crow(m) for m in triple_matches],
-                "modclass_combinations": [_crow(m) for m in modclass_matches],
-                "pointwise_combinations": [_crow(m) for m in pointwise_matches],
-                "convolution_combinations": [_crow(m) for m in conv_matches],
-                "combined_combinations": [{"family": fam, **_crow(m)} for fam, m in combined_matches],
-                "ranked_explanations": [_erow(fam, m) for fam, m in ranked_explanations],
-            }
-            if args.timings:
-                timings["total_ms"] = 1000 * (time.perf_counter() - t_start)
-                payload["diagnostics"] = {
-                **({"timings_ms": timings} if args.timings else {}),
-                "variance_band": args.variance_band,
-                "growth_band": args.growth_band,
-                "combined_combinations_count": len(combined_matches),
-                "ranking": ranking_diag,
-                "scheduling": scheduling_diag,
-                **({"candidate_bucket": candidate_bucket_diag} if candidate_bucket_diag is not None else {}),
-                **(
-                    {
-                        "checkpoint": {
-                            "enabled": True,
-                            "path": str(checkpoint_path),
-                            "resumed": checkpoint_loaded,
-                            "resumed_stages": checkpoint_resumed_stages,
-                            "saved_stages": checkpoint_saved_stages,
-                        }
-                    }
-                    if checkpoint_path is not None
-                    else {}
-                ),
-                **({"subsequence_fallback": True} if fallback_used else {}),
-                **({"time_budget_exhausted": True} if time_budget_exhausted else {}),
-            }
-            print(json.dumps(payload, indent=2))
-        else:
-            def _fmt_ranked_line(fam: str, m) -> str:
-                if fam == "transform":
-                    return _fmt_transform_line(m)
-                show_coeffs = fam in {"linear_pair", "linear_triple"}
-                return _fmt_combo_line(m, show_coeffs=show_coeffs)
-
-            if stream_text:
-                if time_budget_exhausted:
-                    print("\n(Time budget reached; stopping early.)", flush=True)
-                if ranked_explanations:
-                    print("\nTop explanations:", flush=True)
-                    for fam, m in ranked_explanations:
-                        print(f"  [{fam}] {_fmt_ranked_line(fam, m).strip()}", flush=True)
-                if args.timings:
-                    timings["total_ms"] = 1000 * (time.perf_counter() - t_start)
-                    print("\nTimings (ms):", flush=True)
-                    for k, v in timings.items():
-                        print(f"  {k}: {v:.1f}", flush=True)
-                return 0
-            if ranked_explanations:
-                print("Top explanations:")
-                for fam, m in ranked_explanations:
-                    print(f"  [{fam}] {_fmt_ranked_line(fam, m).strip()}")
-                print()
-            print("Exact matches:")
-            if not exact_matches:
-                print("  (none)")
-            for m in exact_matches:
-                name = f" - {m.name}" if m.name else ""
-                snippet = f" terms={','.join(str(t) for t in m.snippet)}" if m.snippet else ""
-                score = f" score={m.score:.2f}" if m.score is not None else ""
-                formula_txt = _fmt_formula(m.formula) if args.show_formula else ""
-                formula_disp = f" formula={formula_txt}" if formula_txt else ""
-                print(f"  {m.id} [{m.match_type} @ {m.offset}] len={m.length}{name}{score}{snippet}{formula_disp}")
-
-            print("\nTransform matches:")
-            if not t_matches:
-                print("  (none)")
-            for m in t_matches:
-                name = f" - {m.name}" if m.name else ""
-                snippet = f" terms={','.join(str(t) for t in m.snippet)}" if m.snippet else ""
-                if m.transformed_terms:
-                    snippet += f" transformed={','.join(str(t) for t in m.transformed_terms)}"
-                expl = m.explanation or m.transform_desc or ""
-                tdesc = f" via {expl}" if expl else ""
-                if m.symbolic:
-                    tdesc += f" [{m.symbolic}]"
-                score = f" score={m.score:.2f}" if m.score is not None else ""
-                formula_txt = _fmt_formula(m.formula) if args.show_formula else ""
-                formula_disp = f" formula={formula_txt}" if formula_txt else ""
-                print(f"  {m.id} [{m.match_type} @ {m.offset}] len={m.length}{name}{tdesc}{score}{snippet}{formula_disp}")
-
-            if sim_rows:
-                print("\nSimilarity candidates:")
-                for c in sim_rows:
-                    print(
-                        f"  {c['id']} corr={float(c['corr']):.3f} mse={float(c['mse']):.3g} "
-                        f"scale={float(c['scale']):.3g} offset={float(c['offset']):.3g} - {c.get('name')}"
-                    )
-            if combo_matches:
-                print("\nCombination matches:")
-                for m in combo_matches:
-                    n1 = f" - {m.names[0]}" if m.names[0] else ""
-                    n2 = f" - {m.names[1]}" if m.names[1] else ""
-                    extra = ""
-                    if m.component_terms:
-                        extra = f" terms1={_fmt_terms(m.component_terms[0])} terms2={_fmt_terms(m.component_terms[1])}"
-                    if m.combined_terms:
-                        extra += f" result={_fmt_terms(m.combined_terms)}"
-                    coeffs_disp = ",".join(_fmt_coeff_json(c) for c in m.coeffs)
-                    print(
-                        f"  {m.expression} len={m.length} coeffs={coeffs_disp} score={m.score:.2f} [{m.ids[0]}{n1}; {m.ids[1]}{n2}]{extra}"
-                    )
-            if modclass_matches:
-                print("\nMod-class combinations:")
-                for m in modclass_matches:
-                    name_parts = [f"{id_}{f' - {nm}' if nm else ''}" for id_, nm in zip(m.ids, m.names)]
-                    extra = ""
-                    if m.component_terms:
-                        extra = " " + " ".join(f"terms{i+1}={_fmt_terms(ts)}" for i, ts in enumerate(m.component_terms))
-                    if m.combined_terms:
-                        extra += f" result={_fmt_terms(m.combined_terms)}"
-                    print(f"  {m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}")
-            if triple_matches:
-                print("\nTriple combination matches:")
-                for m in triple_matches:
-                    name_parts = [f"{id_}{f' - {nm}' if nm else ''}" for id_, nm in zip(m.ids, m.names)]
-                    extra = ""
-                    if m.component_terms:
-                        extra = " " + " ".join(f"terms{i+1}={_fmt_terms(ts)}" for i, ts in enumerate(m.component_terms))
-                    if m.combined_terms:
-                        extra += f" result={_fmt_terms(m.combined_terms)}"
-                    print(f"  {m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}")
-            if pointwise_matches:
-                print("\nPointwise combination matches:")
-                for m in pointwise_matches:
-                    name_parts = [f"{id_}{f' - {nm}' if nm else ''}" for id_, nm in zip(m.ids, m.names)]
-                    extra = ""
-                    if m.component_terms:
-                        extra = f" terms1={_fmt_terms(m.component_terms[0])} terms2={_fmt_terms(m.component_terms[1])}"
-                    if m.combined_terms:
-                        extra += f" result={_fmt_terms(m.combined_terms)}"
-                    print(f"  {m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}")
-            if conv_matches:
-                print("\nConvolution combination matches:")
-                for m in conv_matches:
-                    name_parts = [f"{id_}{f' - {nm}' if nm else ''}" for id_, nm in zip(m.ids, m.names)]
-                    extra = ""
-                    if m.component_terms:
-                        extra = f" terms1={_fmt_terms(m.component_terms[0])} terms2={_fmt_terms(m.component_terms[1])}"
-                    if m.combined_terms:
-                        extra += f" result={_fmt_terms(m.combined_terms)}"
-                    print(f"  {m.expression} len={m.length} score={m.score:.2f} [{'; '.join(name_parts)}]{extra}")
-            if args.timings:
-                timings["total_ms"] = 1000 * (time.perf_counter() - t_start)
-                print("\nTimings (ms):")
-                for k, v in timings.items():
-                    print(f"  {k}: {v:.1f}")
-        return 0
-
+        return _run_analyze_command(args)
     return 1
 
 
