@@ -18,14 +18,14 @@ Archived roadmap: `TODO_v0.5.md`
 
 ## v1.0 Acceptance Criteria
 
-- [ ] Quality: materially better hit quality on curated real-world cases (exact, transform, combo, pointwise, convolution, mod-class).
-- [ ] Diversity: top results contain multiple non-redundant explanation families when they exist.
-- [ ] Exhaustive mode: `--preset max` reliably explores deeper search space within explicit global time/check budgets.
-- [ ] Reproducibility: deterministic outputs under fixed seed/options and pinned DB snapshot.
-- [ ] Reliability: selfcheck + regression suite + random trials are stable and expanded.
+- [x] Quality: materially better hit quality on curated real-world cases (exact, transform, combo, pointwise, convolution, mod-class).
+- [x] Diversity: top results contain multiple non-redundant explanation families when they exist.
+- [x] Exhaustive mode: `--preset max` reliably explores deeper search space within explicit global time/check budgets.
+- [x] Reproducibility: deterministic outputs under fixed seed/options and pinned DB snapshot.
+- [x] Reliability: selfcheck + regression suite + random trials are stable and expanded.
 - [x] Performance: benchmarked and tracked; no unbounded regressions in common workflows.
-- [ ] UX: startup workflow removes repeated manual venv/data freshness setup.
-- [ ] Docs: v1.0 docs describe guarantees, limits, tuning knobs, and expected runtime tradeoffs.
+- [x] UX: startup workflow removes repeated manual venv/data freshness setup.
+- [x] Docs: v1.0 docs describe guarantees, limits, tuning knobs, and expected runtime tradeoffs.
 
 ---
 
@@ -47,7 +47,7 @@ Complete this gate before declaring the feature-complete phases or milestones do
 - [x] Profile current workloads, optimize measured Python/SQLite bottlenecks, and add repeatable performance envelopes before introducing native complexity.
 - [x] Evaluate deterministic local parallelism and optional acceleration; measured in-engine probes did not clear the 20% material-win threshold, so v1.0 keeps the simpler serial path.
 - [x] Audit full-corpus b-file indexing/search for duplicate auxiliary files, resumability, storage cost, and useful result ranking; then build and smoke-test the local b-file index.
-- [ ] Complete an end-to-end v1.0 release audit with the full suite, selfcheck, representative preset runs, schemas, docs, and packaging verified.
+- [x] Complete an end-to-end v1.0 release audit with the full suite, selfcheck, representative preset runs, schemas, docs, and packaging verified (`docs/release_checklist.md`).
 
 ---
 
@@ -212,7 +212,7 @@ v1.0 decision: same-process threads regressed the representative workload and a 
 ### 5.3 Release readiness
 
 - [x] Add changelog and migration notes from v0.x to v1.0.
-- [ ] Tag release checklist (quality, perf, docs, schemas, selfcheck green).
+- [x] Complete release checklist (quality, perf, docs, schemas, selfcheck green; publishing the tag remains a separate explicit action).
 - [x] Prepare packaging/release process (including optional extras).
 
 ---
@@ -230,11 +230,11 @@ v1.0 decision: same-process threads regressed the representative workload and a 
 ## Milestones
 
 - [x] **v0.6** - Startup UX + freshness/status + config ergonomics.
-- [ ] **v0.7** - Ranking diversity + broader explanation families.
-- [ ] **v0.8** - Exhaustive mode hardening + parallel search foundations.
-- [ ] **v0.9** - Acceleration path (numpy/numba and/or optional Rust kernels) + perf gates.
-- [ ] **v1.0-rc1** - API/CLI freeze, docs freeze, expanded regression/perf suite.
-- [ ] **v1.0** - Release with acceptance criteria satisfied.
+- [x] **v0.7** - Ranking diversity + broader explanation families.
+- [x] **v0.8** - Exhaustive-mode hardening + parallel evaluation (no-go under the v1 material-win threshold).
+- [x] **v0.9** - Indexed acceleration + repeatable perf gates (native kernels deferred for lack of a measured win).
+- [x] **v1.0-rc1** - API/CLI freeze, docs freeze, expanded regression/perf suite.
+- [x] **v1.0** - Release-ready implementation with acceptance criteria satisfied.
 
 ---
 

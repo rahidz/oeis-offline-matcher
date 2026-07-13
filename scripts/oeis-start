@@ -20,7 +20,7 @@ USAGE
 }
 
 if [[ ! -x "${VENV_DIR}/bin/python" ]]; then
-  echo "[oeis-start] creating virtualenv at ${VENV_DIR}"
+  echo "[oeis-start] creating virtualenv at ${VENV_DIR}" >&2
   "${PY_BOOTSTRAP}" -m venv "${VENV_DIR}"
 fi
 
@@ -32,8 +32,8 @@ if ! "${PY_BIN}" -m pip show oeis-matcher >/dev/null 2>&1; then
   PKG_INSTALLED=0
 fi
 if [[ ${PKG_INSTALLED} -eq 0 ]]; then
-  echo "[oeis-start] installing project in editable mode"
-  "${PIP_BIN}" install -e "${ROOT_DIR}"
+  echo "[oeis-start] installing project in editable mode" >&2
+  "${PIP_BIN}" install -e "${ROOT_DIR}" >&2
 fi
 
 mapfile -t STARTUP_DEFAULTS < <("${PY_BIN}" - <<'PY'
@@ -80,10 +80,10 @@ while (($#)); do
 done
 
 PY_VER="$("${PY_BIN}" -c 'import platform; print(platform.python_version())')"
-echo "[oeis-start] root=${ROOT_DIR}"
-echo "[oeis-start] venv=${VENV_DIR}"
-echo "[oeis-start] python=${PY_VER}"
-echo "[oeis-start] package=$(if [[ ${PKG_INSTALLED} -eq 1 ]]; then echo installed; else echo installed_now; fi)"
+echo "[oeis-start] root=${ROOT_DIR}" >&2
+echo "[oeis-start] venv=${VENV_DIR}" >&2
+echo "[oeis-start] python=${PY_VER}" >&2
+echo "[oeis-start] package=$(if [[ ${PKG_INSTALLED} -eq 1 ]]; then echo installed; else echo installed_now; fi)" >&2
 
 export VIRTUAL_ENV="${VENV_DIR}"
 export PATH="${VENV_DIR}/bin:${PATH}"
@@ -93,7 +93,7 @@ if [[ "${SHOW_STATUS}" == "1" ]]; then
   if [[ "${REFRESH_IF_STALE}" == "1" ]]; then
     STATUS_CMD+=(--refresh-if-stale)
   fi
-  if ! "${STATUS_CMD[@]}"; then
+  if ! "${STATUS_CMD[@]}" >&2; then
     echo "[oeis-start] status check returned non-zero" >&2
   fi
 fi

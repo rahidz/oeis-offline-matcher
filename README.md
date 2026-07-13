@@ -14,7 +14,7 @@ It downloads an OEIS snapshot once, builds a local SQLite index, then lets you p
 After the initial `oeis sync` + `oeis build-index`, analysis runs fully offline.
 
 ## Status
-The v1.0 feature pipeline and consolidation gates are implemented end-to-end. Current work is the final release audit. See `TODO.md`.
+The v1.0 feature pipeline and consolidation gates are implemented end-to-end. The release audit is green; see `TODO.md` and `docs/release_checklist.md`.
 
 ## Quick Start
 
@@ -249,7 +249,7 @@ See `docs/FAQ.md` for limits and performance tips.
 - `docs/notebook_regressions.ipynb` runs `docs/regressions.json` as a full-pipeline regression check (requires a built DB).
 - Bench numbers live in `docs/benchmarks.md`.
 
-For snapshot pinning, deterministic replay, and the benchmark protocol, see `docs/reproducibility.md`. Release changes and v0.x migration notes are in `CHANGELOG.md`.
+For snapshot pinning, deterministic replay, and the benchmark protocol, see `docs/reproducibility.md`. Release evidence is in `docs/release_checklist.md`; changes and v0.x migration notes are in `CHANGELOG.md`.
 Full-corpus storage, repair, indexing, and search behavior is documented in `docs/bfiles.md`.
 
 ## Configuration
