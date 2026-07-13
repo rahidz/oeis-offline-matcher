@@ -591,10 +591,6 @@ def _trim_transform_results(results: List[Match], limit: int | None) -> List[Mat
     return deduped
 
 
-def _score_match(m: Match, chain: Sequence[Transform], precomputed_comp: float | None = None) -> float:
-    raise NotImplementedError("Use extended _score_match_with_stats")
-
-
 def _score_match(
     m: Match,
     chain: Sequence[Transform],
