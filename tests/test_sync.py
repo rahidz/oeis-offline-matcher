@@ -2,9 +2,11 @@ import subprocess
 import urllib.request
 from pathlib import Path
 
+import pytest
+
 from oeis_matcher.build_index import build_index
 from oeis_matcher.storage import iter_sequences
-from oeis_matcher.sync import download_file, sync_data
+from oeis_matcher.sync import clone_oeisdata_repo, download_file, sync_data
 
 
 def test_sync_downloads_and_skips_existing(tmp_path: Path):
@@ -91,6 +93,76 @@ def test_failed_force_download_preserves_existing_snapshot(tmp_path: Path, monke
 
     assert dest.read_bytes() == b"known-good"
     assert not dest.with_suffix(".gz.tmp").exists()
+
+
+def test_failed_clone_leaves_no_partial_destination(tmp_path: Path, monkeypatch):
+    dest = tmp_path / "oeisdata"
+
+    def fail(command, **_kwargs):
+        partial = Path(command[-1])
+        partial.mkdir()
+        (partial / "partial").write_text("incomplete", encoding="utf-8")
+        return subprocess.CompletedProcess(command, 1, stderr="clone failed")
+
+    monkeypatch.setattr(subprocess, "run", fail)
+    with pytest.raises(RuntimeError, match="clone failed"):
+        clone_oeisdata_repo(dest)
+
+    assert not dest.exists()
+    assert not list(tmp_path.glob(".oeisdata.clone-*"))
+
+
+def test_cancelled_force_clone_preserves_existing_destination(tmp_path: Path, monkeypatch):
+    dest = tmp_path / "oeisdata"
+    dest.mkdir()
+    (dest / "snapshot").write_text("known-good", encoding="utf-8")
+
+    def cancel(command, **_kwargs):
+        partial = Path(command[-1])
+        partial.mkdir()
+        (partial / "partial").write_text("incomplete", encoding="utf-8")
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(subprocess, "run", cancel)
+    with pytest.raises(KeyboardInterrupt):
+        clone_oeisdata_repo(dest, force=True)
+
+    assert (dest / "snapshot").read_text(encoding="utf-8") == "known-good"
+    assert not list(tmp_path.glob(".oeisdata.clone-*"))
+
+
+def test_force_clone_replaces_only_after_clone_succeeds(tmp_path: Path, monkeypatch):
+    dest = tmp_path / "oeisdata"
+    dest.mkdir()
+    (dest / "snapshot").write_text("old", encoding="utf-8")
+
+    def succeed(command, **_kwargs):
+        assert (dest / "snapshot").read_text(encoding="utf-8") == "old"
+        clone = Path(command[-1])
+        clone.mkdir()
+        (clone / "snapshot").write_text("new", encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, stderr="")
+
+    monkeypatch.setattr(subprocess, "run", succeed)
+    stats = clone_oeisdata_repo(dest, force=True)
+
+    assert stats["status"] == "cloned"
+    assert (dest / "snapshot").read_text(encoding="utf-8") == "new"
+    assert not list(tmp_path.glob(".oeisdata.clone-*"))
+
+
+def test_clone_recovers_destination_from_interrupted_publish(tmp_path: Path, monkeypatch):
+    dest = tmp_path / "oeisdata"
+    backup = tmp_path / ".oeisdata.clone-tmp" / "previous"
+    backup.mkdir(parents=True)
+    (backup / "snapshot").write_text("known-good", encoding="utf-8")
+    monkeypatch.setattr(subprocess, "run", lambda *_args, **_kwargs: pytest.fail("clone should be skipped"))
+
+    stats = clone_oeisdata_repo(dest)
+
+    assert stats["status"] == "skipped"
+    assert (dest / "snapshot").read_text(encoding="utf-8") == "known-good"
+    assert not (tmp_path / ".oeisdata.clone-tmp").exists()
 
 
 def test_sync_clone_oeisdata_and_keywords(tmp_path: Path):

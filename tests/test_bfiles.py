@@ -1,8 +1,16 @@
 from __future__ import annotations
 
+import sqlite3
 from pathlib import Path
 
-from oeis_matcher.bfiles import build_bfile_index, fetch_bfiles, iter_bfile_paths, search_bfile_index
+import pytest
+
+from oeis_matcher.bfiles import (
+    build_bfile_index,
+    fetch_bfiles,
+    iter_bfile_paths,
+    search_bfile_index,
+)
 
 
 def test_manifest_search_cache_and_resume(tmp_path: Path):
@@ -44,6 +52,46 @@ def test_manifest_search_cache_and_resume(tmp_path: Path):
     assert changed["files_updated"] == 1
     assert changed["generation"] == stats["generation"] + 1
     assert search_bfile_index(db, "21", limit=10, oeis_db=None)["total"] == 1
+
+
+def test_rebuild_replaces_existing_manifest(tmp_path: Path):
+    root = tmp_path / "files" / "A000"
+    root.mkdir(parents=True)
+    old = root / "b000001.txt"
+    old.write_text("0 1\n", encoding="utf-8")
+    db = tmp_path / "bfiles.db"
+    build_bfile_index(tmp_path / "files", db)
+
+    old.unlink()
+    (root / "b000002.txt").write_text("0 2\n", encoding="utf-8")
+    stats = build_bfile_index(tmp_path / "files", db, rebuild=True)
+
+    with sqlite3.connect(db) as conn:
+        assert conn.execute("SELECT seq_id FROM bfiles").fetchall() == [("A000002",)]
+    assert stats["db"] == str(db)
+
+
+@pytest.mark.parametrize("error_type", [RuntimeError, KeyboardInterrupt])
+def test_failed_rebuild_preserves_existing_database(tmp_path: Path, monkeypatch, error_type):
+    root = tmp_path / "files" / "A000"
+    root.mkdir(parents=True)
+    canonical = root / "b000001.txt"
+    canonical.write_text("0 1\n", encoding="utf-8")
+    db = tmp_path / "bfiles.db"
+    build_bfile_index(tmp_path / "files", db)
+    original = db.read_bytes()
+
+    canonical.write_text("0 2\n", encoding="utf-8")
+
+    def fail(_path):
+        raise error_type("interrupted")
+
+    monkeypatch.setattr("oeis_matcher.bfiles._is_lfs_pointer", fail)
+    with pytest.raises(error_type):
+        build_bfile_index(tmp_path / "files", db, rebuild=True)
+
+    assert db.read_bytes() == original
+    assert not list(tmp_path.glob(".bfiles.db.*.tmp*"))
 
 
 def test_iter_bfile_paths_excludes_auxiliary_variants(tmp_path: Path):

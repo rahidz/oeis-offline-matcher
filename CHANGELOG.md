@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Optional loopback-only browser UI for every CLI workflow, with guided search controls, local job history, health reporting, result cards, and cancellable process-isolated runs.
+
 ## 1.0.0
 
 ### Added

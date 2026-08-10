@@ -224,6 +224,7 @@ v1.0 decision: same-process threads regressed the representative workload and a 
 - [ ] Deeper arithmetic tooling integration (PARI/GP/Sage/GAP) behind optional adapters.
 - [ ] Alternative storage backends for very large snapshots or lower-memory machines.
 - [ ] Lightweight notebook helpers for comparative exploration (still CLI/API-centric).
+- [x] Add an optional local web UI for the existing offline search, analysis, and data-management workflows.
 
 ---
 

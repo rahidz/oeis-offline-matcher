@@ -11,7 +11,7 @@ It downloads an OEIS snapshot once, builds a local SQLite index, then lets you p
   - Cauchy and Dirichlet convolutions (guarded by strict caps).
   - Optional expanded “DB-wide” pair/triple fallback using a prefix index (enabled in `--max`).
 
-After the initial `oeis sync` + `oeis build-index`, analysis runs fully offline.
+After the initial `oeis sync` + `oeis build-index`, analysis runs fully offline from either the CLI or local UI.
 
 ## Status
 The v1.0 feature pipeline and consolidation gates are implemented end-to-end. The release audit is green; see `TODO.md` and `docs/release_checklist.md`.
@@ -25,6 +25,15 @@ scripts/oeis-start
 # Or run a command directly inside the prepared env:
 scripts/oeis-start -- oeis status
 
+# Launch the local UI at http://127.0.0.1:8765 (opens your browser automatically)
+scripts/oeis-start -- oeis ui
+# To start the server without opening a browser:
+scripts/oeis-start -- oeis ui --no-browser
+```
+
+`oeis ui` serves only on loopback and opens `http://127.0.0.1:8765` in your browser. It provides guided access to sequence and fielded matching, transforms, combinations, full analysis, data health and maintenance, b-file tools, and self-check. Long-running work shows its running time and can be cancelled from the page.
+
+```bash
 # Try today's date in several date-shaped sequence forms with exact/prefix/subsequence matching
 scripts/oeis-date
 # Or pin a specific date / widen the exact-match result cap:

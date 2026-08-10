@@ -80,20 +80,42 @@ def clone_oeisdata_repo(dest: Path, *, repo_url: str = DEFAULT_OEISDATA_REPO, fo
     Clone the oeisdata mirror (or alternate repo_url) into `dest`.
     """
     dest = Path(dest)
-    if dest.exists():
-        if force:
-            shutil.rmtree(dest)
-        else:
-            return {"path": dest, "status": "skipped"}
-
     dest.parent.mkdir(parents=True, exist_ok=True)
-    result = subprocess.run(
-        ["git", "clone", "--depth", "1", repo_url, str(dest)],
-        text=True,
-        capture_output=True,
-    )
-    if result.returncode != 0:  # pragma: no cover - surfaced to caller
-        raise RuntimeError(f"git clone failed: {result.stderr.strip()}")
+    work = dest.with_name(f".{dest.name}.clone-tmp")
+    clone = work / "repo"
+    backup = work / "previous"
+    if (backup.exists() or backup.is_symlink()) and not (dest.exists() or dest.is_symlink()):
+        backup.replace(dest)
+    shutil.rmtree(work, ignore_errors=True)
+    if (dest.exists() or dest.is_symlink()) and not force:
+        return {"path": dest, "status": "skipped"}
+    work.mkdir()
+    preserve_work = False
+    try:
+        result = subprocess.run(
+            ["git", "clone", "--depth", "1", repo_url, str(clone)],
+            text=True,
+            capture_output=True,
+        )
+        if result.returncode != 0:  # pragma: no cover - surfaced to caller
+            raise RuntimeError(f"git clone failed: {result.stderr.strip()}")
+
+        if dest.exists() or dest.is_symlink():
+            if not force:  # Destination appeared while the clone was running.
+                return {"path": dest, "status": "skipped"}
+            dest.replace(backup)
+        try:
+            clone.replace(dest)
+        except BaseException:
+            if (backup.exists() or backup.is_symlink()) and not (dest.exists() or dest.is_symlink()):
+                try:
+                    backup.replace(dest)
+                except BaseException:
+                    preserve_work = True
+            raise
+    finally:
+        if not preserve_work:
+            shutil.rmtree(work, ignore_errors=True)
 
     return {"path": dest, "status": "cloned"}
 

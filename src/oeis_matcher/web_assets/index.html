@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'">
+  <meta name="description" content="Local visual workbench for the OEIS Offline Matcher">
+  <title>Sequence Lab · OEIS Offline Matcher</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <button class="brand nav-link" type="button" data-view="analyze" aria-label="Sequence Lab home">
+        <span class="brand-mark" aria-hidden="true">∑</span>
+        <span><strong>Sequence Lab</strong><small>OEIS, entirely local</small></span>
+      </button>
+
+      <nav aria-label="Workflows">
+        <p class="nav-label">Explore</p>
+        <button class="nav-link active" type="button" data-view="analyze"><span class="nav-icon" aria-hidden="true">∞</span><span>Analyze</span><kbd>/</kbd></button>
+        <button class="nav-link" type="button" data-view="match"><span class="nav-icon" aria-hidden="true">=</span><span>Match</span></button>
+        <button class="nav-link" type="button" data-view="transform"><span class="nav-icon" aria-hidden="true">Δ</span><span>Transform</span></button>
+        <button class="nav-link" type="button" data-view="combo"><span class="nav-icon" aria-hidden="true">+</span><span>Combine</span></button>
+        <p class="nav-label">Local tools</p>
+        <button class="nav-link" type="button" data-view="database"><span class="nav-icon" aria-hidden="true">◫</span><span>Data &amp; index</span></button>
+        <button class="nav-link" type="button" data-view="bfiles"><span class="nav-icon" aria-hidden="true">b</span><span>B-files</span></button>
+        <button class="nav-link" type="button" data-view="selfcheck"><span class="nav-icon" aria-hidden="true">✓</span><span>Self-check</span></button>
+      </nav>
+
+      <section class="history" aria-labelledby="history-title">
+        <div class="section-head"><p id="history-title">Recent runs</p><button id="clear-history" class="icon-button" type="button" aria-label="Clear history">×</button></div>
+        <div id="history-list"><p class="sidebar-note">Completed searches stay in this browser.</p></div>
+      </section>
+
+      <button class="mini-status nav-link" id="mini-status" type="button" data-view="database">
+        <i class="status-light pending" aria-hidden="true"></i>
+        <span><strong>Checking local index…</strong><small>data/processed/oeis.db</small></span>
+      </button>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div><span>Offline matcher</span><b>/</b><strong id="view-title">Analyze</strong></div>
+        <div class="top-actions"><button class="quiet-button" id="command-button" type="button"><kbd>Ctrl</kbd><kbd>K</kbd><span>Jump to…</span></button><a href="https://oeis.org/" target="_blank" rel="noopener noreferrer">oeis.org ↗</a></div>
+      </header>
+
+      <div class="page">
+        <section class="view active" id="view-analyze" data-title="Analyze">
+          <div class="hero">
+            <div><p class="eyebrow">Full sequence workbench</p><h1>What does your sequence know?</h1><p>Run the whole local pipeline: direct hits, transform explanations, similarity, and structured decompositions, ranked together.</p></div>
+            <div class="offline-note"><span aria-hidden="true">◉</span><div><strong>Offline by default</strong><small>Your query stays on this machine</small></div></div>
+          </div>
+
+          <form class="search-form" data-command="analyze">
+            <div class="sequence-field">
+              <div class="field-head"><label for="analyze-sequence">Sequence terms</label><div><button class="paste-button" type="button" data-target="analyze-sequence">Paste</button><button class="clear-button" type="button" data-target="analyze-sequence">Clear</button></div></div>
+              <textarea id="analyze-sequence" name="sequence" data-positional required spellcheck="false" placeholder="1, 1, 2, 3, 5, 8, 13, 21"></textarea>
+              <div class="sequence-foot"><span class="term-count">0 terms · commas, spaces, or new lines</span><div class="samples"><span>Try</span><button type="button" data-sample="1,1,2,3,5,8,13,21">Fibonacci</button><button type="button" data-sample="1,4,9,16,25,36,49">Squares</button><button type="button" data-sample="2,3,5,7,11,13,17,19">Primes</button></div></div>
+            </div>
+            <div class="run-row">
+              <fieldset class="preset"><legend>Search depth</legend><div><label><input type="radio" name="preset" value="fast"><span>Fast<small>≈10 sec</small></span></label><label><input type="radio" name="preset" value="deep" checked><span>Deep<small>≈2 min</small></span></label><label><input type="radio" name="preset" value="max"><span>Max<small>widest</small></span></label></div></fieldset>
+              <label class="compact-field"><span>Stop after</span><span class="suffix"><input name="time_cap" data-flag="--time-cap" type="number" min="1" placeholder="Preset"><i>sec</i></span></label>
+              <button class="run-button" type="submit"><span>Analyze sequence</span><kbd>Ctrl ↵</kbd><i class="spinner" aria-hidden="true"></i></button>
+            </div>
+            <details class="advanced">
+              <summary>Fine-tune the full pipeline <span>Major expert controls</span></summary>
+              <div class="control-groups">
+                <fieldset><legend>Results</legend><div class="control-grid">
+                  <label><span>Exact limit</span><input name="limit" data-flag="--limit" type="number" min="0" placeholder="Preset"></label>
+                  <label><span>Transform limit</span><input name="tlimit" data-flag="--tlimit" type="number" min="0" placeholder="Preset"></label>
+                  <label><span>Similarity candidates</span><input name="similar" data-flag="--similar" type="number" min="0" placeholder="Preset"></label>
+                  <label><span>Terms to display</span><input name="show_terms" data-flag="--show-terms" type="number" min="0" value="12"></label>
+                  <label><span>Custom database</span><input data-flag="--db" placeholder="Config default"></label>
+                  <label class="check"><input name="subsequence" data-flag="--subsequence" type="checkbox"><span><b>Allow subsequences</b><small>Not just prefix hits</small></span></label>
+                  <label class="check"><input name="show_formula" data-flag="--show-formula" type="checkbox" checked><span><b>Include formulas</b><small>When stored locally</small></span></label>
+                  <label class="check"><input name="timings" data-flag="--timings" type="checkbox" checked><span><b>Stage timings</b><small>Show diagnostics</small></span></label>
+                  <label class="check"><input name="no_fallback" data-flag="--no-subsequence-fallback" type="checkbox"><span><b>No fallback</b><small>Never retry as subsequence</small></span></label>
+                </div></fieldset>
+                <fieldset><legend>Transforms</legend><div class="control-grid">
+                  <label><span>Maximum depth</span><input name="max_depth" data-flag="--max-depth" type="number" min="1" max="4" placeholder="Preset"></label>
+                  <label><span>Scale factors</span><input name="scale_values" data-flag="--scale-values" placeholder="-3,-2,-1,2,3"></label>
+                  <label><span>Additive constants</span><input name="beta_values" data-flag="--beta-values" placeholder="-1,1"></label>
+                  <label><span>Forward shifts</span><input name="shift_values" data-flag="--shift-values" placeholder="1,2,3"></label>
+                  <label><span>Decimation</span><input name="decimate" data-flag="--decimate" placeholder="2,3:1"></label>
+                  <label><span>Extra transforms</span><input name="extra_transforms" data-flag="--extra-transforms" placeholder="diff2,binomial,phi"></label>
+                  <label><span>Minimum score</span><input name="transform_min_score" data-flag="--transform-min-score" type="number" min="0" step=".05" placeholder="Preset"></label>
+                  <label><span>Maximum complexity</span><input name="transform_max_complexity" data-flag="--transform-max-complexity" type="number" min="0" step=".1" placeholder="Preset"></label>
+                </div></fieldset>
+                <fieldset><legend>Decompositions</legend><div class="control-grid">
+                  <label><span>Pair results</span><input name="combos" data-flag="--combos" type="number" min="0" placeholder="Preset"></label>
+                  <label><span>Triple results</span><input name="triples" data-flag="--triples" type="number" min="0" placeholder="Preset"></label>
+                  <label><span>Candidate pool</span><input name="combo_candidates" data-flag="--combo-candidates" type="number" min="1" placeholder="Preset"></label>
+                  <label><span>Coefficients</span><input name="combo_coeffs" data-flag="--combo-coeffs" placeholder="-3,-2,-1,1,2,3"></label>
+                  <label><span>Maximum shift</span><input name="combo_max_shift" data-flag="--combo-max-shift" type="number" min="0" placeholder="Preset"></label>
+                  <label><span>Component transforms</span><input name="component_transforms" data-flag="--combo-component-transforms" placeholder="id,diff,partial_sum"></label>
+                  <label><span>Pointwise ops</span><input name="pointwise_ops" data-flag="--pointwise-ops" placeholder="mul,gcd,lcm"></label>
+                  <label><span>Pointwise results</span><input data-flag="--pointwise-limit" type="number" min="0" placeholder="Preset"></label>
+                  <label><span>Convolutions</span><input name="convolution_ops" data-flag="--convolution-ops" placeholder="cauchy,dirichlet"></label>
+                  <label><span>Convolution results</span><input data-flag="--convolution-limit" type="number" min="0" placeholder="Preset"></label>
+                  <label><span>Mod-class results</span><input name="modclass" data-flag="--modclass" type="number" min="0" placeholder="Preset"></label>
+                  <label class="check"><input name="rational" data-flag="--combo-rational" type="checkbox"><span><b>Rational pair coefficients</b><small>Solve beyond integers</small></span></label>
+                  <label class="check"><input data-flag="--triple-rational" type="checkbox"><span><b>Rational triple coefficients</b></span></label>
+                  <label class="check"><input name="expanded" data-flag="--combo-expanded" type="checkbox"><span><b>DB-wide fallback</b><small>Broaden pair/triple search</small></span></label>
+                </div></fieldset>
+                <fieldset><legend>Discovery, ranking &amp; resume</legend><div class="control-grid">
+                  <label><span>Candidate-build seconds</span><input data-flag="--combo-candidate-max-time" type="number" min="0" step=".1" placeholder="Preset"></label>
+                  <label><span>Expanded seconds (0 = unlimited)</span><input data-flag="--combo-expanded-max-time" type="number" min="0" step=".1" placeholder="Preset"></label>
+                  <label><span>Expanded anchors</span><input data-flag="--combo-expanded-anchors" type="number" min="1" placeholder="Preset"></label>
+                  <label><span>Discovery results</span><input data-flag="--combo-discovery-limit" type="number" min="1" placeholder="Preset"></label>
+                  <label><span>Checkpoint path</span><input data-flag="--checkpoint" placeholder="run-checkpoint.json"></label>
+                  <label><span>Ranked result limit</span><input data-flag="--rerank-limit" type="number" min="0" placeholder="Automatic"></label>
+                  <label><span>Family quotas</span><input data-flag="--rerank-quotas" placeholder="transform=2,pointwise=1"></label>
+                  <label class="check"><input data-flag="--combo-discovery" type="checkbox"><span><b>Symbolic discovery</b></span></label>
+                  <label class="check"><input data-flag="--rerank" type="checkbox"><span><b>Force explanation reranking</b></span></label>
+                  <label class="check"><input data-flag="--resume" type="checkbox"><span><b>Resume checkpoint</b></span></label>
+                </div></fieldset>
+              </div>
+            </details>
+          </form>
+        </section>
+
+        <section class="view" id="view-match" data-title="Match">
+          <div class="hero compact-hero"><div><p class="eyebrow">Direct &amp; metadata lookup</p><h1>Match what you mean.</h1><p>Paste terms for exact/prefix/subsequence matching, or use readable field filters such as <code>name:fibonacci keyword:nonn</code>.</p></div></div>
+          <form class="search-form" data-command="match">
+            <div class="sequence-field"><div class="field-head"><label for="match-query">Sequence or fielded query</label><div><button class="paste-button" type="button" data-target="match-query">Paste</button><button class="clear-button" type="button" data-target="match-query">Clear</button></div></div><textarea id="match-query" name="sequence" data-positional required spellcheck="false" placeholder="0, 1, 1, 2, 3, 5, 8 — or — name:fibonacci keyword:nonn"></textarea><div class="sequence-foot"><span class="term-count">Terms or filters</span><div class="samples"><button type="button" data-sample="name:fibonacci keyword:nonn">Fibonacci by name</button><button type="button" data-sample="contains:8 excludes:0 term@0:1">Field filters</button></div></div></div>
+            <div class="run-row"><fieldset class="preset"><legend>Search depth</legend><div><label><input type="radio" name="preset" value="fast"><span>Fast</span></label><label><input type="radio" name="preset" value="deep" checked><span>Deep</span></label><label><input type="radio" name="preset" value="max"><span>Max</span></label></div></fieldset><label class="compact-field"><span>Stop after</span><span class="suffix"><input data-flag="--time-cap" type="number" min="1" placeholder="Preset"><i>sec</i></span></label><button class="run-button" type="submit"><span>Find matches</span><kbd>Ctrl ↵</kbd><i class="spinner"></i></button></div>
+            <details class="advanced"><summary>Match controls <span>Limits, similarity &amp; filters</span></summary><div class="control-groups"><fieldset><legend>Matching</legend><div class="control-grid">
+              <label><span>Result limit</span><input data-flag="--limit" type="number" min="1" placeholder="Preset"></label><label><span>Minimum match length</span><input data-flag="--min-match-length" type="number" min="1" value="3"></label><label><span>Terms to display</span><input data-flag="--show-terms" type="number" min="0" value="12"></label><label><span>Similarity candidates</span><input data-flag="--similar" type="number" min="0" placeholder="Preset"></label><label><span>Minimum correlation</span><input data-flag="--min-corr" type="number" min="-1" max="1" step=".01" placeholder="Any"></label><label><span>Maximum MSE</span><input data-flag="--max-mse" type="number" min="0" step=".1" placeholder="Any"></label><label><span>Variance band</span><input data-flag="--variance-band" type="number" min="0" step=".1" placeholder="Config"></label><label><span>Growth band</span><input data-flag="--growth-band" type="number" min="0" step=".1" placeholder="Config"></label><label><span>Custom database</span><input data-flag="--db" placeholder="Config default"></label><label class="check"><input data-flag="--subsequence" type="checkbox"><span><b>Allow subsequences</b><small>Search away from offset 0</small></span></label><label class="check"><input data-flag="--show-formula" type="checkbox" checked><span><b>Include formulas</b></span></label><label class="check"><input data-flag="--no-subsequence-fallback" type="checkbox"><span><b>Disable automatic fallback</b></span></label>
+            </div></fieldset></div></details>
+          </form>
+          <aside class="syntax-help"><strong>Field filters</strong><code>id:A000045</code><code>name:fibonacci</code><code>formula:"2*n"</code><code>keyword:more</code><code>sign:nonneg</code><code>monotonic:nondecreasing</code><code>has-formula:true</code><code>contains:1,2</code><code>excludes:0</code><code>term@0:1</code></aside>
+        </section>
+
+        <section class="view" id="view-transform" data-title="Transform">
+          <div class="hero compact-hero"><div><p class="eyebrow">Transform search</p><h1>Turn it until it clicks.</h1><p>Search differences, partial sums, scales, shifts, arithmetic functions, index transforms, and chained explanations.</p></div></div>
+          <form class="search-form" data-command="tsearch">
+            <div class="sequence-field"><div class="field-head"><label for="transform-sequence">Sequence terms</label><div><button class="paste-button" type="button" data-target="transform-sequence">Paste</button><button class="clear-button" type="button" data-target="transform-sequence">Clear</button></div></div><textarea id="transform-sequence" data-positional required spellcheck="false" placeholder="2, 4, 6, 8, 10, 12"></textarea><div class="sequence-foot"><span class="term-count">0 terms</span><div class="samples"><button type="button" data-sample="2,4,6,8,10,12">Twice naturals</button><button type="button" data-sample="1,3,6,10,15,21">Triangular</button></div></div></div>
+            <div class="run-row"><fieldset class="preset"><legend>Search depth</legend><div><label><input type="radio" name="preset" value="fast"><span>Fast</span></label><label><input type="radio" name="preset" value="deep" checked><span>Deep</span></label><label><input type="radio" name="preset" value="max"><span>Max</span></label></div></fieldset><label class="compact-field"><span>Stop after</span><span class="suffix"><input data-flag="--time-cap" type="number" min="1" placeholder="Preset"><i>sec</i></span></label><button class="run-button" type="submit"><span>Search transforms</span><kbd>Ctrl ↵</kbd><i class="spinner"></i></button></div>
+            <details class="advanced" open><summary>Transform controls <span>Families, depth &amp; ranking</span></summary><div class="control-groups"><fieldset><legend>Search space</legend><div class="control-grid">
+              <label><span>Result limit</span><input data-flag="--limit" type="number" min="0" placeholder="Preset"></label><label><span>Maximum depth</span><input data-flag="--max-depth" type="number" min="1" max="4" placeholder="Preset"></label><label><span>Scale factors</span><input data-flag="--scale-values" placeholder="-3,-2,-1,2,3"></label><label><span>Additive constants</span><input data-flag="--beta-values" placeholder="-1,1"></label><label><span>Forward shifts</span><input data-flag="--shift-values" placeholder="1,2,3"></label><label><span>Decimation</span><input data-flag="--decimate" placeholder="2,3:1"></label><label class="wide"><span>Extra transforms</span><textarea class="mini-textarea" data-flag="--extra-transforms" placeholder="diff2,cumprod,binomial,phi,digitsum10,popcount,indexsquare"></textarea></label><label><span>Minimum score</span><input data-flag="--transform-min-score" type="number" min="0" step=".05" placeholder="Preset"></label><label><span>Max complexity</span><input data-flag="--transform-max-complexity" type="number" min="0" step=".1" placeholder="Preset"></label><label><span>Transform seconds</span><input data-flag="--max-time" type="number" min="0" step=".1" placeholder="Preset"></label><label><span>Variance band</span><input data-flag="--variance-band" type="number" min="0" step=".1" placeholder="Config"></label><label><span>Growth band</span><input data-flag="--growth-band" type="number" min="0" step=".1" placeholder="Config"></label><label><span>Custom database</span><input data-flag="--db" placeholder="Config default"></label><label><span>Terms to display</span><input data-flag="--show-terms" type="number" min="0" value="12"></label><label class="check"><input data-flag="--subsequence" type="checkbox"><span><b>Allow subsequences</b></span></label><label class="check"><input data-flag="--show-formula" type="checkbox" checked><span><b>Include formulas</b></span></label><label class="check"><input data-flag="--allow-constant-transforms" type="checkbox"><span><b>Keep constant outputs</b></span></label>
+            </div></fieldset><fieldset><legend>Disable core families</legend><div class="control-grid compact-checks"><label class="check"><input data-flag="--no-diff" type="checkbox"><span><b>Disable differences</b></span></label><label class="check"><input data-flag="--no-partial-sum" type="checkbox"><span><b>Disable partial sums</b></span></label><label class="check"><input data-flag="--no-abs" type="checkbox"><span><b>Disable absolute value</b></span></label><label class="check"><input data-flag="--no-gcd-norm" type="checkbox"><span><b>Disable GCD normalization</b></span></label></div></fieldset></div></details>
+          </form>
+        </section>
+
+        <section class="view" id="view-combo" data-title="Combine">
+          <div class="hero compact-hero"><div><p class="eyebrow">Structured decomposition</p><h1>Find the pieces inside.</h1><p>Try linear pairs and triples, pointwise operations, convolutions, and modular interleavings against a bounded candidate pool.</p></div></div>
+          <form class="search-form" data-command="combo">
+            <div class="sequence-field"><div class="field-head"><label for="combo-sequence">Sequence terms</label><div><button class="paste-button" type="button" data-target="combo-sequence">Paste</button><button class="clear-button" type="button" data-target="combo-sequence">Clear</button></div></div><textarea id="combo-sequence" data-positional required spellcheck="false" placeholder="5, 17, 103, 1011, 10042"></textarea><div class="sequence-foot"><span class="term-count">0 terms · five or more recommended</span><div class="samples"><button type="button" data-sample="2,4,7,11,16,22,29">Pair target</button><button type="button" data-sample="0,2,6,12,20,30,42">Pointwise target</button></div></div></div>
+            <div class="run-row"><fieldset class="preset"><legend>Search depth</legend><div><label><input type="radio" name="preset" value="fast"><span>Fast</span></label><label><input type="radio" name="preset" value="deep" checked><span>Deep</span></label><label><input type="radio" name="preset" value="max"><span>Max</span></label></div></fieldset><label class="compact-field"><span>Stop after</span><span class="suffix"><input data-flag="--time-cap" type="number" min="1" placeholder="Preset"><i>sec</i></span></label><button class="run-button" type="submit"><span>Find decompositions</span><kbd>Ctrl ↵</kbd><i class="spinner"></i></button></div>
+            <details class="advanced" open><summary>Decomposition controls <span>Pairs, triples &amp; structured operations</span></summary><div class="control-groups">
+              <fieldset><legend>Pairs &amp; candidate pool</legend><div class="control-grid"><label><span>Per-family result limit</span><input data-flag="--limit" type="number" min="1" placeholder="Preset"></label><label><span>Coefficients</span><input data-flag="--coeffs" placeholder="-3,-2,-1,1,2,3"></label><label><span>Maximum shift</span><input data-flag="--max-shift" type="number" min="0" placeholder="Preset"></label><label><span>Backward shift</span><input data-flag="--max-shift-back" type="number" min="0" placeholder="Preset"></label><label><span>Candidate sequences</span><input data-flag="--candidates" type="number" min="1" placeholder="Preset"></label><label><span>Candidate-build seconds</span><input data-flag="--candidate-max-time" type="number" min="0" step=".1" placeholder="Preset"></label><label><span>Maximum checks</span><input data-flag="--max-checks" type="number" min="1" placeholder="Preset"></label><label><span>Minimum score</span><input data-flag="--min-score" type="number" min="0" step=".05" placeholder="Any"></label><label><span>Maximum complexity</span><input data-flag="--max-complexity" type="number" min="0" step=".1" placeholder="Any"></label><label><span>Component transforms</span><input data-flag="--component-transforms" placeholder="id,diff,partial_sum"></label><label><span>Always include IDs</span><input data-flag="--include-ids" placeholder="A000045,A000204"></label><label><span>Custom database</span><input data-flag="--db" placeholder="Config default"></label><label><span>Expanded seconds (0 = unlimited)</span><input data-flag="--expanded-max-time" type="number" min="0" step=".1" placeholder="Preset"></label><label><span>Expanded anchors</span><input data-flag="--expanded-anchors" type="number" min="1" placeholder="Preset"></label><label class="check"><input data-flag="--rational" type="checkbox"><span><b>Rational coefficients</b></span></label><label class="check"><input data-flag="--expanded" type="checkbox"><span><b>DB-wide fallback</b><small>Slower; finds mismatched components</small></span></label><label class="check"><input data-flag="--expanded-pointwise" type="checkbox"><span><b>Expanded pointwise</b></span></label><label class="check"><input data-flag="--combo-unfiltered" type="checkbox"><span><b>Unfiltered pool</b><small>Skip prefix-index filtering</small></span></label><label class="check"><input data-flag="--wide-prefilter" type="checkbox"><span><b>Wide prefilter</b></span></label></div></fieldset>
+              <fieldset><legend>Triples &amp; structured operations</legend><div class="control-grid"><label><span>Triple limit</span><input data-flag="--triples" type="number" min="0" placeholder="Preset"></label><label><span>Triple candidates</span><input data-flag="--triple-candidates" type="number" min="1" placeholder="Preset"></label><label><span>Triple max checks</span><input data-flag="--triple-max-checks" type="number" min="1" placeholder="Preset"></label><label><span>Pointwise ops</span><input data-flag="--pointwise-ops" placeholder="mul,gcd,lcm"></label><label><span>Convolution ops</span><input data-flag="--convolution-ops" placeholder="cauchy,dirichlet"></label><label><span>Mod-class results</span><input data-flag="--modclass" type="number" min="0" placeholder="Preset"></label><label><span>Moduli</span><input data-flag="--modclass-moduli" placeholder="2,3"></label><label><span>Discovery results</span><input data-flag="--discovery-limit" type="number" min="1" placeholder="Preset"></label><label><span>Discovery seconds</span><input data-flag="--discovery-max-time" type="number" min="0" step=".1" placeholder="Preset"></label><label><span>Discovery tools</span><input data-flag="--discovery-tools" placeholder="sympy"></label><label><span>Terms to display</span><input data-flag="--show-terms" type="number" min="0" value="12"></label><label class="check"><input data-flag="--triple-rational" type="checkbox"><span><b>Rational triples</b></span></label><label class="check"><input data-flag="--discovery" type="checkbox"><span><b>Symbolic discovery</b><small>Inject SymPy guesses</small></span></label><label class="check"><input data-flag="--timings" type="checkbox" checked><span><b>Stage timings</b></span></label></div></fieldset>
+            </div></details>
+          </form>
+        </section>
+
+        <section class="view utility-view" id="view-database" data-title="Data &amp; index">
+          <div class="utility-title"><div><p class="eyebrow">Local infrastructure</p><h1>Data &amp; index</h1><p>Check freshness, download OEIS exports, build the SQLite index, and add newer performance indexes.</p></div><button class="secondary-button" id="refresh-status" type="button">↻ Refresh status</button></div>
+          <div id="status-dashboard" class="status-dashboard" aria-live="polite"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
+          <div id="status-warnings" class="warning-list" hidden></div>
+          <div class="utility-grid three">
+            <form class="utility-card" data-command="status"><span class="step">00</span><h2>Refresh if stale</h2><p>Check the configured age threshold and only download and rebuild when the snapshot is stale.</p><label class="check"><input data-flag="--refresh-if-stale" data-unchecked-flag="--no-refresh-if-stale" type="checkbox" checked><span><b>Sync and rebuild if stale</b></span></label><label><span>Maximum age (days)</span><input data-flag="--max-age-days" type="number" min="0" step=".1" placeholder="Config default"></label><details><summary>Paths &amp; sources</summary><div class="stack-fields"><label><span>Stripped source URL</span><input data-flag="--stripped-url" placeholder="https://oeis.org/stripped.gz"></label><label><span>Names source URL</span><input data-flag="--names-url" placeholder="https://oeis.org/names.gz"></label><label><span>Metadata path</span><input data-flag="--metadata" placeholder="Config default"></label><label><span>Database output</span><input data-flag="--db" placeholder="Config default"></label></div></details><button class="secondary-button" type="submit">Refresh if stale</button></form>
+            <form class="utility-card" data-command="sync"><span class="step">01</span><h2>Sync exports</h2><p>Download stripped terms and names. Cached files are kept unless you force a refresh.</p><label class="check"><input data-flag="--force" type="checkbox"><span><b>Force re-download</b></span></label><label class="check"><input data-flag="--clone-oeisdata" type="checkbox"><span><b>Clone oeisdata metadata</b></span></label><details><summary>Custom paths &amp; sources</summary><div class="stack-fields"><label><span>Stripped source URL</span><input data-flag="--stripped-url" placeholder="https://oeis.org/stripped.gz"></label><label><span>Names source URL</span><input data-flag="--names-url" placeholder="https://oeis.org/names.gz"></label><label><span>Keywords source URL</span><input data-flag="--keywords-url" placeholder="Optional"></label><label><span>Stripped destination</span><input data-flag="--stripped" placeholder="data/raw/stripped.gz"></label><label><span>Names destination</span><input data-flag="--names" placeholder="data/raw/names.gz"></label><label><span>Keywords destination</span><input data-flag="--keywords" placeholder="data/raw/keywords.txt"></label><label><span>oeisdata repository</span><input data-flag="--oeisdata-url" placeholder="https://github.com/oeis/oeisdata"></label><label><span>oeisdata path</span><input data-flag="--oeisdata" placeholder="data/raw/oeisdata"></label><label><span>Metadata path</span><input data-flag="--metadata" placeholder="Config default"></label></div></details><button class="secondary-button" type="submit">Sync data</button></form>
+            <form class="utility-card" data-command="build-index"><span class="step">02</span><h2>Build SQLite index</h2><p>Create the search database from local raw exports. This replaces the chosen output database.</p><label><span>Maximum terms per sequence</span><input data-flag="--max-terms" type="number" min="5" placeholder="Config default"></label><details><summary>Input &amp; output paths</summary><div class="stack-fields"><label><span>Stripped export</span><input data-flag="--stripped" placeholder="data/raw/stripped.gz"></label><label><span>Names export</span><input data-flag="--names" placeholder="data/raw/names.gz"></label><label><span>Keywords</span><input data-flag="--keywords" placeholder="data/raw/keywords.txt"></label><label><span>Offsets</span><input data-flag="--offsets" placeholder="Optional"></label><label><span>Formulas</span><input data-flag="--formulas" placeholder="Optional"></label><label><span>oeisdata path</span><input data-flag="--oeisdata" placeholder="data/raw/oeisdata"></label><label><span>Database output</span><input data-flag="--db" placeholder="data/processed/oeis.db"></label><label><span>Metadata path</span><input data-flag="--metadata" placeholder="Config default"></label></div></details><button class="secondary-button" type="submit">Build index</button></form>
+            <form class="utility-card" data-command="optimize-db"><span class="step">03</span><h2>Optimize database</h2><p>Safely create missing recommended indexes and shifted-prefix columns in place.</p><label class="check"><input data-flag="--analyze" type="checkbox"><span><b>Run SQLite ANALYZE</b></span></label><label class="check"><input data-flag="--add-prefix-shifts" type="checkbox"><span><b>Add shifted prefixes</b><small>Improves expanded pair search</small></span></label><label><span>Maximum prefix shift</span><input data-flag="--max-prefix-shift" type="number" min="1" value="5"></label><details><summary>Custom database</summary><label><span>SQLite path</span><input data-flag="--db" placeholder="data/processed/oeis.db"></label></details><button class="secondary-button" type="submit">Optimize index</button></form>
+          </div>
+        </section>
+
+        <section class="view utility-view" id="view-bfiles" data-title="B-files">
+          <div class="hero compact-hero"><div><p class="eyebrow">Canonical extended terms</p><h1>Search beyond the snapshot.</h1><p>Fetch canonical b-files, build their resumable compact manifest, or find an exact integer anywhere in the local corpus.</p></div></div>
+          <div class="utility-grid bfile-grid">
+            <form class="utility-card featured" data-command="bsearch"><span class="card-mark" aria-hidden="true">〉</span><h2>Search an exact integer</h2><p>The first uncached search scans canonical raw files; later lookups reuse the compact cache.</p><label><span>Integer value</span><input data-positional inputmode="numeric" pattern="[+-]?[0-9]+" title="Enter one integer" placeholder="514229" required></label><div class="two-fields"><label><span>Result limit</span><input data-flag="--limit" type="number" min="1" value="20"></label><label><span>Maximum time</span><input data-flag="--max-time" type="number" min="1" placeholder="No limit"></label></div><label class="check"><input data-flag="--refresh-cache" type="checkbox"><span><b>Refresh cached lookup</b></span></label><details><summary>Paths &amp; performance</summary><div class="stack-fields"><label><span>B-file database</span><input data-flag="--db" placeholder="data/processed/bfiles.db"></label><label><span>Main OEIS database</span><input data-flag="--oeis-db" placeholder="data/processed/oeis.db"></label><label><span>Worker threads</span><input data-flag="--threads" type="number" min="0" placeholder="Automatic"></label></div></details><button class="run-button" type="submit"><span>Search b-files</span><i class="spinner"></i></button></form>
+            <div class="utility-stack">
+              <form class="utility-card" data-command="bfetch"><h2>Fetch b-files</h2><p>Download canonical files for specific sequence IDs.</p><label><span>OEIS IDs</span><input data-positional placeholder="A000045, A000217" required></label><label class="check"><input data-flag="--force" type="checkbox"><span><b>Replace existing files</b></span></label><details><summary>Destination &amp; source</summary><div class="stack-fields"><label><span>Folder</span><input data-flag="--dest" placeholder="data/raw/bfiles"></label><label><span>Base URL</span><input data-flag="--base-url" placeholder="https://oeis.org"></label></div></details><button class="secondary-button" type="submit">Fetch files</button></form>
+              <form class="utility-card" data-command="bindex"><h2>Update b-file manifest</h2><p>Build or resume the compact searchable manifest.</p><label class="check"><input data-flag="--rebuild" type="checkbox"><span><b>Rebuild from scratch</b><small>Invalidates cached searches</small></span></label><details><summary>Source &amp; database paths</summary><div class="stack-fields"><label><span>Files root</span><input data-flag="--files-root" placeholder="data/raw/oeisdata/files"></label><label><span>Manifest database</span><input data-flag="--db" placeholder="data/processed/bfiles.db"></label></div></details><button class="secondary-button" type="submit">Update manifest</button></form>
+            </div>
+          </div>
+        </section>
+
+        <section class="view utility-view" id="view-selfcheck" data-title="Self-check">
+          <div class="hero compact-hero"><div><p class="eyebrow">Reproducible validation</p><h1>Trust, but verify.</h1><p>Run deterministic regressions and optional randomized pair, triple, pointwise, and convolution recovery trials.</p></div></div>
+          <form class="check-card" data-command="selfcheck">
+            <div class="check-intro"><span aria-hidden="true">✓</span><div><h2>Offline sanity suite</h2><p>Regression cases are fast. Random trials construct known answers and ask the matcher to recover them.</p></div></div>
+            <div class="control-grid"><label class="check"><input data-unchecked-flag="--no-regressions" type="checkbox" checked><span><b>Run regression suite</b><small>docs/regressions.json</small></span></label><label><span>Random pair/triple trials</span><input data-flag="--random-trials" type="number" min="0" value="0"></label><label><span>Pointwise trials</span><input data-flag="--pointwise-trials" type="number" min="0" value="0"></label><label><span>Convolution trials</span><input data-flag="--convolution-trials" type="number" min="0" value="0"></label><label><span>Random seed</span><input data-flag="--seed" type="number" value="0"></label><label><span>Query length</span><input data-flag="--qlen" type="number" min="5" placeholder="8"></label><label><span>Minimum stored length</span><input data-flag="--min-length" type="number" min="3" placeholder="30"></label><label><span>Custom database</span><input data-flag="--db" placeholder="Config default"></label><label><span>Regression cases</span><input data-flag="--regressions" placeholder="docs/regressions.json"></label><label class="check"><input data-flag="--fail-fast" type="checkbox"><span><b>Stop on first failure</b></span></label></div>
+            <details class="advanced"><summary>Trial time budgets &amp; selection <span>Advanced validation controls</span></summary><div class="control-grid"><label><span>Pair seconds / trial</span><input data-flag="--pair-max-time" type="number" min="0" step=".1" placeholder="6"></label><label><span>Pointwise seconds / trial</span><input data-flag="--pointwise-max-time" type="number" min="0" step=".05" placeholder="0.75"></label><label><span>Convolution seconds / trial</span><input data-flag="--convolution-max-time" type="number" min="0" step=".05" placeholder="0.75"></label><label><span>Scan stride</span><input data-flag="--scan-stride" type="number" min="1" placeholder="100"></label><label class="check"><input data-flag="--pairs-only" type="checkbox"><span><b>Expanded pairs only</b></span></label><label class="check"><input data-flag="--triples-only" type="checkbox"><span><b>Bucket triples only</b></span></label></div></details>
+            <button class="run-button" type="submit"><span>Run self-check</span><i class="spinner"></i></button>
+          </form>
+        </section>
+
+        <section class="job-panel" id="job-panel" hidden aria-live="polite">
+          <div class="job-head"><div><i class="pulse-dot" aria-hidden="true"></i><span><strong id="job-title">Working…</strong><small id="job-detail">Starting local process</small></span></div><button id="cancel-job" type="button">Cancel</button></div>
+          <div class="progress"><i id="progress-fill"></i></div>
+        </section>
+
+        <section class="results" id="results" hidden>
+          <div class="results-head"><div><p class="eyebrow">Run output</p><h2 id="results-title">Results</h2></div><div><button class="quiet-button" id="copy-json" type="button">Copy output</button><button class="quiet-button" id="download-json" type="button">Download</button></div></div>
+          <div class="result-tabs" role="tablist" aria-label="Output format"><button class="active" type="button" role="tab" data-tab="cards" aria-selected="true">Results <span id="result-count"></span></button><button type="button" role="tab" data-tab="diagnostics" aria-selected="false">Diagnostics</button><button type="button" role="tab" data-tab="raw" aria-selected="false">Raw output</button></div>
+          <div class="tab-panel active" id="tab-cards" role="tabpanel"><div id="summary-strip" class="summary-strip"></div><div id="result-cards"></div></div>
+          <div class="tab-panel" id="tab-diagnostics" role="tabpanel"><div id="diagnostic-cards" class="diagnostic-grid"></div></div>
+          <div class="tab-panel" id="tab-raw" role="tabpanel"><pre id="raw-output"></pre></div>
+        </section>
+        <footer class="attribution">Sequence data from <a href="https://oeis.org/" target="_blank" rel="noopener noreferrer">The On-Line Encyclopedia of Integer Sequences</a>, available under <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 4.0</a>.</footer>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="command-dialog">
+    <div class="command-search"><span aria-hidden="true">⌕</span><label class="sr-only" for="command-filter">Filter workflows</label><input id="command-filter" autocomplete="off" placeholder="Jump to a workflow…"><kbd>Esc</kbd></div>
+    <div class="command-list">
+      <button type="button" data-command-view="analyze"><span>∞</span><div><strong>Analyze a sequence</strong><small>Run the full ranked pipeline</small></div></button>
+      <button type="button" data-command-view="match"><span>=</span><div><strong>Direct or fielded match</strong><small>Terms, names, formulas, and keywords</small></div></button>
+      <button type="button" data-command-view="transform"><span>Δ</span><div><strong>Transform search</strong><small>Differences, shifts, functions, and chains</small></div></button>
+      <button type="button" data-command-view="combo"><span>+</span><div><strong>Structured decomposition</strong><small>Pairs, triples, products, and convolutions</small></div></button>
+      <button type="button" data-command-view="database"><span>◫</span><div><strong>Data &amp; index</strong><small>Status, sync, build, and optimize</small></div></button>
+      <button type="button" data-command-view="bfiles"><span>b</span><div><strong>B-file tools</strong><small>Fetch, index, and exact integer search</small></div></button>
+      <button type="button" data-command-view="selfcheck"><span>✓</span><div><strong>Self-check</strong><small>Regressions and randomized trials</small></div></button>
+    </div>
+  </dialog>
+
+  <div id="toasts" aria-live="polite" aria-atomic="true"></div>
+  <script src="/app.js" defer></script>
+</body>
+</html>

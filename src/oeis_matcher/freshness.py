@@ -7,11 +7,12 @@ used by `oeis status` and stale-data guardrails.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import json
-from pathlib import Path
 import sqlite3
 import subprocess
+from contextlib import closing
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 
@@ -216,7 +217,7 @@ def _db_health(db_path: Path) -> dict[str, Any]:
         return info
 
     try:
-        with sqlite3.connect(db_path) as conn:
+        with closing(sqlite3.connect(db_path)) as conn:
             row = conn.execute("SELECT COUNT(*) FROM sequences").fetchone()
             info["sequence_count"] = int(row[0]) if row else 0
         from .storage import missing_recommended_indexes

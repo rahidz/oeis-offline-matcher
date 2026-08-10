@@ -1757,6 +1757,16 @@ def _main(argv=None):
     p_status.add_argument("--max-terms", type=int, default=default_max_terms, help="Max terms to store when rebuilding after refresh")
     p_status.add_argument("--json", action="store_true", dest="as_json", help="Output JSON")
 
+    p_ui = sub.add_parser("ui", help="Launch the local web interface.")
+    p_ui.add_argument(
+        "--host",
+        choices=("127.0.0.1", "localhost", "::1"),
+        default="127.0.0.1",
+        help="Loopback address to bind",
+    )
+    p_ui.add_argument("--port", type=int, default=8765, help="Port to listen on")
+    p_ui.add_argument("--no-browser", action="store_true", help="Do not open the web interface in a browser")
+
     p_bfetch = sub.add_parser("bfetch", help="Download canonical OEIS b-files for specific ids.")
     p_bfetch.add_argument("ids", help='Comma/space-separated OEIS ids (e.g., "A000045,A000217").')
     p_bfetch.add_argument("--dest", default="data/raw/bfiles", help="Destination directory for downloaded b-files")
@@ -2195,6 +2205,12 @@ def _main(argv=None):
             warn_on_stale=default_warn_on_stale,
             as_json=bool(getattr(args, "as_json", False)),
         )
+
+    if args.cmd == "ui":
+        from .web import serve
+
+        serve(host=args.host, port=args.port, open_browser=not args.no_browser)
+        return 0
 
     if args.cmd == "build-index":
         stripped_path = Path(args.stripped)

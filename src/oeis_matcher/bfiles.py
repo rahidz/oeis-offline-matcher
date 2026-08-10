@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import os
 import re
 import shutil
 import sqlite3
 import subprocess
+import tempfile
 import time
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
-
 
 BFILE_SCHEMA_VERSION = 3
 _CANONICAL_NAME = re.compile(r"^b([0-9]{6})\.txt$", re.IGNORECASE)
@@ -153,10 +154,29 @@ def init_bfile_db(db_path: Path, *, rebuild: bool = False) -> None:
 
 
 def build_bfile_index(files_root: Path, db_path: Path, *, rebuild: bool = False) -> dict:
-    """Build/update a compact manifest; exact values are scanned and cached on demand."""
+    """Build/update a compact manifest; replace rebuilt databases atomically."""
     files_root = Path(files_root).resolve()
     if not files_root.exists():
         raise FileNotFoundError(files_root)
+    db_path = Path(db_path)
+    if not rebuild:
+        return _build_bfile_index(files_root, db_path, rebuild=False)
+
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(prefix=f".{db_path.name}.", suffix=".tmp", dir=db_path.parent)
+    os.close(fd)
+    temporary = Path(name)
+    try:
+        result = _build_bfile_index(files_root, temporary, rebuild=True)
+        result["db"] = str(db_path)
+        temporary.replace(db_path)
+        return result
+    finally:
+        for suffix in ("", "-journal", "-shm", "-wal"):
+            Path(f"{temporary}{suffix}").unlink(missing_ok=True)
+
+
+def _build_bfile_index(files_root: Path, db_path: Path, *, rebuild: bool) -> dict:
     init_bfile_db(db_path, rebuild=rebuild)
 
     canonical: dict[str, tuple[Path, str, int, int]] = {}

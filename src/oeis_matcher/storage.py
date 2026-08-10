@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import math
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 from typing import Iterable, Iterator, Optional
 
@@ -159,7 +160,7 @@ def _record_to_row(rec: SequenceRecord) -> tuple:
 
 def init_db(db_path: Path, *, create_indexes: bool = True) -> None:
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(db_path) as conn:
+    with closing(sqlite3.connect(db_path)) as conn:
         conn.execute("DROP TABLE IF EXISTS sequences")
         conn.execute(
             """
@@ -211,7 +212,7 @@ def ensure_db_indexes(db_path: Path, *, analyze: bool = False) -> dict[str, obje
         # row format: (seq, name, unique, origin, partial) for modern sqlite
         return {str(r[1]) for r in rows if len(r) > 1 and r[1]}
 
-    with sqlite3.connect(db_path) as conn:
+    with closing(sqlite3.connect(db_path)) as conn:
         cols = {row[1] for row in conn.execute("PRAGMA table_info(sequences)").fetchall()}
 
         def has_col(name: str) -> bool:
@@ -276,7 +277,7 @@ def missing_recommended_indexes(db_path: Path) -> list[str]:
         rows = conn.execute("PRAGMA index_list(sequences)").fetchall()
         return {str(r[1]) for r in rows if len(r) > 1 and r[1]}
 
-    with sqlite3.connect(db_path) as conn:
+    with closing(sqlite3.connect(db_path)) as conn:
         cols = {row[1] for row in conn.execute("PRAGMA table_info(sequences)").fetchall()}
         have = _index_names(conn)
 
@@ -417,7 +418,7 @@ def write_records(records: Iterable[SequenceRecord], db_path: Path, *, batch_siz
     Overwrites existing rows with the same id.
     """
     total = 0
-    with sqlite3.connect(db_path) as conn:
+    with closing(sqlite3.connect(db_path)) as conn:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=OFF")
 
