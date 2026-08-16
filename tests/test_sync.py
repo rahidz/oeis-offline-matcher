@@ -1,5 +1,6 @@
 import subprocess
 import urllib.request
+from io import BytesIO
 from pathlib import Path
 
 import pytest
@@ -74,6 +75,22 @@ def test_sync_force_redownload(tmp_path: Path):
     )
     assert stats["stripped"]["status"] == "downloaded"
     assert (out_dir / "stripped.gz").read_text(encoding="utf-8") == "ORIGINAL"
+
+
+def test_remote_download_identifies_the_client(tmp_path: Path, monkeypatch):
+    seen = []
+
+    def respond(request):
+        seen.append(request)
+        return BytesIO(b"snapshot")
+
+    monkeypatch.setattr(urllib.request, "urlopen", respond)
+    dest = tmp_path / "snapshot.gz"
+    download_file("https://oeis.org/stripped.gz", dest)
+
+    assert dest.read_bytes() == b"snapshot"
+    assert seen[0].full_url == "https://oeis.org/stripped.gz"
+    assert seen[0].get_header("User-agent").startswith("oeis-offline-matcher/")
 
 
 def test_failed_force_download_preserves_existing_snapshot(tmp_path: Path, monkeypatch):

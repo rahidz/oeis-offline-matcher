@@ -14,6 +14,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
 
+from . import USER_AGENT
+
 BFILE_SCHEMA_VERSION = 3
 _CANONICAL_NAME = re.compile(r"^b([0-9]{6})\.txt$", re.IGNORECASE)
 _AUXILIARY_NAME = re.compile(r"^b[0-9]{6}_.+\.txt$", re.IGNORECASE)
@@ -56,7 +58,8 @@ def fetch_bfiles(
         url = bfile_url(seq_id, base_url=base_url)
         tmp = dest.with_suffix(dest.suffix + ".tmp")
         try:
-            with urllib.request.urlopen(url) as response, tmp.open("wb") as output:
+            request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+            with urllib.request.urlopen(request) as response, tmp.open("wb") as output:
                 shutil.copyfileobj(response, output, length=64 * 1024)
             tmp.replace(dest)
             downloaded += 1

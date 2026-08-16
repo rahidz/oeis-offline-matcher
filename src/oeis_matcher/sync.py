@@ -20,6 +20,8 @@ from pathlib import Path
 from typing import Dict, Optional, Union
 from urllib.parse import urlparse
 
+from . import USER_AGENT
+
 DEFAULT_STRIPPED_URL = "https://oeis.org/stripped.gz"
 DEFAULT_NAMES_URL = "https://oeis.org/names.gz"
 DEFAULT_OEISDATA_REPO = "https://github.com/oeis/oeisdata"
@@ -65,7 +67,8 @@ def download_file(url: Union[str, Path], dest: Path, *, force: bool = False, chu
             with local_src.open("rb") as inp, tmp.open("wb") as out:
                 shutil.copyfileobj(inp, out, length=chunk_size)
         else:
-            with urllib.request.urlopen(str(url)) as resp, tmp.open("wb") as out:
+            request = urllib.request.Request(str(url), headers={"User-Agent": USER_AGENT})
+            with urllib.request.urlopen(request) as resp, tmp.open("wb") as out:
                 shutil.copyfileobj(resp, out, length=chunk_size)
         tmp.replace(dest)
     except Exception as exc:  # pragma: no cover - propagated for caller to handle

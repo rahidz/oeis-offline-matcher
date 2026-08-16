@@ -228,7 +228,11 @@
     addHistory(job);
     if (job.status === "completed") toast(`${job.command} completed.`);
     else if (job.status === "cancelled") toast(`${job.command} was cancelled.`, "error");
-    else toast(job.stderr || `${job.command} failed.`, "error");
+    else {
+      const reported = job.output && typeof job.output === "object" ? job.output.refresh?.error || job.output.error : null;
+      const message = typeof reported === "string" ? reported : reported?.message;
+      toast(message || job.stderr?.trim() || `${job.command} failed.`, "error");
+    }
     if (["status", "sync", "build-index", "optimize-db"].includes(job.command)) loadStatus();
   }
 
@@ -380,6 +384,14 @@
     const command = state.lastJob?.command;
     const sections = [];
     const summaries = [];
+    if (command === "status" && output.refresh) {
+      const refresh = output.refresh;
+      const title = refresh.ok ? "Snapshot refreshed" : refresh.attempted ? "Refresh failed" : "Snapshot is current";
+      const status = refresh.ok
+        ? "Download and index rebuild completed"
+        : refresh.error || "Snapshot is within the configured age limit";
+      summaries.push({ title, ok: refresh.ok ?? !refresh.attempted, status, error: refresh.error, details: refresh });
+    }
     if (command === "bsearch") summaries.push({ title: `Lookup for ${output.value}`, status: `${displayValue(output.total)} sequences`, cached: output.cached, scan_seconds: output.scan_seconds, details: { truncated: output.truncated, ranking: output.ranking, semantics: output.semantics, generation: output.generation } });
     if (command === "bfetch") summaries.push({ title: "B-file fetch", status: `${output.downloaded || 0} downloaded · ${output.skipped || 0} skipped · ${output.failed || 0} failed`, details: { dest_root: output.dest_root } });
     if (command === "bindex") summaries.push({ title: "B-file manifest", status: `${output.manifest_rows || 0} canonical files`, details: output });

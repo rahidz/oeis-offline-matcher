@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import sqlite3
+import urllib.request
+from io import BytesIO
 from pathlib import Path
 
 import pytest
@@ -114,6 +116,21 @@ def test_fetch_bfiles_from_local_base_url(tmp_path: Path):
     out = dest / "A123" / "b123456.txt"
     assert out.exists()
     assert out.read_text(encoding="utf-8") == "0 42\n"
+
+
+def test_fetch_bfiles_identifies_the_client(tmp_path: Path, monkeypatch):
+    seen = []
+
+    def respond(request):
+        seen.append(request)
+        return BytesIO(b"0 42\n")
+
+    monkeypatch.setattr(urllib.request, "urlopen", respond)
+    stats = fetch_bfiles(["A123456"], dest_root=tmp_path)
+
+    assert stats["downloaded"] == 1
+    assert seen[0].full_url == "https://oeis.org/A123456/b123456.txt"
+    assert seen[0].get_header("User-agent").startswith("oeis-offline-matcher/")
 
 
 def test_fetch_replaces_lfs_pointer_without_force(tmp_path: Path):
