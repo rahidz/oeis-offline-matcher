@@ -30,6 +30,14 @@
   ];
   const state = { activeJob: null, activeForm: null, pollTimer: null, progressTimer: null, lastOutput: null, lastJob: null };
 
+  $$("#analyze-expert-controls label[data-help]").forEach(label => {
+    const control = $("input, textarea, select", label);
+    if (control) control.setAttribute("aria-description", label.dataset.help);
+    const tooltip = node("span", "control-help", label.dataset.help);
+    tooltip.setAttribute("aria-hidden", "true");
+    label.append(tooltip);
+  });
+
   async function request(path, options = {}) {
     const response = await fetch(path, { cache: "no-store", ...options });
     const text = await response.text();

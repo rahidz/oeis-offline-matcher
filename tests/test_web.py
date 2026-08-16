@@ -21,15 +21,31 @@ class _UIParser(HTMLParser):
     def __init__(self):
         super().__init__()
         self.commands, self.assets, self.profiles = set(), set(), set()
+        self.expert_labels = 0
+        self.expert_controls = 0
+        self.expert_help: list[str] = []
+        self._in_analyze_expert_controls = False
 
     def handle_starttag(self, tag, attrs):
         values = dict(attrs)
+        if tag == "details" and values.get("id") == "analyze-expert-controls":
+            self._in_analyze_expert_controls = True
+        elif tag == "label" and self._in_analyze_expert_controls:
+            self.expert_labels += 1
+            if values.get("data-help", "").strip():
+                self.expert_help.append(values["data-help"])
+        if tag in {"input", "select", "textarea"} and self._in_analyze_expert_controls:
+            self.expert_controls += 1
         if tag == "form" and values.get("data-command"):
             self.commands.add(values["data-command"])
         if tag in {"link", "script"}:
             self.assets.add(values.get("href") or values.get("src"))
         if tag == "input" and values.get("name") == "preset":
             self.profiles.add(values.get("value"))
+
+    def handle_endtag(self, tag):
+        if tag == "details" and self._in_analyze_expert_controls:
+            self._in_analyze_expert_controls = False
 
 
 def _request(handler, method, path, body=b"", content_type=None, extra_headers=None):
@@ -118,6 +134,14 @@ def test_home_exposes_every_workflow_and_search_profile():
     assert parser.commands == web.COMMANDS
     assert parser.profiles == {"fast", "deep", "max"}
     assert {"/app.css", "/app.js"} <= parser.assets
+
+
+def test_every_analyze_expert_control_has_hover_help():
+    parser = _UIParser()
+    parser.feed(resources.files("oeis_matcher").joinpath("web_assets", "index.html").read_text())
+
+    assert parser.expert_labels == parser.expert_controls == 41
+    assert len(parser.expert_help) == parser.expert_labels
 
 
 def test_web_assets_are_package_data():

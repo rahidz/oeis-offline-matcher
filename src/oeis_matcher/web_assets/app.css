@@ -143,6 +143,23 @@ details summary span { margin-left: 7px; color: var(--muted); font-size: 10px; f
 .control-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 13px; }
 .control-grid label:not(.check), .utility-card > label:not(.check), .stack-fields label, .two-fields label { display: grid; align-content: start; gap: 6px; }
 .control-grid .wide { grid-column: span 2; }
+#analyze-expert-controls label[data-help] { --help-shift: -50%; position: relative; }
+#analyze-expert-controls label[data-help]:hover, #analyze-expert-controls label[data-help]:focus-within { z-index: 5; }
+#analyze-expert-controls label[data-help]:not(.check) > span:first-child::after,
+#analyze-expert-controls label.check[data-help] b:first-child::after {
+  display: inline-block; width: 16px; height: 16px; margin-left: 5px; vertical-align: -3px; content: "";
+  background: rgba(189,219,209,.48) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M5.3 5.5a2.8 2.8 0 1 1 4.6 2.1C8.7 8.5 8 9 8 10' fill='none' stroke='%23246d68' stroke-width='1.5' stroke-linecap='round'/%3E%3Ccircle cx='8' cy='12.4' r='.8' fill='%23246d68'/%3E%3C/svg%3E") center / 14px 14px no-repeat;
+  border: 1px solid rgba(36,109,104,.22); border-radius: 50%;
+}
+#analyze-expert-controls .control-help {
+  position: absolute; bottom: calc(100% + 8px); left: 50%; z-index: 10; width: max-content; max-width: min(320px, calc(100vw - 36px));
+  padding: 11px 13px; color: #f4f7f2; font-size: 14px; font-weight: 550; letter-spacing: 0; line-height: 1.5; text-align: left;
+  text-transform: none; white-space: normal; visibility: hidden; pointer-events: none; background: var(--nav);
+  border: 1px solid rgba(255,255,255,.13); border-radius: 8px; box-shadow: 0 8px 24px rgba(20,39,42,.22); opacity: 0;
+  transform: translate(var(--help-shift), 4px); transition: opacity .14s ease, transform .14s ease, visibility .14s;
+}
+#analyze-expert-controls label[data-help]:hover > .control-help,
+#analyze-expert-controls label[data-help]:focus-within > .control-help { visibility: visible; opacity: 1; transform: translate(var(--help-shift), 0); }
 .mini-textarea { min-height: 65px; padding: 9px 10px; resize: vertical; font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; }
 .check { display: flex !important; align-items: flex-start; gap: 8px; padding: 5px 0; cursor: pointer; }
 .check input { width: 15px; height: 15px; flex: 0 0 auto; margin: 2px 0 0; padding: 0; accent-color: var(--teal); }
@@ -280,6 +297,13 @@ dialog::backdrop { background: rgba(15,31,34,.5); backdrop-filter: blur(3px); }
 @keyframes progress { from { transform: translateX(-110%); } to { transform: translateX(300%); } }
 @keyframes toast-in { from { opacity: 0; transform: translateY(7px); } }
 
+@media (min-width: 1061px) {
+  #analyze-expert-controls .control-grid label[data-help]:nth-child(4n+1) { --help-shift: 0; }
+  #analyze-expert-controls .control-grid label[data-help]:nth-child(4n+1) > .control-help { left: 0; }
+  #analyze-expert-controls .control-grid label[data-help]:nth-child(4n) > .control-help { right: 0; left: auto; }
+  #analyze-expert-controls .control-grid label[data-help]:nth-child(4n) { --help-shift: 0; }
+}
+
 @media (max-width: 1060px) {
   .app-shell { grid-template-columns: 76px minmax(0,1fr); }
   .sidebar { width: 76px; }
@@ -290,6 +314,10 @@ dialog::backdrop { background: rgba(15,31,34,.5); backdrop-filter: blur(3px); }
   .mini-status { grid-template-columns: 1fr; justify-items: center; margin-top: auto; padding: 13px; }
   main { grid-column: 2; }
   .control-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  #analyze-expert-controls .control-grid label[data-help]:nth-child(3n+1) { --help-shift: 0; }
+  #analyze-expert-controls .control-grid label[data-help]:nth-child(3n+1) > .control-help { left: 0; }
+  #analyze-expert-controls .control-grid label[data-help]:nth-child(3n) { --help-shift: 0; }
+  #analyze-expert-controls .control-grid label[data-help]:nth-child(3n) > .control-help { right: 0; left: auto; }
   .utility-grid.three { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .utility-grid.three > :first-child { grid-column: 1 / -1; }
 }
@@ -316,6 +344,9 @@ dialog::backdrop { background: rgba(15,31,34,.5); backdrop-filter: blur(3px); }
   .compact-field { flex: 1; }
   .run-row .run-button { flex: 1; min-width: 145px; }
   .control-grid, .compact-checks, .status-dashboard, .utility-grid.three, .bfile-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  #analyze-expert-controls .control-grid label[data-help]:nth-child(n) { --help-shift: 0; }
+  #analyze-expert-controls .control-grid label[data-help]:nth-child(odd) > .control-help { right: auto; left: 0; }
+  #analyze-expert-controls .control-grid label[data-help]:nth-child(even) > .control-help { right: 0; left: auto; }
   .utility-grid.three > :first-child { grid-column: auto; }
   .bfile-grid > .featured { grid-column: 1 / -1; }
   .utility-stack { display: contents; }
@@ -331,6 +362,7 @@ dialog::backdrop { background: rgba(15,31,34,.5); backdrop-filter: blur(3px); }
   .sequence-field, .run-row { padding-inline: 16px; }
   .samples { display: none; }
   .control-grid, .compact-checks, .status-dashboard, .utility-grid.three, .bfile-grid, .diagnostic-grid { grid-template-columns: 1fr; }
+  #analyze-expert-controls .control-grid label[data-help]:nth-child(n) > .control-help { right: auto; left: 0; max-width: 100%; }
   .control-grid .wide, .bfile-grid > .featured { grid-column: auto; }
   .run-row .run-button { order: 3; flex-basis: 100%; }
   .summary-strip { display: grid; grid-template-columns: 1fr 1fr; }

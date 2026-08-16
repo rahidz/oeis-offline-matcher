@@ -65,57 +65,57 @@
               <label class="compact-field"><span>Stop after</span><span class="suffix"><input name="time_cap" data-flag="--time-cap" type="number" min="1" placeholder="Preset"><i>sec</i></span></label>
               <button class="run-button" type="submit"><span>Analyze sequence</span><kbd>Ctrl ↵</kbd><i class="spinner" aria-hidden="true"></i></button>
             </div>
-            <details class="advanced">
+            <details class="advanced" id="analyze-expert-controls">
               <summary>Fine-tune the full pipeline <span>Major expert controls</span></summary>
               <div class="control-groups">
                 <fieldset><legend>Results</legend><div class="control-grid">
-                  <label><span>Exact limit</span><input name="limit" data-flag="--limit" type="number" min="0" placeholder="Preset"></label>
-                  <label><span>Transform limit</span><input name="tlimit" data-flag="--tlimit" type="number" min="0" placeholder="Preset"></label>
-                  <label><span>Similarity candidates</span><input name="similar" data-flag="--similar" type="number" min="0" placeholder="Preset"></label>
-                  <label><span>Terms to display</span><input name="show_terms" data-flag="--show-terms" type="number" min="0" value="12"></label>
-                  <label><span>Custom database</span><input data-flag="--db" placeholder="Config default"></label>
-                  <label class="check"><input name="subsequence" data-flag="--subsequence" type="checkbox"><span><b>Allow subsequences</b><small>Not just prefix hits</small></span></label>
-                  <label class="check"><input name="show_formula" data-flag="--show-formula" type="checkbox" checked><span><b>Include formulas</b><small>When stored locally</small></span></label>
-                  <label class="check"><input name="timings" data-flag="--timings" type="checkbox" checked><span><b>Stage timings</b><small>Show diagnostics</small></span></label>
-                  <label class="check"><input name="no_fallback" data-flag="--no-subsequence-fallback" type="checkbox"><span><b>No fallback</b><small>Never retry as subsequence</small></span></label>
+                  <label data-help="Maximum direct OEIS matches to return. Set 0 to skip direct results; leave blank to use the selected profile."><span>Exact limit</span><input name="limit" data-flag="--limit" type="number" min="0" placeholder="Preset"></label>
+                  <label data-help="Maximum transform-based matches to return. Set 0 to skip transform results; leave blank to use the selected profile."><span>Transform limit</span><input name="tlimit" data-flag="--tlimit" type="number" min="0" placeholder="Preset"></label>
+                  <label data-help="Number of scale-and-offset similarity candidates to return. Set 0 to disable similarity; leave blank to use the selected profile."><span>Similarity candidates</span><input name="similar" data-flag="--similar" type="number" min="0" placeholder="Preset"></label>
+                  <label data-help="Number of sequence terms shown in each result preview. Set 0 to hide term snippets."><span>Terms to display</span><input name="show_terms" data-flag="--show-terms" type="number" min="0" value="12"></label>
+                  <label data-help="Path to a different local SQLite OEIS index for this run. Leave blank to use the configured database."><span>Custom database</span><input data-flag="--db" placeholder="Config default"></label>
+                  <label class="check" data-help="Allow direct and transformed matches to begin after the first stored term instead of requiring a prefix."><input name="subsequence" data-flag="--subsequence" type="checkbox"><span><b>Allow subsequences</b><small>Not just prefix hits</small></span></label>
+                  <label class="check" data-help="Include locally stored OEIS formula text in results when it is available."><input name="show_formula" data-flag="--show-formula" type="checkbox" checked><span><b>Include formulas</b><small>When stored locally</small></span></label>
+                  <label class="check" data-help="Measure each pipeline stage and include elapsed times in the diagnostics."><input name="timings" data-flag="--timings" type="checkbox" checked><span><b>Stage timings</b><small>Show diagnostics</small></span></label>
+                  <label class="check" data-help="Do not automatically retry a prefix-only query as a subsequence search when no prefix match is found."><input name="no_fallback" data-flag="--no-subsequence-fallback" type="checkbox"><span><b>No fallback</b><small>Never retry as subsequence</small></span></label>
                 </div></fieldset>
                 <fieldset><legend>Transforms</legend><div class="control-grid">
-                  <label><span>Maximum depth</span><input name="max_depth" data-flag="--max-depth" type="number" min="1" max="4" placeholder="Preset"></label>
-                  <label><span>Scale factors</span><input name="scale_values" data-flag="--scale-values" placeholder="-3,-2,-1,2,3"></label>
-                  <label><span>Additive constants</span><input name="beta_values" data-flag="--beta-values" placeholder="-1,1"></label>
-                  <label><span>Forward shifts</span><input name="shift_values" data-flag="--shift-values" placeholder="1,2,3"></label>
-                  <label><span>Decimation</span><input name="decimate" data-flag="--decimate" placeholder="2,3:1"></label>
-                  <label><span>Extra transforms</span><input name="extra_transforms" data-flag="--extra-transforms" placeholder="diff2,binomial,phi"></label>
-                  <label><span>Minimum score</span><input name="transform_min_score" data-flag="--transform-min-score" type="number" min="0" step=".05" placeholder="Preset"></label>
-                  <label><span>Maximum complexity</span><input name="transform_max_complexity" data-flag="--transform-max-complexity" type="number" min="0" step=".1" placeholder="Preset"></label>
+                  <label data-help="Maximum number of operations in a transform chain. Higher values broaden the search rapidly; leave blank to use the selected profile."><span>Maximum depth</span><input name="max_depth" data-flag="--max-depth" type="number" min="1" max="4" placeholder="Preset"></label>
+                  <label data-help="Comma-separated multipliers to try in scale and affine transforms. Values 0 and 1 are ignored."><span>Scale factors</span><input name="scale_values" data-flag="--scale-values" placeholder="-3,-2,-1,2,3"></label>
+                  <label data-help="Comma-separated constants to add in affine transforms such as k·a(n)+b."><span>Additive constants</span><input name="beta_values" data-flag="--beta-values" placeholder="-1,1"></label>
+                  <label data-help="Comma-separated counts of leading query terms to drop before matching."><span>Forward shifts</span><input name="shift_values" data-flag="--shift-values" placeholder="1,2,3"></label>
+                  <label data-help="Sample every c-th term, optionally starting at offset d. Use c or c:d, for example 3:1."><span>Decimation</span><input name="decimate" data-flag="--decimate" placeholder="2,3:1"></label>
+                  <label data-help="Comma-separated optional transform families, such as diff2, binomial, phi, movsum3, or indexfactorial."><span>Extra transforms</span><input name="extra_transforms" data-flag="--extra-transforms" placeholder="diff2,binomial,phi"></label>
+                  <label data-help="Discard transform explanations scoring below this value. Higher values are stricter; leave blank to use the selected profile."><span>Minimum score</span><input name="transform_min_score" data-flag="--transform-min-score" type="number" min="0" step=".05" placeholder="Preset"></label>
+                  <label data-help="Discard transform chains whose weighted operation cost exceeds this value. Lower values favor simpler explanations."><span>Maximum complexity</span><input name="transform_max_complexity" data-flag="--transform-max-complexity" type="number" min="0" step=".1" placeholder="Preset"></label>
                 </div></fieldset>
                 <fieldset><legend>Decompositions</legend><div class="control-grid">
-                  <label><span>Pair results</span><input name="combos" data-flag="--combos" type="number" min="0" placeholder="Preset"></label>
-                  <label><span>Triple results</span><input name="triples" data-flag="--triples" type="number" min="0" placeholder="Preset"></label>
-                  <label><span>Candidate pool</span><input name="combo_candidates" data-flag="--combo-candidates" type="number" min="1" placeholder="Preset"></label>
-                  <label><span>Coefficients</span><input name="combo_coeffs" data-flag="--combo-coeffs" placeholder="-3,-2,-1,1,2,3"></label>
-                  <label><span>Maximum shift</span><input name="combo_max_shift" data-flag="--combo-max-shift" type="number" min="0" placeholder="Preset"></label>
-                  <label><span>Component transforms</span><input name="component_transforms" data-flag="--combo-component-transforms" placeholder="id,diff,partial_sum"></label>
-                  <label><span>Pointwise ops</span><input name="pointwise_ops" data-flag="--pointwise-ops" placeholder="mul,gcd,lcm"></label>
-                  <label><span>Pointwise results</span><input data-flag="--pointwise-limit" type="number" min="0" placeholder="Preset"></label>
-                  <label><span>Convolutions</span><input name="convolution_ops" data-flag="--convolution-ops" placeholder="cauchy,dirichlet"></label>
-                  <label><span>Convolution results</span><input data-flag="--convolution-limit" type="number" min="0" placeholder="Preset"></label>
-                  <label><span>Mod-class results</span><input name="modclass" data-flag="--modclass" type="number" min="0" placeholder="Preset"></label>
-                  <label class="check"><input name="rational" data-flag="--combo-rational" type="checkbox"><span><b>Rational pair coefficients</b><small>Solve beyond integers</small></span></label>
-                  <label class="check"><input data-flag="--triple-rational" type="checkbox"><span><b>Rational triple coefficients</b></span></label>
-                  <label class="check"><input name="expanded" data-flag="--combo-expanded" type="checkbox"><span><b>DB-wide fallback</b><small>Broaden pair/triple search</small></span></label>
+                  <label data-help="Maximum two-sequence linear decompositions to return. Set 0 to disable pair search; leave blank to use the selected profile."><span>Pair results</span><input name="combos" data-flag="--combos" type="number" min="0" placeholder="Preset"></label>
+                  <label data-help="Maximum three-sequence linear decompositions to return. Set 0 to disable this slower search; leave blank to use the selected profile."><span>Triple results</span><input name="triples" data-flag="--triples" type="number" min="0" placeholder="Preset"></label>
+                  <label data-help="Maximum OEIS sequences placed in the shared decomposition candidate pool. Larger pools are broader and slower."><span>Candidate pool</span><input name="combo_candidates" data-flag="--combo-candidates" type="number" min="1" placeholder="Preset"></label>
+                  <label data-help="Comma-separated integer coefficients to try in linear pair and triple expressions."><span>Coefficients</span><input name="combo_coeffs" data-flag="--combo-coeffs" placeholder="-3,-2,-1,1,2,3"></label>
+                  <label data-help="Maximum forward offset tried for each component sequence. Set 0 to align components at their starts."><span>Maximum shift</span><input name="combo_max_shift" data-flag="--combo-max-shift" type="number" min="0" placeholder="Preset"></label>
+                  <label data-help="Comma-separated transforms allowed on each component before combining it: id, diff, or partial_sum."><span>Component transforms</span><input name="component_transforms" data-flag="--combo-component-transforms" placeholder="id,diff,partial_sum"></label>
+                  <label data-help="Comma-separated term-by-term operations to try: mul, gcd, or lcm. If you enter operations but no limit, the UI requests 10 results."><span>Pointwise ops</span><input name="pointwise_ops" data-flag="--pointwise-ops" placeholder="mul,gcd,lcm"></label>
+                  <label data-help="Maximum pointwise decompositions to return. Set 0 to disable this stage; blank follows the profile or the UI default described beside Pointwise ops."><span>Pointwise results</span><input data-flag="--pointwise-limit" type="number" min="0" placeholder="Preset"></label>
+                  <label data-help="Comma-separated sequence convolution operations to try: cauchy or dirichlet. If you enter operations but no limit, the UI requests 5 results."><span>Convolutions</span><input name="convolution_ops" data-flag="--convolution-ops" placeholder="cauchy,dirichlet"></label>
+                  <label data-help="Maximum convolution decompositions to return. Set 0 to disable this stage; blank follows the profile or the UI default described beside Convolutions."><span>Convolution results</span><input data-flag="--convolution-limit" type="number" min="0" placeholder="Preset"></label>
+                  <label data-help="Maximum residue-class or interleaving decompositions of the form a(mn+r). Set 0 to disable this stage."><span>Mod-class results</span><input name="modclass" data-flag="--modclass" type="number" min="0" placeholder="Preset"></label>
+                  <label class="check" data-help="Solve pair coefficients as exact rational numbers instead of restricting them to the integer list above."><input name="rational" data-flag="--combo-rational" type="checkbox"><span><b>Rational pair coefficients</b><small>Solve beyond integers</small></span></label>
+                  <label class="check" data-help="Solve three-sequence coefficients as exact rational numbers instead of restricting them to integers."><input data-flag="--triple-rational" type="checkbox"><span><b>Rational triple coefficients</b></span></label>
+                  <label class="check" data-help="If regular pair or triple search finds nothing, try a broader DB-wide fallback. Max already enables this."><input name="expanded" data-flag="--combo-expanded" type="checkbox"><span><b>DB-wide fallback</b><small>Broaden pair/triple search</small></span></label>
                 </div></fieldset>
                 <fieldset><legend>Discovery, ranking &amp; resume</legend><div class="control-grid">
-                  <label><span>Candidate-build seconds</span><input data-flag="--combo-candidate-max-time" type="number" min="0" step=".1" placeholder="Preset"></label>
-                  <label><span>Expanded seconds (0 = unlimited)</span><input data-flag="--combo-expanded-max-time" type="number" min="0" step=".1" placeholder="Preset"></label>
-                  <label><span>Expanded anchors</span><input data-flag="--combo-expanded-anchors" type="number" min="1" placeholder="Preset"></label>
-                  <label><span>Discovery results</span><input data-flag="--combo-discovery-limit" type="number" min="1" placeholder="Preset"></label>
-                  <label><span>Checkpoint path</span><input data-flag="--checkpoint" placeholder="run-checkpoint.json"></label>
-                  <label><span>Ranked result limit</span><input data-flag="--rerank-limit" type="number" min="0" placeholder="Automatic"></label>
-                  <label><span>Family quotas</span><input data-flag="--rerank-quotas" placeholder="transform=2,pointwise=1"></label>
-                  <label class="check"><input data-flag="--combo-discovery" type="checkbox"><span><b>Symbolic discovery</b></span></label>
-                  <label class="check"><input data-flag="--rerank" type="checkbox"><span><b>Force explanation reranking</b></span></label>
-                  <label class="check"><input data-flag="--resume" type="checkbox"><span><b>Resume checkpoint</b></span></label>
+                  <label data-help="Wall-time cap for building the shared decomposition candidate pool. Lower values can leave a smaller pool; blank uses the selected profile."><span>Candidate-build seconds</span><input data-flag="--combo-candidate-max-time" type="number" min="0" step=".1" placeholder="Preset"></label>
+                  <label data-help="Wall-time cap for the DB-wide expanded fallback. Set 0 for no separate fallback cap; the overall pipeline cap still applies."><span>Expanded seconds (0 = unlimited)</span><input data-flag="--combo-expanded-max-time" type="number" min="0" step=".1" placeholder="Preset"></label>
+                  <label data-help="Maximum anchor sequences tried during expanded triple fallback. Larger values are broader and slower; this does not affect pair search."><span>Expanded anchors</span><input data-flag="--combo-expanded-anchors" type="number" min="1" placeholder="Preset"></label>
+                  <label data-help="Maximum extra OEIS sequence IDs that symbolic discovery may inject into the decomposition candidate pool."><span>Discovery results</span><input data-flag="--combo-discovery-limit" type="number" min="1" placeholder="Preset"></label>
+                  <label data-help="JSON file where completed stage results are saved so a compatible later run can reuse them."><span>Checkpoint path</span><input data-flag="--checkpoint" placeholder="run-checkpoint.json"></label>
+                  <label data-help="Maximum explanations kept in the final cross-family ranked list. Set 0 or leave blank to choose the limit automatically."><span>Ranked result limit</span><input data-flag="--rerank-limit" type="number" min="0" placeholder="Automatic"></label>
+                  <label data-help="Per-family targets for the first ranking pass, such as transform=2,pointwise=1. Remaining slots are filled globally by score."><span>Family quotas</span><input data-flag="--rerank-quotas" placeholder="transform=2,pointwise=1"></label>
+                  <label class="check" data-help="Ask the configured symbolic or numeric backend to propose extra decomposition candidates. Max already enables this."><input data-flag="--combo-discovery" type="checkbox"><span><b>Symbolic discovery</b></span></label>
+                  <label class="check" data-help="Explicitly enable diversity-aware ranking across explanation families. Deep and Max already enable it automatically."><input data-flag="--rerank" type="checkbox"><span><b>Force explanation reranking</b></span></label>
+                  <label class="check" data-help="Reuse compatible completed stages from the checkpoint file before continuing. A checkpoint path is required."><input data-flag="--resume" type="checkbox"><span><b>Resume checkpoint</b></span></label>
                 </div></fieldset>
               </div>
             </details>
