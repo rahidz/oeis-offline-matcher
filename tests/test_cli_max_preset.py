@@ -19,7 +19,7 @@ def _run_cli(tmp_path: Path, args: list[str]) -> subprocess.CompletedProcess:
 import os
 
 
-def test_preset_max_analyze_runs_with_extras(tmp_path: Path, monkeypatch):
+def test_preset_max_analyze_runs_with_extras(tmp_path: Path):
     # Build a tiny DB so analyze has something to hit.
     from oeis_matcher.build_index import build_index
 
@@ -38,12 +38,23 @@ def test_preset_max_analyze_runs_with_extras(tmp_path: Path, monkeypatch):
     db = tmp_path / "oeis.db"
     build_index(stripped, names, None, db, max_terms=16)
 
-    # Run analyze with the max preset and a few pointwise ops; this exercises
-    # the full transform/combo pipeline without asserting on specific matches.
+    # This query produces factorial-sized terms in some depth-two transform
+    # chains; those terms should be skipped rather than crashing exact lookup.
     env = dict(os.environ)
     env["PYTHONPATH"] = str(Path("src").resolve())
     proc = subprocess.run(
-        [sys.executable, "-m", "oeis_matcher.cli", "analyze", "1,2,3,4,5,6", "--db", str(db), "--max", "--time-cap", "2"],
+        [
+            sys.executable,
+            "-m",
+            "oeis_matcher.cli",
+            "analyze",
+            "1,4,12,31,73,162,346,721,1478,3002",
+            "--db",
+            str(db),
+            "--max",
+            "--time-cap",
+            "2",
+        ],
         cwd=str(Path(__file__).resolve().parent.parent),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

@@ -439,7 +439,14 @@ class DBExactMatcher:
                     return []
                 deadline = time_fn() + cap
 
-        pattern = ",".join(str(int(t)) for t in qterms)
+        integer_terms = [int(t) for t in qterms]
+        try:
+            pattern = ",".join(str(t) for t in integer_terms)
+        except ValueError:
+            # Max-depth transform chains can produce integers beyond Python's
+            # protected decimal-conversion limit. They are not searchable in
+            # this text index, so they simply have no exact match.
+            return []
         results: list[Match] = []
 
         def _maybe_limit(sql: str) -> str:
@@ -468,7 +475,7 @@ class DBExactMatcher:
         prefix_where: list[str] = ["length >= ?"]
         prefix_params: list[object] = [qlen]
         if qlen >= 5:
-            prefix5 = ",".join(str(int(t)) for t in qterms[:5])
+            prefix5 = ",".join(str(t) for t in integer_terms[:5])
             prefix_where.append("prefix5 = ?")
             prefix_params.append(prefix5)
         else:

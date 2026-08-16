@@ -58,3 +58,9 @@ def test_match_exact_db_prefix_limit_is_deterministic_by_id(tmp_path: Path):
     db = _build_db(tmp_path)
     q = SequenceQuery(terms=[1], min_match_length=1, allow_subsequence=False)
     assert [m.id for m in match_exact_db(q, db, limit=2)] == ["A800001", "A800003"]
+
+
+def test_match_exact_db_skips_integers_too_large_for_text_index(tmp_path: Path):
+    db = _build_db(tmp_path)
+    q = SequenceQuery(terms=[1, 2, 10**5000], min_match_length=1, allow_subsequence=False)
+    assert match_exact_db(q, db) == []
