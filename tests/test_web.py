@@ -194,8 +194,8 @@ def test_routes_reject_non_loopback_host_or_origin(headers):
 @pytest.mark.parametrize(
     "headers",
     [
-        {"Host": "127.0.0.1:8765", "Origin": "http://127.0.0.1:8765"},
-        {"Host": "[::1]:8765", "Origin": "http://[::1]:8765"},
+        {"Host": "127.0.0.1:8766", "Origin": "http://127.0.0.1:8766"},
+        {"Host": "[::1]:8766", "Origin": "http://[::1]:8766"},
     ],
 )
 def test_routes_accept_matching_loopback_origin(headers):
@@ -391,10 +391,10 @@ def test_browser_launch_uses_windows_host_under_wsl(monkeypatch):
 
     monkeypatch.setenv("WSL_DISTRO_NAME", "Ubuntu")
     monkeypatch.setattr(web.subprocess, "Popen", popen)
-    web._open_browser("http://127.0.0.1:8765/")
+    web._open_browser("http://127.0.0.1:8766/")
 
     assert launched.wait(1)
-    assert calls[0][0] == ["cmd.exe", "/c", "start", "", "http://127.0.0.1:8765/"]
+    assert calls[0][0] == ["cmd.exe", "/c", "start", "", "http://127.0.0.1:8766/"]
     assert calls[0][1]["stdout"] == web.subprocess.DEVNULL
     assert calls[0][1]["stderr"] == web.subprocess.DEVNULL
 
@@ -407,7 +407,7 @@ def test_serve_handles_termination_and_cleans_up(monkeypatch):
             events.append("manager.close")
 
     class Server:
-        server_port = 8765
+        server_port = 8766
 
         def serve_forever(self):
             handlers[signal.SIGTERM](signal.SIGTERM, None)

@@ -380,7 +380,7 @@ def make_handler(manager: JobManager):
     return Handler
 
 
-def make_server(host: str = "127.0.0.1", port: int = 8765, *, manager: JobManager | None = None) -> ThreadingHTTPServer:
+def make_server(host: str = "127.0.0.1", port: int = 8766, *, manager: JobManager | None = None) -> ThreadingHTTPServer:
     if host not in LOOPBACKS:
         raise ValueError("host must be a loopback address")
     class Server(ThreadingHTTPServer):
@@ -407,7 +407,7 @@ def _open_browser(url: str) -> None:
     threading.Thread(target=open_url, daemon=True).start()
 
 
-def serve(host: str = "127.0.0.1", port: int = 8765, open_browser: bool = True) -> None:
+def serve(host: str = "127.0.0.1", port: int = 8766, open_browser: bool = True) -> None:
     manager = JobManager()
     server = make_server(host, port, manager=manager)
     shown_host = f"[{host}]" if ":" in host else host

@@ -6,7 +6,7 @@ from oeis_matcher import cli, web
 @pytest.mark.parametrize(
     ("argv", "expected"),
     [
-        (["ui"], {"host": "127.0.0.1", "port": 8765, "open_browser": True}),
+        (["ui"], {"host": "127.0.0.1", "port": 8766, "open_browser": True}),
         (
             ["ui", "--host", "localhost", "--port", "9876", "--no-browser"],
             {"host": "localhost", "port": 9876, "open_browser": False},

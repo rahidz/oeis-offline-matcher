@@ -1795,7 +1795,7 @@ def _main(argv=None):
         default="127.0.0.1",
         help="Loopback address to bind",
     )
-    p_ui.add_argument("--port", type=int, default=8765, help="Port to listen on")
+    p_ui.add_argument("--port", type=int, default=8766, help="Port to listen on")
     p_ui.add_argument("--no-browser", action="store_true", help="Do not open the web interface in a browser")
 
     p_bfetch = sub.add_parser("bfetch", help="Download canonical OEIS b-files for specific ids.")

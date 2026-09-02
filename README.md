@@ -25,13 +25,13 @@ scripts/oeis-start
 # Or run a command directly inside the prepared env:
 scripts/oeis-start -- oeis status
 
-# Launch the local UI at http://127.0.0.1:8765 (opens your browser automatically)
+# Launch the local UI at http://127.0.0.1:8766 (opens your browser automatically)
 scripts/oeis-start -- oeis ui
 # To start the server without opening a browser:
 scripts/oeis-start -- oeis ui --no-browser
 ```
 
-`oeis ui` serves only on loopback and opens `http://127.0.0.1:8765` in your browser. It provides guided access to sequence and fielded matching, transforms, combinations, full analysis, data health and maintenance, b-file tools, and self-check. Long-running work shows its running time and can be cancelled from the page.
+`oeis ui` serves only on loopback and opens `http://127.0.0.1:8766` in your browser. It provides guided access to sequence and fielded matching, transforms, combinations, full analysis, data health and maintenance, b-file tools, and self-check. Long-running work shows its running time and can be cancelled from the page.
 
 ```bash
 # Try today's date in several date-shaped sequence forms with exact/prefix/subsequence matching
