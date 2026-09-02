@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from typing import List
 
 from .models import SequenceQuery
@@ -8,6 +9,16 @@ from .models import SequenceQuery
 
 class QueryParseError(ValueError):
     """Raised when query text violates parsing/validation rules (e.g., too many wildcards)."""
+
+
+def parse_oeis_ids(values: str | Iterable[str] | None) -> list[str]:
+    """Parse comma/space-separated A-numbers, ignoring invalid tokens."""
+    if not values:
+        return []
+    items = (values,) if isinstance(values, str) else values
+    tokens = (part.upper() for value in items for part in re.split(r"[,\s]+", str(value).strip()) if part)
+    valid = (token for token in tokens if len(token) == 7 and token.startswith("A") and token[1:].isdigit())
+    return list(dict.fromkeys(valid))
 
 
 def parse_query(

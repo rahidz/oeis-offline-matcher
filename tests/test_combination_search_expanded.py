@@ -49,6 +49,17 @@ def test_expanded_pair_search_finds_sum_of_two_sequences(tmp_path: Path):
     assert combos
     assert any(set(m.ids) == {"A100000", "A200000"} and set(m.coeffs) == {1} for m in combos)
 
+    excluded = search_two_sequence_combinations_expanded(
+        query,
+        db,
+        coeffs=(1,),
+        limit=5,
+        scan_strides=(1,),
+        max_time_s=2.0,
+        exclude_ids={"A100000"},
+    )
+    assert not excluded
+
 
 def test_expanded_pair_search_supports_shifts_when_prefix_columns_exist(tmp_path: Path):
     stripped = tmp_path / "stripped.txt"
@@ -142,6 +153,18 @@ def test_expanded_triple_search_finds_sum_of_three_sequences(tmp_path: Path):
     assert triples
     assert any(set(m.ids) == {"A100000", "A200000", "A300000"} and set(m.coeffs) == {1} for m in triples)
 
+    excluded = search_three_sequence_combinations_expanded(
+        query,
+        db,
+        coeffs=(1,),
+        limit=5,
+        max_anchors=20,
+        scan_strides=(1,),
+        max_time_s=2.0,
+        exclude_ids={"A100000"},
+    )
+    assert not excluded
+
 
 def test_expanded_pointwise_mul_search_finds_shifted_product(tmp_path: Path):
     stripped = tmp_path / "stripped.txt"
@@ -190,3 +213,15 @@ def test_expanded_pointwise_mul_search_finds_shifted_product(tmp_path: Path):
     )
     assert matches
     assert any(m.ids == ("A100000", "A200000") and m.shifts == (2, 5) for m in matches), matches
+
+    excluded = search_pointwise_two_sequence_combinations_expanded(
+        query,
+        db,
+        ops=("mul",),
+        max_shift=5,
+        limit=5,
+        scan_strides=(1,),
+        max_time_s=2.0,
+        exclude_ids={"A100000"},
+    )
+    assert not excluded

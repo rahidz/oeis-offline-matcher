@@ -1771,6 +1771,7 @@ def search_pointwise_two_sequence_combinations_expanded(
     min_score: float | None = None,
     max_complexity: float | None = None,
     dedupe_family: bool = True,
+    exclude_ids: Iterable[str] | None = None,
     on_match: Callable[[CombinationMatch], None] | None = None,
 ) -> list[CombinationMatch]:
     """
@@ -1798,6 +1799,7 @@ def search_pointwise_two_sequence_combinations_expanded(
     ops = [o for o in ops if o == "mul"]
     if not ops:
         return []
+    excluded = {str(seq_id).upper() for seq_id in exclude_ids or ()}
 
     max_shift = max(0, int(max_shift))
     if max_shift <= 0:
@@ -1835,6 +1837,8 @@ def search_pointwise_two_sequence_combinations_expanded(
         out: list[int] = []
         for i, (num, length) in enumerate(zip(index.id_nums, index.lengths)):
             if length < qlen:
+                continue
+            if index.ids[i] in excluded:
                 continue
             if num != -1 and stride != 1 and (num % stride) != 0:
                 continue
@@ -1918,6 +1922,8 @@ def search_pointwise_two_sequence_combinations_expanded(
                         if max_time_s is not None and (time_fn() - t_start) > max_time_s:
                             return _sorted_and_trim(results, limit, dedupe_family=dedupe_family)
                         id2 = index.ids[idx2]
+                        if id2 in excluded:
+                            continue
                         len2 = index.lengths[idx2]
                         if len2 < qlen + s2:
                             continue
@@ -2630,6 +2636,7 @@ def search_two_sequence_combinations_expanded(
     min_score: float | None = None,
     max_complexity: float | None = None,
     dedupe_family: bool = True,
+    exclude_ids: Iterable[str] | None = None,
     on_match: Callable[[CombinationMatch], None] | None = None,
 ) -> list[CombinationMatch]:
     """
@@ -2657,6 +2664,7 @@ def search_two_sequence_combinations_expanded(
     coeff_list = [int(c) for c in coeffs if int(c) != 0]
     if not coeff_list:
         return []
+    excluded = {str(seq_id).upper() for seq_id in exclude_ids or ()}
 
     t_start = time_fn()
     if max_time_s is not None and max_time_s <= 0:
@@ -2684,6 +2692,8 @@ def search_two_sequence_combinations_expanded(
         out: list[int] = []
         for i, (num, length) in enumerate(zip(index.id_nums, index.lengths)):
             if length < qlen:
+                continue
+            if index.ids[i] in excluded:
                 continue
             if num != -1 and stride != 1 and (num % stride) != 0:
                 continue
@@ -2772,6 +2782,8 @@ def search_two_sequence_combinations_expanded(
                                 if idx2 == idx1:
                                     continue
                                 id2 = index.ids[idx2]
+                                if id2 in excluded:
+                                    continue
                                 len2 = index.lengths[idx2]
                                 if len2 < qlen + s2_shift:
                                     continue
@@ -2910,6 +2922,7 @@ def search_three_sequence_combinations_expanded(
     snippet_len: int | None = None,
     min_score: float | None = None,
     max_complexity: float | None = None,
+    exclude_ids: Iterable[str] | None = None,
     on_match: Callable[[CombinationMatch], None] | None = None,
 ) -> list[CombinationMatch]:
     """
@@ -2936,6 +2949,7 @@ def search_three_sequence_combinations_expanded(
     coeff_list = [int(c) for c in coeffs if int(c) != 0]
     if not coeff_list:
         return []
+    excluded = {str(seq_id).upper() for seq_id in exclude_ids or ()}
 
     t_start = time_fn()
     if max_time_s is not None and max_time_s <= 0:
@@ -2963,6 +2977,8 @@ def search_three_sequence_combinations_expanded(
         out: list[int] = []
         for i, (num, length) in enumerate(zip(index.id_nums, index.lengths)):
             if length < qlen:
+                continue
+            if index.ids[i] in excluded:
                 continue
             if num != -1 and stride != 1 and (num % stride) != 0:
                 continue
@@ -3064,6 +3080,8 @@ def search_three_sequence_combinations_expanded(
                                 if index.lengths[idx2] < qlen:
                                     continue
                                 id2 = index.ids[idx2]
+                                if id2 in excluded:
+                                    continue
 
                                 key = (id1, id2, id3, a, b, c3)
                                 if key in seen:
@@ -3131,6 +3149,7 @@ def search_mod_class_combinations(
     snippet_len: int | None = None,
     min_score: float | None = None,
     max_complexity: float | None = None,
+    exclude_ids: Iterable[str] | None = None,
     on_match: Callable[[CombinationMatch], None] | None = None,
 ) -> list[CombinationMatch]:
     """
@@ -3169,6 +3188,7 @@ def search_mod_class_combinations(
     max_shift = max(0, int(max_shift))
     per_class_limit = max(1, int(per_class_limit))
     max_combinations_n = int(max_combinations) if max_combinations is not None else None
+    excluded = {str(seq_id).upper() for seq_id in exclude_ids or ()}
 
     lookup = sqlite3.connect(db_path)
     lookup.row_factory = sqlite3.Row
@@ -3225,6 +3245,8 @@ def search_mod_class_combinations(
                             if deadline_s is not None and time_fn() >= deadline_s:
                                 break
                             seq_id = str(row["id"])
+                            if seq_id in excluded:
+                                continue
                             rec = fetcher.get(seq_id)
                             if rec and rec.terms[s : s + len(cls)] == cls:
                                 found.append((seq_id, s))

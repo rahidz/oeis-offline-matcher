@@ -178,6 +178,7 @@ def search_transform_matches(
     allow_euler: bool = False,
     popularity_weights: dict[str, float] | None = None,
     allow_constant_outputs: bool = False,
+    exclude_ids: Iterable[str] | None = None,
     on_match: Callable[[Match], None] | None = None,
 ) -> List[Match]:
     """
@@ -186,6 +187,8 @@ def search_transform_matches(
     """
     if any(t is None for t in query.terms):
         return []
+    excluded_ids = {str(seq_id).upper() for seq_id in exclude_ids or ()}
+    match_limit = limit + len(excluded_ids) if limit is not None and limit > 0 else limit
     transforms = list(transforms or default_transforms(allow_binomial=allow_binomial, allow_euler=allow_euler))
     # Avoid recomputing the first transform in every depth-2 chain by caching
     # single-step outputs and then applying the second transform to the cached
@@ -413,7 +416,7 @@ def search_transform_matches(
             if db_matcher is not None:
                 matches = db_matcher.match(
                     t_query,
-                    limit=limit,
+                    limit=match_limit,
                     snippet_len=snippet_len,
                     deadline_s=deadline,
                     time_fn=time_fn,
@@ -429,13 +432,15 @@ def search_transform_matches(
                 matches = match_exact(
                     t_query,
                     seq_iter,
-                    limit=limit,
+                    limit=match_limit,
                     snippet_len=snippet_len,
                     deadline_s=deadline,
                     time_fn=time_fn,
                 )
 
             for m in matches:
+                if m.id in excluded_ids:
+                    continue
                 key = (m.id, desc, m.match_type, m.offset, m.length)
                 if key in seen_keys:
                     continue

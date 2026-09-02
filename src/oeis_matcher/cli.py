@@ -728,7 +728,7 @@ from .models import CombinationMatch, Match, SequenceRecord
 from .serialization import SCHEMA_VERSION, combination_to_dict, format_coefficient as _fmt_coeff_json
 from .ranking import rank_candidates_for_query
 from .candidates import get_candidate_bucket
-from .query import QueryParseError, parse_query
+from .query import QueryParseError, parse_oeis_ids as _parse_oeis_ids, parse_query
 from .transform_search import search_transform_matches
 from .transforms import default_transforms
 from .sync import DEFAULT_NAMES_URL, DEFAULT_OEISDATA_REPO, DEFAULT_STRIPPED_URL, sync_data
@@ -784,8 +784,10 @@ def _run_combo_command(args) -> int:
         return 2
     db_path = Path(args.db)
     coeffs = _parse_int_list(args.coeffs)
+    excluded_ids = set(_parse_oeis_ids(args.exclude_ids))
     triple_candidates = args.triple_candidates or args.candidates
     cap = max(args.candidates, triple_candidates)
+    bucket_cap = cap + len(excluded_ids)
     if stream_text:
         mode = "unfiltered" if args.combo_unfiltered else "prefix+invariants"
         disc = "on" if bool(getattr(args, "discovery", False)) else "off"
@@ -805,9 +807,9 @@ def _run_combo_command(args) -> int:
     bucket = get_candidate_bucket(
         query,
         db_path,
-        exact_limit=cap,
-        similar_limit=cap,
-        max_records=cap,
+        exact_limit=bucket_cap,
+        similar_limit=bucket_cap,
+        max_records=bucket_cap,
         fill_unfiltered=True,
         skip_prefix_filter=args.combo_unfiltered,
         variance_band=args.variance_band,
@@ -820,13 +822,21 @@ def _run_combo_command(args) -> int:
         discovery_tools=tuple(_parse_transform_names(getattr(args, "discovery_tools", "sympy"))),
         widen_prefilter=bool(getattr(args, "wide_prefilter", False)),
     )
-    candidate_provenance = bucket.provenance
     if args.timings:
         timings["candidates_ms"] = 1000 * (time.perf_counter() - t0)
     include_ids = _parse_oeis_ids(args.include_ids)
-    records = list(bucket.records)
+    records = [record for record in bucket.records if record.id not in excluded_ids][:cap]
+    kept_bucket_ids = {record.id for record in records}
+    candidate_provenance = {
+        seq_id: reasons for seq_id, reasons in bucket.provenance.items() if seq_id in kept_bucket_ids
+    }
+    bucket_exact_count = sum(seq_id in kept_bucket_ids for seq_id in bucket.exact_ids)
+    bucket_similar_count = sum(seq_id in kept_bucket_ids for seq_id in bucket.similar_ids)
+    bucket_discovery_count = sum(seq_id in kept_bucket_ids for seq_id in bucket.discovery_ids)
     if include_ids:
         for sid in include_ids:
+            if sid in excluded_ids:
+                continue
             rec = get_sequence_by_id(db_path, sid)
             if rec:
                 records.append(rec)
@@ -839,7 +849,7 @@ def _run_combo_command(args) -> int:
             note = " (time-capped)"
         print(
             f"Candidate bucket: {len(records)} sequences "
-            f"(exact={len(bucket.exact_ids)} similar={len(bucket.similar_ids)} discovery={len(bucket.discovery_ids)}){note}",
+            f"(exact={bucket_exact_count} similar={bucket_similar_count} discovery={bucket_discovery_count}){note}",
             flush=True,
         )
     comp_transforms = resolve_component_transforms(_parse_transform_names(args.component_transforms))
@@ -937,6 +947,7 @@ def _run_combo_command(args) -> int:
                 snippet_len=snip,
                 min_score=args.min_score,
                 max_complexity=args.max_complexity,
+                exclude_ids=excluded_ids,
                 on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=False), flush=True)) if stream_text else None,
             )
             modclass_matches = _attach_combo_candidate_provenance(modclass_matches, candidate_provenance)
@@ -1001,6 +1012,7 @@ def _run_combo_command(args) -> int:
                         snippet_len=snip,
                         min_score=args.min_score,
                         max_complexity=args.max_complexity,
+                        exclude_ids=excluded_ids,
                         on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=False), flush=True)) if stream_text else None,
                     )
                     pointwise_matches = _attach_combo_candidate_provenance(pointwise_matches, candidate_provenance)
@@ -1089,6 +1101,7 @@ def _run_combo_command(args) -> int:
                             snippet_len=snip,
                             min_score=args.triple_min_score,
                             max_complexity=args.triple_max_complexity,
+                            exclude_ids=excluded_ids,
                             on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=False), flush=True)) if stream_text else None,
                         )
                         triples = _attach_combo_candidate_provenance(triples, candidate_provenance)
@@ -1121,6 +1134,7 @@ def _run_combo_command(args) -> int:
                     snippet_len=snip,
                     min_score=args.min_score,
                     max_complexity=args.max_complexity,
+                    exclude_ids=excluded_ids,
                     on_match=(lambda m: print(_fmt_combo_line(m, show_coeffs=True), flush=True)) if stream_text else None,
                 )
                 combos = _attach_combo_candidate_provenance(combos, candidate_provenance)
@@ -1173,15 +1187,18 @@ def _run_combo_command(args) -> int:
                         **({"timings_ms": timings} if args.timings else {}),
                         "variance_band": args.variance_band,
                         "growth_band": args.growth_band,
+                        "excluded_ids": sorted(excluded_ids),
                         "combined_combinations_count": len(combined_matches),
                         "candidate_bucket": {
                             "size": len(records),
-                            "exact": len(bucket.exact_ids),
-                            "similar": len(bucket.similar_ids),
-                            "discovery": len(bucket.discovery_ids),
+                            "exact": bucket_exact_count,
+                            "similar": bucket_similar_count,
+                            "discovery": bucket_discovery_count,
                             "provenance_counts": {
-                                reason: sum(1 for rs in bucket.provenance.values() if reason in rs)
-                                for reason in sorted({r for rs in bucket.provenance.values() for r in rs})
+                                reason: sum(1 for reasons in candidate_provenance.values() if reason in reasons)
+                                for reason in sorted(
+                                    {reason for reasons in candidate_provenance.values() for reason in reasons}
+                                )
                             },
                             **(
                                 {"discovery_diagnostics": bucket.discovery_diagnostics}
@@ -1294,6 +1311,7 @@ def _run_analyze_command(args) -> int:
         return 2
 
     db_path = Path(args.db)
+    explicit_excluded_ids = set(_parse_oeis_ids(args.exclude_ids))
     snippet_len = _choose_snippet_len(query.terms, args.show_terms)
     extras = _parse_extra_transforms(args.extra_transforms)
     transforms = default_transforms(
@@ -1372,6 +1390,7 @@ def _run_analyze_command(args) -> int:
             variance_band=args.variance_band,
             growth_band=args.growth_band,
             allow_constant_outputs=args.allow_constant_transforms,
+            exclude_ids=explicit_excluded_ids,
             on_match=callback,
         )
 
@@ -1491,6 +1510,7 @@ def _run_analyze_command(args) -> int:
         rerank_quotas=parse_family_quotas(args.rerank_quotas),
         total_max_time=args.total_max_time,
         collect_timings=args.timings,
+        exclude_ids=tuple(sorted(explicit_excluded_ids)),
     )
 
     def format_match(match: Match, *, transform: bool = False) -> str:
@@ -1524,7 +1544,7 @@ def _run_analyze_command(args) -> int:
 
     stream = bool(args.stream and not args.as_json)
     printed: dict[str, set[tuple]] = {}
-    excluded_ids: set[str] = set()
+    excluded_ids = set(explicit_excluded_ids)
     headings = {
         "exact": "Exact matches:",
         "transform": "Transform matches:",
@@ -1574,7 +1594,7 @@ def _run_analyze_command(args) -> int:
             values = list(event.value or ())
             if event.stage == "exact":
                 if args.preset in {"deep", "max"}:
-                    excluded_ids = {match.id for match in values}
+                    excluded_ids.update(match.id for match in values)
             if event.stage == "candidates":
                 diag = event.details.get("diagnostics") or {}
                 print(
@@ -1711,6 +1731,17 @@ def _main(argv=None):
         p.add_argument("--time-cap", type=float, default=None, help="Global wall-time cap in seconds.")
         p.add_argument("--help-advanced", action="help", help="Show all expert tuning flags.")
 
+    def _add_exclude_ids_argument(p) -> None:
+        p.add_argument(
+            "--exclude-id",
+            "--exclude-ids",
+            dest="exclude_ids",
+            action="append",
+            default=[],
+            metavar="A_NUMBER[,A_NUMBER...]",
+            help="Exclude OEIS sequence ids from all results; may be repeated.",
+        )
+
     p_build = sub.add_parser("build-index", help="Build SQLite index from OEIS raw exports.")
     p_build.add_argument("--stripped", default=default_stripped, help="Path to stripped.gz")
     p_build.add_argument("--names", default=default_names, help="Path to names.gz")
@@ -1826,6 +1857,7 @@ def _main(argv=None):
     p_match.add_argument("--growth-band", type=float, default=None, help="Growth-rate band for candidate filtering")
     p_match.add_argument("--no-subsequence-fallback", action="store_true", help="Do not auto-try subsequence if no prefix hit")
     p_match.add_argument("--preset", choices=list(PRESETS.keys()), help="Preset for search depth/limits (fast|deep|max)")
+    _add_exclude_ids_argument(p_match)
     _add_lean_search_flags(p_match)
 
     p_tsearch = sub.add_parser("tsearch", help="Transform-based search for sequence matches.")
@@ -1861,6 +1893,7 @@ def _main(argv=None):
     p_tsearch.add_argument("--stream", action="store_true", help="Print matches as they are found (text mode only)")
     p_tsearch.add_argument("--no-stream", dest="stream", action="store_false", help="Disable streaming output (text mode).")
     p_tsearch.set_defaults(stream=False)
+    _add_exclude_ids_argument(p_tsearch)
     _add_lean_search_flags(p_tsearch)
 
     p_combo = sub.add_parser(
@@ -1928,6 +1961,7 @@ def _main(argv=None):
         default="",
         help="Comma-separated OEIS ids to force into the combo candidate pool (e.g., A000045,A000204).",
     )
+    _add_exclude_ids_argument(p_combo)
     p_combo.add_argument(
         "--expanded",
         action="store_true",
@@ -2141,6 +2175,7 @@ def _main(argv=None):
         help="Comma-separated family quotas like transform=2,pointwise=1,convolution=1.",
     )
     p_analyze.set_defaults(combo_unfiltered=False, combo_expanded=False)
+    _add_exclude_ids_argument(p_analyze)
     _add_lean_search_flags(p_analyze)
 
     p_selfcheck = sub.add_parser("selfcheck", help="Run offline sanity checks (regressions + random combos).")
@@ -2174,7 +2209,17 @@ def _main(argv=None):
     p_selfcheck.add_argument("--json", action="store_true", dest="as_json", help="Output JSON")
 
     if not advanced_help:
-        lean_keep = {"--db", "--json", "--fast", "--deep", "--max", "--time-cap", "--help-advanced"}
+        lean_keep = {
+            "--db",
+            "--json",
+            "--exclude-id",
+            "--exclude-ids",
+            "--fast",
+            "--deep",
+            "--max",
+            "--time-cap",
+            "--help-advanced",
+        }
         _suppress_advanced_search_flags(p_match, lean_keep)
         _suppress_advanced_search_flags(p_tsearch, lean_keep)
         _suppress_advanced_search_flags(p_combo, lean_keep)
@@ -2541,6 +2586,15 @@ def _main(argv=None):
     if args.cmd == "match":
         import time
 
+        excluded_ids = set(_parse_oeis_ids(args.exclude_ids))
+
+        def _overfetch_limit(limit: int | None) -> int | None:
+            return limit + len(excluded_ids) if limit is not None and limit > 0 else limit
+
+        def _filter_excluded(rows: list) -> list:
+            kept = [row for row in rows if row.id not in excluded_ids]
+            return kept[: args.limit] if args.limit is not None and args.limit > 0 else kept
+
         deadline_s: float | None = None
         if getattr(args, "time_cap", None) is not None:
             try:
@@ -2561,6 +2615,8 @@ def _main(argv=None):
             for seq in iter_sequences(db_path):
                 if _timed_out():
                     break
+                if seq.id in excluded_ids:
+                    continue
                 if not _match_field_query(seq, field_query):
                     continue
                 seqs.append(seq)
@@ -2590,6 +2646,7 @@ def _main(argv=None):
                     "similarity": [],
                     "diagnostics": {
                         "field_query": _field_query_to_dict(field_query),
+                        "excluded_ids": sorted(excluded_ids),
                         **({"keyword_query": keyword_diag} if keyword_diag is not None else {}),
                         **({"timed_out": True} if _timed_out() else {}),
                     },
@@ -2624,7 +2681,9 @@ def _main(argv=None):
             print(f"Invalid query: {e}")
             return 2
         db_path = Path(args.db)
-        matches = match_exact_db(query, db_path, limit=args.limit, snippet_len=args.show_terms)
+        matches = _filter_excluded(
+            match_exact_db(query, db_path, limit=_overfetch_limit(args.limit), snippet_len=args.show_terms)
+        )
         fallback_used = False
         if not matches and not args.subsequence and not args.no_subsequence_fallback and not _timed_out():
             try:
@@ -2636,13 +2695,15 @@ def _main(argv=None):
             except QueryParseError as e:
                 print(f"Invalid query (fallback): {e}")
                 return 2
-            matches = match_exact_db(fq, db_path, limit=args.limit, snippet_len=args.show_terms)
+            matches = _filter_excluded(
+                match_exact_db(fq, db_path, limit=_overfetch_limit(args.limit), snippet_len=args.show_terms)
+            )
             fallback_used = True
         sim_matches = (
             rank_candidates_for_query(
                 query,
                 db_path,
-                top_k=args.similar,
+                top_k=args.similar + len(excluded_ids),
                 min_corr=args.min_corr,
                 max_mse=args.max_mse,
                 variance_band=args.variance_band,
@@ -2652,6 +2713,7 @@ def _main(argv=None):
             if args.similar
             else []
         )
+        sim_matches = [candidate for candidate in sim_matches if candidate.record.id not in excluded_ids][: args.similar]
         if args.as_json:
             out = [
                 {
@@ -2677,7 +2739,11 @@ def _main(argv=None):
                 }
                 for c in sim_matches
             ]
-            diag = {"variance_band": args.variance_band, "growth_band": args.growth_band}
+            diag = {
+                "variance_band": args.variance_band,
+                "growth_band": args.growth_band,
+                "excluded_ids": sorted(excluded_ids),
+            }
             if fallback_used:
                 diag["subsequence_fallback"] = True
             if _timed_out():
@@ -2708,6 +2774,7 @@ def _main(argv=None):
 
     if args.cmd == "tsearch":
         stream_text = bool(getattr(args, "stream", False) and not args.as_json)
+        excluded_ids = set(_parse_oeis_ids(args.exclude_ids))
         try:
             query = parse_query(
                 args.sequence,
@@ -2832,6 +2899,7 @@ def _main(argv=None):
                 variance_band=args.variance_band,
                 growth_band=args.growth_band,
                 allow_constant_outputs=args.allow_constant_transforms,
+                exclude_ids=excluded_ids,
                 on_match=_on_transform_match if stream_text else None,
             )
         else:
@@ -2856,7 +2924,12 @@ def _main(argv=None):
                 }
                 for m in matches
             ]
-            print(json.dumps({"query": query.terms, "matches": out}, indent=2))
+            print(
+                json.dumps(
+                    {"query": query.terms, "matches": out, "diagnostics": {"excluded_ids": sorted(excluded_ids)}},
+                    indent=2,
+                )
+            )
             return 0
         else:
             if stream_text:
@@ -3315,29 +3388,6 @@ def _parse_decimate(text: str) -> list[tuple[int, int]]:
 
 def _parse_transform_names(text: str) -> list[str]:
     return [p.strip() for p in text.split(",") if p.strip()]
-
-
-def _parse_oeis_ids(text: str) -> list[str]:
-    """
-    Parse a comma/space-separated list of OEIS ids like "A000045,A000204".
-    Invalid tokens are ignored.
-    """
-    if not text:
-        return []
-    raw = [p.strip().upper() for p in text.replace(" ", ",").split(",") if p.strip()]
-    out: list[str] = []
-    for tok in raw:
-        if len(tok) == 7 and tok.startswith("A") and tok[1:].isdigit():
-            out.append(tok)
-    # De-dupe while preserving order.
-    seen: set[str] = set()
-    uniq: list[str] = []
-    for tok in out:
-        if tok in seen:
-            continue
-        seen.add(tok)
-        uniq.append(tok)
-    return uniq
 
 
 def _parse_pointwise_ops(text: str) -> list[str]:

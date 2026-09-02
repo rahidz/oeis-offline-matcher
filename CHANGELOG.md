@@ -5,6 +5,7 @@
 ### Added
 
 - Optional loopback-only browser UI for every CLI workflow, with guided search controls, local job history, health reporting, result cards, and cancellable process-isolated runs.
+- Repeatable `--exclude-id` / `--exclude-ids` filtering across `match`, `tsearch`, `combo`, and `analyze`, plus matching Python API parameters.
 
 ## 1.0.0
 

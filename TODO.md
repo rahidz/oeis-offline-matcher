@@ -199,6 +199,7 @@ v1.0 decision: same-process threads regressed the representative workload and a 
 ### 5.1 CLI/API stabilization
 
 - [x] Review/normalize option names and defaults across `match/tsearch/combo/analyze`.
+- [x] Add shared sequence-ID exclusions across direct, transform, similarity, and combination searches.
 - [x] Finalize additive-only JSON/schema compatibility policy for `v1.x` and add explicit `schema_version`.
 - [x] Add command-level contract tests for machine-readable output.
 

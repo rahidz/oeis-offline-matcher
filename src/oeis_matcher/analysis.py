@@ -105,6 +105,7 @@ class AnalysisOptions:
     total_max_time: float | None = None
     collect_timings: bool = False
     exclude_exact_from_derived: bool | None = None
+    exclude_ids: tuple[str, ...] = ()
 
 
 @dataclass
@@ -187,7 +188,11 @@ def run_analysis(
         if options.collect_timings:
             timings[f"{stage}_ms"] = 1000 * (time_fn() - started)
 
-    exclude_ids: set[str] = set()
+    explicit_excluded_ids = set(options.exclude_ids)
+    exclude_ids = set(explicit_excluded_ids)
+
+    def overfetch_limit(limit: int | None) -> int | None:
+        return limit + len(exclude_ids) if limit is not None and limit > 0 else limit
 
     def filter_matches(matches: Iterable[Match]) -> list[Match]:
         return [m for m in matches if m.id not in exclude_ids]
@@ -203,18 +208,23 @@ def run_analysis(
     started = time_fn()
     cached = cache_get("exact")
     if cached is not None:
-        exact_matches = list(cached.get("matches") or ())
+        exact_matches = filter_matches(cached.get("matches") or ())
+        if options.exact_limit > 0:
+            exact_matches = exact_matches[: options.exact_limit]
         fallback_used = bool(cached.get("fallback_used"))
     else:
         deadline = stage_deadline(options.exact_max_time)
         exact_matches = match_exact_db(
             query,
             db_path,
-            limit=options.exact_limit,
+            limit=overfetch_limit(options.exact_limit),
             snippet_len=options.show_terms,
             deadline_s=deadline,
             time_fn=time_fn,
         )
+        exact_matches = filter_matches(exact_matches)
+        if options.exact_limit > 0:
+            exact_matches = exact_matches[: options.exact_limit]
         fallback_used = False
         if (
             not exact_matches
@@ -226,18 +236,25 @@ def run_analysis(
             exact_matches = match_exact_db(
                 fallback_query,
                 db_path,
-                limit=options.exact_limit,
+                limit=overfetch_limit(options.exact_limit),
                 snippet_len=options.show_terms,
                 deadline_s=deadline,
                 time_fn=time_fn,
             )
+            exact_matches = filter_matches(exact_matches)
+            if options.exact_limit > 0:
+                exact_matches = exact_matches[: options.exact_limit]
             if not exact_matches and options.fallback_full_scan and (deadline is None or time_fn() < deadline):
-                exact_matches = match_exact(
-                    fallback_query,
-                    iter_sequences(db_path),
-                    limit=options.exact_limit,
-                    snippet_len=options.show_terms,
+                exact_matches = filter_matches(
+                    match_exact(
+                        fallback_query,
+                        iter_sequences(db_path),
+                        limit=overfetch_limit(options.exact_limit),
+                        snippet_len=options.show_terms,
+                    )
                 )
+                if options.exact_limit > 0:
+                    exact_matches = exact_matches[: options.exact_limit]
             fallback_used = True
         cache_put("exact", {"matches": exact_matches, "fallback_used": fallback_used})
     timed("exact", started)
@@ -247,7 +264,7 @@ def run_analysis(
     if exclude is None:
         exclude = options.preset in {"deep", "max"}
     if exclude and exact_matches:
-        exclude_ids = {m.id for m in exact_matches}
+        exclude_ids.update(m.id for m in exact_matches)
 
     combo_requested = bool(
         options.modclass_limit
@@ -301,7 +318,7 @@ def run_analysis(
         candidates = rank_candidates_for_query(
             query,
             db_path,
-            top_k=options.similarity_limit,
+            top_k=options.similarity_limit + len(exclude_ids),
             min_corr=options.min_corr,
             max_mse=options.max_mse,
             variance_band=options.variance_band,
@@ -320,7 +337,7 @@ def run_analysis(
             }
             for candidate in candidates
             if candidate.record.id not in exclude_ids
-        ]
+        ][: options.similarity_limit]
         cache_put("similarity", {"matches": similarity_rows})
     else:
         similarity_rows = []
@@ -349,6 +366,7 @@ def run_analysis(
                         snippet_len=options.derived_terms,
                         min_score=options.combo_min_score,
                         max_complexity=options.combo_max_complexity,
+                        exclude_ids=exclude_ids,
                         on_match=lambda match: emit_combo("modclass", match),
                     )
                 )
@@ -378,9 +396,9 @@ def run_analysis(
         bucket = get_candidate_bucket(
             query,
             db_path,
-            exact_limit=cap,
-            similar_limit=cap,
-            max_records=cap,
+            exact_limit=cap + len(exclude_ids),
+            similar_limit=cap + len(exclude_ids),
+            max_records=cap + len(exclude_ids),
             fill_unfiltered=True,
             skip_prefix_filter=options.combo_unfiltered,
             variance_band=options.variance_band,
@@ -395,7 +413,7 @@ def run_analysis(
             widen_prefilter=options.combo_wide_prefilter,
         )
         if exclude_ids:
-            records = [record for record in bucket.records if record.id not in exclude_ids]
+            records = [record for record in bucket.records if record.id not in exclude_ids][:cap]
             keep = {record.id for record in records}
             bucket = replace(
                 bucket,
@@ -502,6 +520,7 @@ def run_analysis(
                                 snippet_len=options.derived_terms,
                                 min_score=options.combo_min_score,
                                 max_complexity=options.combo_max_complexity,
+                                exclude_ids=exclude_ids,
                                 on_match=lambda match: emit_combo("pointwise", match),
                             )
                         )
@@ -580,6 +599,7 @@ def run_analysis(
                                 snippet_len=options.derived_terms,
                                 min_score=options.triple_min_score,
                                 max_complexity=options.triple_max_complexity,
+                                exclude_ids=exclude_ids,
                                 on_match=lambda match: emit_combo("triple", match),
                             )
                         )
@@ -604,6 +624,7 @@ def run_analysis(
                         snippet_len=options.derived_terms,
                         min_score=options.combo_min_score,
                         max_complexity=options.combo_max_complexity,
+                        exclude_ids=exclude_ids,
                         on_match=lambda match: emit_combo("expanded_pair", match),
                     )
                 )
@@ -708,6 +729,7 @@ def run_analysis(
         "convolution_limit": options.convolution_limit,
         "variance_band": options.variance_band,
         "growth_band": options.growth_band,
+        "excluded_ids": sorted(explicit_excluded_ids),
         "query_var": variance(numeric_terms),
         "query_diff_var": variance([b - a for a, b in zip(numeric_terms, numeric_terms[1:])]),
         "query_growth": growth_rate(numeric_terms),

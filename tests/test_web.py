@@ -140,8 +140,14 @@ def test_every_analyze_expert_control_has_hover_help():
     parser = _UIParser()
     parser.feed(resources.files("oeis_matcher").joinpath("web_assets", "index.html").read_text())
 
-    assert parser.expert_labels == parser.expert_controls == 41
+    assert parser.expert_labels == parser.expert_controls == 42
     assert len(parser.expert_help) == parser.expert_labels
+
+
+def test_every_sequence_search_exposes_excluded_ids():
+    html = resources.files("oeis_matcher").joinpath("web_assets", "index.html").read_text()
+
+    assert html.count('data-flag="--exclude-ids"') == 4
 
 
 def test_web_assets_are_package_data():

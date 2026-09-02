@@ -56,6 +56,17 @@ def test_modclass_search_finds_interleave_with_shifts(tmp_path: Path):
     assert matches
     assert any(m.ids == ("A100000", "A200000") and m.shifts == (1, 2) for m in matches), matches
 
+    excluded = search_mod_class_combinations(
+        query,
+        db,
+        moduli=(2,),
+        limit=10,
+        max_shift=5,
+        max_time_s=2.0,
+        exclude_ids={"A100000"},
+    )
+    assert not excluded
+
 
 def test_modclass_search_supports_modulus_3(tmp_path: Path):
     stripped = tmp_path / "stripped.txt"
@@ -105,4 +116,3 @@ def test_modclass_search_supports_modulus_3(tmp_path: Path):
     )
     assert matches
     assert any(m.ids == ("A100000", "A200000", "A300000") and m.shifts == (0, 1, 2) for m in matches), matches
-

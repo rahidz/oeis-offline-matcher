@@ -96,6 +96,10 @@ oeis match "contains:8 excludes:0 term@0:1"
 # Hard cap the entire pipeline runtime (seconds)
 oeis analyze "5,17,103,1011,10042" --max --time-cap 600
 
+# Hide one or more already-known sequences from every result family
+oeis analyze "0,1,1,2,3,5,8" --deep --exclude-id A000045
+oeis combo "1,3,5,7,9,11" --max --exclude-ids A000027,A005408
+
 # Combo-only mode (pairs/triples/pointwise/convolution), exhaustive-ceiling mode
 # Note: `--max` enables streaming + expanded fallback + a long total budget (default ~1 hour, user-overridable).
 oeis combo "5,17,103,1011,10042" --max
@@ -142,6 +146,9 @@ Search commands expose a lean preset-first interface:
 - `--deep`
 - `--max`
 - `--time-cap`
+- `--exclude-id A_NUMBER` / `--exclude-ids A_NUMBER,A_NUMBER`
+
+The exclusion option works with `match`, `tsearch`, `combo`, and `analyze`. It removes those A-numbers from direct, transform, similarity, and combination results. Use a comma-separated list or repeat the option; matching is case-insensitive.
 
 With no profile flag, search commands default to `deep`. The complete tuning surface remains supported but is hidden from routine help:
 
@@ -236,6 +243,7 @@ result = analyze_sequence(
     db_path="data/processed/oeis.db",
     preset="deep",
     total_max_time=120,
+    exclude_ids=["A000045", "A000204"],
 )
 ```
 

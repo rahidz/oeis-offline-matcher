@@ -7,7 +7,7 @@ from .config import load_config
 from .analysis import AnalysisEvent, AnalysisOptions, attach_candidate_provenance as _attach_candidate_provenance, run_analysis
 from .matcher import match_exact, match_exact_db
 from .models import AnalysisResult, Match, SequenceQuery
-from .query import parse_query
+from .query import parse_oeis_ids, parse_query
 from .transform_search import search_transform_matches
 from .transforms import default_transforms
 from .candidates import get_candidate_bucket
@@ -40,6 +40,7 @@ def match_exact_terms(
     show_terms: int | None = None,
     variance_band: float | None = None,
     growth_band: float | None = None,
+    exclude_ids: Iterable[str] | str | None = None,
 ) -> List[Match]:
     """
     Convenience wrapper around match_exact for library use.
@@ -51,7 +52,14 @@ def match_exact_terms(
         min_match_length=min_match_length,
         allow_subsequence=allow_subsequence,
     )
-    matches = match_exact_db(query, db_path, limit=limit, snippet_len=show_terms)
+    excluded = set(parse_oeis_ids(exclude_ids))
+    search_limit = limit + len(excluded) if limit is not None and limit > 0 else limit
+
+    def filtered(matches: Iterable[Match]) -> list[Match]:
+        kept = [match for match in matches if match.id not in excluded]
+        return kept[:limit] if limit is not None and limit > 0 else kept
+
+    matches = filtered(match_exact_db(query, db_path, limit=search_limit, snippet_len=show_terms))
     if matches or allow_subsequence or not fallback_subsequence:
         return matches
     # fallback to subsequence search using invariant-filtered candidates first, optionally full scan
@@ -60,13 +68,13 @@ def match_exact_terms(
         min_match_length=min_match_length,
         allow_subsequence=True,
     )
-    fmatches = match_exact_db(fallback_query, db_path, limit=limit, snippet_len=show_terms)
+    fmatches = filtered(match_exact_db(fallback_query, db_path, limit=search_limit, snippet_len=show_terms))
     if fmatches or not fallback_full_scan:
         return fmatches
     # final try: full scan
     from .storage import iter_sequences
 
-    return match_exact(fallback_query, iter_sequences(db_path), limit=limit, snippet_len=show_terms)
+    return filtered(match_exact(fallback_query, iter_sequences(db_path), limit=search_limit, snippet_len=show_terms))
 
 
 def search_transforms(
@@ -132,6 +140,7 @@ def search_transforms(
     allow_index_square: bool = False,
     allow_prime_index: bool = False,
     allow_constant_outputs: bool = False,
+    exclude_ids: Iterable[str] | str | None = None,
     on_match: Callable[[Match], None] | None = None,
 ) -> List[Match]:
     cfg = load_config()
@@ -213,6 +222,7 @@ def search_transforms(
         variance_band=variance_band,
         growth_band=growth_band,
         allow_constant_outputs=allow_constant_outputs,
+        exclude_ids=parse_oeis_ids(exclude_ids),
         on_match=on_match,
     )
 
@@ -244,16 +254,19 @@ def search_combinations(
     discovery_tools: Iterable[str] = ("sympy",),
     candidate_providers: Iterable[str] | None = None,
     wide_prefilter: bool = False,
+    exclude_ids: Iterable[str] | str | None = None,
 ) -> list:
     cfg = load_config()
     db_path = Path(db_path or cfg["paths"]["db"])
     query = SequenceQuery(terms=list(terms), min_match_length=min_match_length, allow_subsequence=False)
+    excluded = set(parse_oeis_ids(exclude_ids))
+    bucket_cap = candidate_cap + len(excluded)
     bucket = get_candidate_bucket(
         query,
         db_path,
-        exact_limit=candidate_cap,
-        similar_limit=candidate_cap,
-        max_records=candidate_cap,
+        exact_limit=bucket_cap,
+        similar_limit=bucket_cap,
+        max_records=bucket_cap,
         fill_unfiltered=True,
         skip_prefix_filter=combo_unfiltered,
         variance_band=variance_band,
@@ -265,9 +278,10 @@ def search_combinations(
         candidate_providers=_normalize_provider_names(candidate_providers),
         widen_prefilter=wide_prefilter,
     )
+    records = [record for record in bucket.records if record.id not in excluded][:candidate_cap]
     matches = search_two_sequence_combinations(
         query,
-        bucket.records,
+        records,
         coeffs=tuple(coeffs),
         max_shift=max_shift,
         max_shift_back=max_shift_back,
@@ -313,16 +327,19 @@ def search_three_combinations(
     discovery_tools: Iterable[str] = ("sympy",),
     candidate_providers: Iterable[str] | None = None,
     wide_prefilter: bool = False,
+    exclude_ids: Iterable[str] | str | None = None,
 ) -> list:
     cfg = load_config()
     db_path = Path(db_path or cfg["paths"]["db"])
     query = SequenceQuery(terms=list(terms), min_match_length=min_match_length, allow_subsequence=False)
+    excluded = set(parse_oeis_ids(exclude_ids))
+    bucket_cap = candidate_cap + len(excluded)
     bucket = get_candidate_bucket(
         query,
         db_path,
-        exact_limit=candidate_cap,
-        similar_limit=candidate_cap,
-        max_records=candidate_cap,
+        exact_limit=bucket_cap,
+        similar_limit=bucket_cap,
+        max_records=bucket_cap,
         fill_unfiltered=True,
         skip_prefix_filter=combo_unfiltered,
         variance_band=variance_band,
@@ -334,9 +351,10 @@ def search_three_combinations(
         candidate_providers=_normalize_provider_names(candidate_providers),
         widen_prefilter=wide_prefilter,
     )
+    records = [record for record in bucket.records if record.id not in excluded][:candidate_cap]
     matches = search_three_sequence_combinations(
         query,
-        bucket.records,
+        records,
         coeffs=tuple(coeffs),
         max_shift=max_shift,
         max_shift_back=max_shift_back,
@@ -434,6 +452,7 @@ def analyze_sequence(
     rerank_default_quota: int = 1,
     rerank_quotas: dict[str, int] | None = None,
     exclude_exact_from_derived: bool | None = None,
+    exclude_ids: Iterable[str] | str | None = None,
     on_event: Callable[[AnalysisEvent], None] | None = None,
 ) -> Dict[str, object] | AnalysisResult:
     """Run the shared exact/transform/similarity/combination analysis pipeline."""
@@ -446,6 +465,7 @@ def analyze_sequence(
     )
     snippet_len = show_terms if show_terms is not None else min(len(query.terms), 20)
     transform_options = dict(transform_args or {})
+    normalized_exclude_ids = tuple(parse_oeis_ids(exclude_ids))
 
     def run_transforms(max_time: float | None, callback: Callable[[Match], None] | None) -> list[Match]:
         return search_transforms(
@@ -458,6 +478,7 @@ def analyze_sequence(
             show_terms=snippet_len,
             full_scan=full_transform_scan,
             max_time=max_time,
+            exclude_ids=normalized_exclude_ids,
             on_match=callback,
             **transform_options,
         )
@@ -539,6 +560,7 @@ def analyze_sequence(
         total_max_time=total_max_time,
         collect_timings=collect_timings,
         exclude_exact_from_derived=exclude_exact_from_derived,
+        exclude_ids=normalized_exclude_ids,
     )
     result = run_analysis(
         query,
