@@ -132,9 +132,9 @@ def load_offsets(path: Path) -> Dict[str, tuple[int, int]]:
 
 def load_offsets_from_oeisdata(root: Path) -> Dict[str, tuple[int, int]]:
     offsets_file = root / "seq" / "OFFSET"
-    if not offsets_file.exists():
-        return {}
-    return load_offsets(offsets_file)
+    if offsets_file.exists():
+        return load_offsets(offsets_file)
+    return load_metadata_from_oeisdata(root)[1]
 
 
 def parse_formula_line(line: str) -> Optional[Tuple[str, str]]:
@@ -170,9 +170,9 @@ def load_formulas(path: Path) -> Dict[str, str]:
 
 def load_formulas_from_oeisdata(root: Path) -> Dict[str, str]:
     formula_file = root / "seq" / "FORMULA"
-    if not formula_file.exists():
-        return {}
-    return load_formulas(formula_file)
+    if formula_file.exists():
+        return load_formulas(formula_file)
+    return load_metadata_from_oeisdata(root)[2]
 
 
 def load_stripped(path: Path, *, max_terms: int = DEFAULT_MAX_TERMS) -> Iterator[SequenceRecord]:
@@ -187,26 +187,49 @@ def load_stripped(path: Path, *, max_terms: int = DEFAULT_MAX_TERMS) -> Iterator
 
 
 def load_keywords_from_oeisdata(root: Path) -> Dict[str, list[str]]:
-    """
-    Extract keywords from the oeisdata mirror.
-    Looks for seq/KEYWORDS and parses KEYWORDS lines.
-    """
+    """Load keyword exports, or the mirror's actual per-entry %K records."""
     keywords_file = root / "seq" / "KEYWORDS"
-    mapping: Dict[str, list[str]] = {}
-    if not keywords_file.exists():
-        return mapping
-    with keywords_file.open("r", encoding="utf-8") as f:
-        for line in f:
-            if not line.startswith("A"):
-                continue
-            parts = line.strip().split()
-            if len(parts) < 2:
-                continue
-            seq_id = parts[0]
-            kw_str = parts[1]
-            kws = [k for k in kw_str.split(",") if k]
-            mapping[seq_id] = kws
-    return mapping
+    if keywords_file.exists():
+        return load_keywords(keywords_file)
+    return load_metadata_from_oeisdata(root)[0]
+
+
+def load_metadata_from_oeisdata(
+    root: Path,
+) -> tuple[dict[str, list[str]], dict[str, tuple[int, int]], dict[str, str]]:
+    """Load keywords, offsets, and formulas in one deterministic mirror scan."""
+    keywords: dict[str, list[str]] = {}
+    offsets: dict[str, tuple[int, int]] = {}
+    formula_lines: dict[str, list[str]] = {}
+    seq_root = root / "seq"
+    aggregate_paths = [seq_root / name for name in ("KEYWORDS", "OFFSET", "FORMULA")]
+
+    # Official oeisdata mirrors contain .seq files, not these optional exports.
+    if not all(path.exists() for path in aggregate_paths):
+        for path in sorted(seq_root.glob("A[0-9][0-9][0-9]/A[0-9][0-9][0-9][0-9][0-9][0-9].seq")):
+            with path.open("r", encoding="utf-8") as source:
+                for line in source:
+                    if line.startswith("%K "):
+                        parsed = parse_keywords_line(line[3:])
+                        if parsed:
+                            keywords[parsed[0]] = parsed[1]
+                    elif line.startswith("%O "):
+                        parsed = parse_offsets_line(line[3:])
+                        if parsed:
+                            offsets[parsed[0]] = parsed[1]
+                    elif line.startswith("%F "):
+                        parsed = parse_formula_line(line[3:])
+                        if parsed:
+                            formula_lines.setdefault(parsed[0], []).append(parsed[1])
+
+    formulas = {seq_id: "\n".join(lines) for seq_id, lines in formula_lines.items()}
+    if aggregate_paths[0].exists():
+        keywords.update(load_keywords(aggregate_paths[0]))
+    if aggregate_paths[1].exists():
+        offsets.update(load_offsets(aggregate_paths[1]))
+    if aggregate_paths[2].exists():
+        formulas.update(load_formulas(aggregate_paths[2]))
+    return keywords, offsets, formulas
 
 
 def load_names(path: Path) -> Dict[str, str]:

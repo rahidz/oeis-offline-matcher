@@ -18,12 +18,10 @@ from .oeis_data import (
     attach_offsets,
     attach_titles,
     load_formulas,
-    load_formulas_from_oeisdata,
     load_keywords,
-    load_keywords_from_oeisdata,
+    load_metadata_from_oeisdata,
     load_names,
     load_offsets,
-    load_offsets_from_oeisdata,
     load_stripped,
 )
 from .storage import ensure_db_indexes, init_db, write_records
@@ -76,22 +74,17 @@ def build_index(
     db_path = Path(db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
     titles = load_names(names_path) if names_path and names_path.exists() else {}
-    keywords = load_keywords(keywords_path) if keywords_path and keywords_path.exists() else {}
-    if not keywords and oeisdata_root and oeisdata_root.exists():
-        keywords = load_keywords_from_oeisdata(oeisdata_root)
-
-    offsets = (
-        load_offsets(offsets_path)
-        if offsets_path and offsets_path.exists()
-        else load_offsets_from_oeisdata(oeisdata_root) if oeisdata_root and oeisdata_root.exists() else {}
-    )
-    formulas = (
-        load_formulas(formulas_path)
-        if formulas_path and formulas_path.exists()
-        else load_formulas_from_oeisdata(oeisdata_root)
+    keywords, offsets, formulas = (
+        load_metadata_from_oeisdata(oeisdata_root)
         if oeisdata_root and oeisdata_root.exists()
-        else {}
+        else ({}, {}, {})
     )
+    if keywords_path and keywords_path.exists():
+        keywords.update(load_keywords(keywords_path))
+    if offsets_path and offsets_path.exists():
+        offsets.update(load_offsets(offsets_path))
+    if formulas_path and formulas_path.exists():
+        formulas.update(load_formulas(formulas_path))
 
     records = attach_titles(load_stripped(stripped_path, max_terms=max_terms), titles)
     records = attach_keywords(records, keywords)

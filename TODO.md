@@ -68,6 +68,7 @@ Complete this gate before declaring the feature-complete phases or milestones do
 - [x] Warn if local data is older than configured threshold (default: 30 days).
 - [x] Add optional non-interactive refresh flow (`--refresh-if-stale`) for power workflows.
 - [x] Document expected behavior when offline or rate-limited.
+- [x] Add a complete metadata/b-file refresh and rebuild helper, repair per-entry mirror metadata loading, and install an every-four-weeks Windows/WSL scheduled task.
 
 ### 0.3 Config ergonomics
 

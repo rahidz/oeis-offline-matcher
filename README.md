@@ -68,6 +68,9 @@ oeis status
 # Power-user refresh flow: if stale, refresh data + rebuild index non-interactively
 oeis status --refresh-if-stale
 
+# Full refresh: exports, keywords/offsets/formulas, canonical b-files, both indexes
+scripts/oeis-refresh
+
 # If you built your DB with an older version, you can add newer performance
 # indexes in-place (one-time, safe to re-run):
 oeis optimize-db --db data/processed/oeis.db
@@ -107,6 +110,38 @@ oeis combo "5,17,103,1011,10042" --max
 # Hard cap the entire combo pipeline runtime (seconds)
 oeis combo "5,17,103,1011,10042" --max --time-cap 600
 ```
+
+### Automatic refresh (Windows + WSL)
+
+`scripts/oeis-refresh` fetches the latest shallow OEIS mirror snapshot, downloads
+fresh terms/titles, extracts metadata from the actual `.seq` entries, and rebuilds
+the main database. It then fetches new/changed canonical b-files and rebuilds their
+manifest. Existing b-file repairs are preserved; overlapping upstream/local edits
+stop the refresh rather than overwriting local content. The data mirror uses a
+detached checkout so each update need not download months of export history.
+
+Exports are staged and checked for name/keyword coverage before replacing the
+main database. Download/build failures preserve the previous database. If a b-file
+download fails later, the main database is already usable; rerun to resume missing
+b-files. Unavailable Git LFS objects are tried directly from OEIS with two workers.
+Only canonical `bNNNNNN.txt` files are downloaded, not auxiliary supporting files.
+
+The latest run is logged in `data/processed/refresh.log`; overlapping refreshes
+are rejected. For a main-database-only refresh, use `scripts/oeis-refresh --skip-bfiles`.
+
+Install the four-week Windows task from WSL:
+
+```bash
+powershell.exe -NoProfile -NonInteractive -File "$(wslpath -w scripts/install-refresh-task.ps1)"
+```
+
+The task is named **OEIS Refresh** and runs every four weeks at 4 a.m. local time,
+starting 28 days after installation. Windows launches the Ubuntu WSL distribution
+as `rahidz`; installer parameters allow different distro/user/project paths. Missed
+runs start when the machine is available again. It does not wake the PC, and the
+Windows user must be signed in (a locked session is fine). No password is stored.
+Failures produce a nonzero task result and are recorded in the log; rerun manually
+after restoring network access. The task does not automatically retry failed runs.
 
 Fielded `oeis match` filters (combined with AND):
 - `id:A000045,A000204`
