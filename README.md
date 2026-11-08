@@ -16,6 +16,66 @@ After the initial `oeis sync` + `oeis build-index`, analysis runs fully offline 
 ## Status
 The v1.0 feature pipeline and consolidation gates are implemented end-to-end. The release audit is green; see `TODO.md` and `docs/release_checklist.md`.
 
+## Explore by discovery potential or notability
+
+```bash
+# One-time offline preprocessing (repeat after refreshing/rebuilding the catalog).
+# The optional local oeisdata mirror adds comments, references and incoming links.
+scripts/oeis-start -- oeis search-index
+
+scripts/oeis-start -- oeis search 'polyomino' --rank discovery
+scripts/oeis-start -- oeis search 'keyword: more' --rank notability
+scripts/oeis-start -- oeis search '1,1,2,3' --rank balanced
+scripts/oeis-start -- oeis search 'polyomino -keyword:dead' --json
+scripts/oeis-start -- oeis search 'comment:conjecture reference:Stanley'
+scripts/oeis-start -- oeis search '"self-avoiding" OR polyomino'
+scripts/oeis-start -- oeis search 'terms:1,?,2,3 name:Fibonacci'
+scripts/oeis-start -- oeis search '*' --rank notability --limit 20 --offset 20
+```
+
+The UI's **Search** tab offers the same queries, three rankings, both scores,
+expandable evidence, and pagination. Python callers can use
+`oeis_matcher.api.search_catalog(query, db_path=..., rank="balanced")`.
+
+Words/filters are ANDed; uppercase `OR` separates alternatives. Quotes preserve
+phrases; `-` excludes a word/filter. Supported fields: `name:`, `formula:`,
+`comment:`, `reference:`, `link:`, `related:` (cross-reference text),
+`id:A000045,A000108`, `keyword:more`, `minterms:20`, `maxterms:50`,
+`has:formula`, `terms:1,1,2,3`, and `prefix:0,1,1`.
+Comma-separated keyword tags are all required. Numeric queries match contiguous
+**stored catalog terms**, not arbitrary b-file terms; `?` matches exactly one term.
+Use `*` to browse everything. A space after a field's colon is allowed; quote
+multiword field values. No parentheses/Boolean nesting is implemented.
+
+Every result contains discovery, notability, and balanced scores (0–100),
+regardless of the selected ordering. The entire matching set is ranked before
+pagination, with A-number tie-breaking. Search is read-only and offline; without
+precomputed profiles it computes scores on demand, which is slower for broad queries.
+
+**Discovery** rewards description-length savings and exact held-out prediction
+from bounded polynomial, linear-recurrence, and affine-ratio probes. Models are
+fitted and selected using the first two thirds of at most 48 stored terms; at least
+three untouched terms must match. Costs include parameters and seeds. Constant,
+linear, and geometric models receive a triviality penalty. Nontrivial structure
+points receive a modest crowding discount when other catalog entries have exact
+affine-equivalent first 16 terms (rational scale/offset, including sign reversal).
+The evidence reports the count and window: prefix agreement does not prove that
+the entire sequences are duplicates. Textual hints spanning
+mathematical domains contribute at most 20 points; they do **not** establish
+independent interpretations. Corpus novelty remains explicitly unknown. This
+first model favors discoverable structure, not all kinds of mathematical interest;
+no fitted model does not mean no structure exists.
+
+**Notability** combines `core` (45 points), `nice` (10), and capped logarithmic
+counts of incoming OEIS references (30), bibliography lines (10), and link lines
+(5). Incoming references count distinct source entries in comments, formulas,
+and cross-references, excluding self-links. These are local editorial/corpus
+proxies for fame—not readership or citation counts. Missing metadata earns no
+points but is marked missing in evidence. **Balanced** is the arithmetic mean.
+The exact formulas and scoring version live in `interestingness.py`; these scores
+are neither probabilities nor percentiles, and have not been calibrated against
+null sequences. Use `analyze` for deeper transform/decomposition investigations.
+
 ## Quick Start
 
 ```bash

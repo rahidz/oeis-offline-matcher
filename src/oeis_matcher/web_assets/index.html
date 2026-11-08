@@ -20,6 +20,7 @@
 
       <nav aria-label="Workflows">
         <p class="nav-label">Explore</p>
+        <button class="nav-link" type="button" data-view="search"><span class="nav-icon" aria-hidden="true">⌕</span><span>Search</span></button>
         <button class="nav-link active" type="button" data-view="analyze"><span class="nav-icon" aria-hidden="true">∞</span><span>Analyze</span><kbd>/</kbd></button>
         <button class="nav-link" type="button" data-view="match"><span class="nav-icon" aria-hidden="true">=</span><span>Match</span></button>
         <button class="nav-link" type="button" data-view="transform"><span class="nav-icon" aria-hidden="true">Δ</span><span>Transform</span></button>
@@ -48,6 +49,29 @@
       </header>
 
       <div class="page">
+        <section class="view" id="view-search" data-title="Search">
+          <div class="hero compact-hero"><div><h1>Search the encyclopedia.</h1><p>Rank by discovery potential, established notability, or both.</p></div></div>
+          <form class="search-form" data-command="search">
+            <div class="sequence-field">
+              <div class="field-head"><label for="search-query">Topic, sequence, or filters</label><button class="clear-button" type="button" data-target="search-query">Clear</button></div>
+              <textarea id="search-query" data-positional required spellcheck="false" placeholder="polyomino — or — keyword: more — or — 1,1,2,3"></textarea>
+              <div class="sequence-foot"><span>All matching entries are ranked before paging</span><div class="samples"><span>Try</span><button type="button" data-sample="polyomino">Polyominoes</button><button type="button" data-sample="keyword: more">More terms wanted</button><button type="button" data-sample="1,1,2,3">1,1,2,3</button><button type="button" data-sample="*">Browse all</button></div></div>
+            </div>
+            <div class="run-row">
+              <label class="compact-field"><span>Rank by</span><select id="search-ranking" data-flag="--rank"><option value="balanced">Balanced · both</option><option value="discovery">Discovery potential</option><option value="notability">Notability / fame</option></select></label>
+              <label class="compact-field"><span>Per page</span><select data-flag="--limit"><option>20</option><option>50</option><option>100</option></select></label>
+              <input type="hidden" data-flag="--offset" value="0">
+              <button class="run-button" type="submit"><span>Search encyclopedia</span><kbd>Ctrl ↵</kbd><i class="spinner" aria-hidden="true"></i></button>
+            </div>
+            <details class="advanced"><summary>Search language &amp; ranking <span>Examples and evidence</span></summary><div class="search-guide">
+              <p><strong>Discovery</strong> favors compact structure that predicts withheld terms and promising mathematical connections. <strong>Notability</strong> uses local editorial and citation signals. <strong>Balanced</strong> averages both. These are transparent heuristics, not mathematical judgments or probabilities.</p>
+              <p>Words are combined with AND; quotes match phrases. Use <code>OR</code> for alternatives and <code>-</code> to exclude a filter. Numeric queries match contiguous stored terms; <code>?</code> matches one unknown term.</p>
+              <dl><dt>Mix topic and metadata</dt><dd><code>polyomino keyword:more -keyword:dead</code></dd><dt>Compare topics</dt><dd><code>"self-avoiding" OR polyomino</code></dd><dt>Specific entry or prefix</dt><dd><code>A000045</code> · <code>prefix:1,1,2,3</code></dd><dt>Look inside an entry</dt><dd><code>formula:"sqrt(5)"</code> · <code>comment:conjecture</code> · <code>reference:Stanley</code></dd><dt>Combine terms and topic</dt><dd><code>terms:1,?,2,3 name:Fibonacci</code></dd></dl>
+              <p>Comments, references, and cross-reference evidence require rich metadata in the local search index. Missing evidence is not evidence of unimportance. Expand a result to inspect its signals.</p>
+              <label class="compact-field"><span>Custom database</span><input data-flag="--db" placeholder="Config default"></label>
+            </div></details>
+          </form>
+        </section>
         <section class="view active" id="view-analyze" data-title="Analyze">
           <div class="hero">
             <div><p class="eyebrow">Full sequence workbench</p><h1>What does your sequence know?</h1><p>Run the whole local pipeline: direct hits, transform explanations, similarity, and structured decompositions, ranked together.</p></div>
@@ -211,6 +235,7 @@
   <dialog id="command-dialog">
     <div class="command-search"><span aria-hidden="true">⌕</span><label class="sr-only" for="command-filter">Filter workflows</label><input id="command-filter" autocomplete="off" placeholder="Jump to a workflow…"><kbd>Esc</kbd></div>
     <div class="command-list">
+      <button type="button" data-command-view="search"><strong>Search encyclopedia</strong><small>Topics, terms, discovery potential, and notability</small></button>
       <button type="button" data-command-view="analyze"><span>∞</span><div><strong>Analyze a sequence</strong><small>Run the full ranked pipeline</small></div></button>
       <button type="button" data-command-view="match"><span>=</span><div><strong>Direct or fielded match</strong><small>Terms, names, formulas, and keywords</small></div></button>
       <button type="button" data-command-view="transform"><span>Δ</span><div><strong>Transform search</strong><small>Differences, shifts, functions, and chains</small></div></button>

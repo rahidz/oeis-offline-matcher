@@ -22,7 +22,7 @@ from .freshness import build_status_report
 
 COMMANDS = {
     "build-index", "sync", "status", "bfetch", "bindex", "bsearch",
-    "optimize-db", "match", "tsearch", "combo", "analyze", "selfcheck",
+    "optimize-db", "match", "tsearch", "combo", "analyze", "selfcheck", "search",
 }
 JSON_COMMANDS = COMMANDS - {"build-index", "sync"}
 ASSETS = {"/": ("index.html", "text/html"), "/app.css": ("app.css", "text/css"), "/app.js": ("app.js", "text/javascript")}

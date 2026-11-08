@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import gzip
 from pathlib import Path
-from typing import Dict, Iterable, Iterator, Optional, TextIO, Tuple
+from typing import Callable, Dict, Iterable, Iterator, Optional, TextIO, Tuple
 
 from .models import SequenceRecord
 
@@ -196,6 +196,8 @@ def load_keywords_from_oeisdata(root: Path) -> Dict[str, list[str]]:
 
 def load_metadata_from_oeisdata(
     root: Path,
+    *,
+    entry_callback: Callable[[str, list[str]], None] | None = None,
 ) -> tuple[dict[str, list[str]], dict[str, tuple[int, int]], dict[str, str]]:
     """Load keywords, offsets, and formulas in one deterministic mirror scan."""
     keywords: dict[str, list[str]] = {}
@@ -205,10 +207,13 @@ def load_metadata_from_oeisdata(
     aggregate_paths = [seq_root / name for name in ("KEYWORDS", "OFFSET", "FORMULA")]
 
     # Official oeisdata mirrors contain .seq files, not these optional exports.
-    if not all(path.exists() for path in aggregate_paths):
+    if entry_callback is not None or not all(path.exists() for path in aggregate_paths):
         for path in sorted(seq_root.glob("A[0-9][0-9][0-9]/A[0-9][0-9][0-9][0-9][0-9][0-9].seq")):
             with path.open("r", encoding="utf-8") as source:
-                for line in source:
+                lines = source.readlines()
+                if entry_callback is not None:
+                    entry_callback(path.stem, lines)
+                for line in lines:
                     if line.startswith("%K "):
                         parsed = parse_keywords_line(line[3:])
                         if parsed:

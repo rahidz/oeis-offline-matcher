@@ -290,6 +290,17 @@ dialog::backdrop { background: rgba(15,31,34,.5); backdrop-filter: blur(3px); }
 .toast::before { width: 7px; height: 7px; flex: 0 0 auto; background: #71bd96; border-radius: 50%; content: ""; }
 .toast.error::before { background: #df695d; }
 
+.search-guide { padding: 0 24px 20px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+#view-search select { min-height: 39px; max-width: 100%; padding: 8px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 13px; }
+.search-guide dt { font-weight: 600; }
+.search-guide dd { margin: 0 0 10px; overflow-wrap: anywhere; }
+.search-scores { display: flex; flex-wrap: wrap; gap: 6px; margin: 9px 0; }
+.search-scores > span { padding: 5px 8px; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; font-size: 11px; }
+.search-scores > .selected { border-color: var(--gold); }
+.search-evidence { margin: 8px 0; color: var(--muted); font-size: 12px; }
+.search-paging { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 18px; font-size: 13px; }
+.search-paging > span { flex: 1; }
+
 @keyframes enter { from { opacity: 0; transform: translateY(5px); } }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pulse { 50% { opacity: .4; transform: scale(.85); } }
@@ -326,7 +337,7 @@ dialog::backdrop { background: rgba(15,31,34,.5); backdrop-filter: blur(3px); }
   .app-shell { display: block; }
   .sidebar { position: fixed; inset: auto 0 0; width: auto; height: 62px; overflow-x: auto; border-top: 1px solid rgba(255,255,255,.1); border-right: 0; }
   .sidebar .brand, .history, .mini-status, .nav-label { display: none; }
-  .sidebar nav { grid-template-columns: repeat(7,minmax(70px,1fr)); width: max(100%,540px); height: 100%; margin: 0; gap: 2px; padding: 5px; }
+  .sidebar nav { grid-template-columns: repeat(8,minmax(70px,1fr)); width: max(100%,600px); height: 100%; margin: 0; gap: 2px; padding: 5px; }
   .nav-link { display: grid; grid-template-columns: 1fr; gap: 0; padding: 4px; font-size: 10px; }
   .nav-link > span:not(.nav-icon) { display: block; }
   .nav-icon { height: 19px; font-size: 15px; }

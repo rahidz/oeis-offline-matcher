@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional, Sequence
 
 from .config import load_config
+from .search import search_catalog as search_catalog
 from .analysis import AnalysisEvent, AnalysisOptions, attach_candidate_provenance as _attach_candidate_provenance, run_analysis
 from .matcher import match_exact, match_exact_db
 from .models import AnalysisResult, Match, SequenceQuery

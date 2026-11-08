@@ -24,6 +24,7 @@ from .oeis_data import (
     load_offsets,
     load_stripped,
 )
+from .search_metadata import search_metadata_writer
 from .storage import ensure_db_indexes, init_db, write_records
 
 
@@ -74,26 +75,26 @@ def build_index(
     db_path = Path(db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
     titles = load_names(names_path) if names_path and names_path.exists() else {}
-    keywords, offsets, formulas = (
-        load_metadata_from_oeisdata(oeisdata_root)
-        if oeisdata_root and oeisdata_root.exists()
-        else ({}, {}, {})
-    )
-    if keywords_path and keywords_path.exists():
-        keywords.update(load_keywords(keywords_path))
-    if offsets_path and offsets_path.exists():
-        offsets.update(load_offsets(offsets_path))
-    if formulas_path and formulas_path.exists():
-        formulas.update(load_formulas(formulas_path))
-
-    records = attach_titles(load_stripped(stripped_path, max_terms=max_terms), titles)
-    records = attach_keywords(records, keywords)
-    records = attach_offsets(records, offsets)
-    records = attach_formulas(records, formulas)
-
     temp_path = db_path.with_name(f".{db_path.name}.build-{os.getpid()}-{uuid.uuid4().hex}.tmp")
     try:
         init_db(temp_path, create_indexes=False)
+        with search_metadata_writer(temp_path) as (consume, _):
+            keywords, offsets, formulas = (
+                load_metadata_from_oeisdata(oeisdata_root, entry_callback=consume)
+                if oeisdata_root and oeisdata_root.exists()
+                else ({}, {}, {})
+            )
+        if keywords_path and keywords_path.exists():
+            keywords.update(load_keywords(keywords_path))
+        if offsets_path and offsets_path.exists():
+            offsets.update(load_offsets(offsets_path))
+        if formulas_path and formulas_path.exists():
+            formulas.update(load_formulas(formulas_path))
+
+        records = attach_titles(load_stripped(stripped_path, max_terms=max_terms), titles)
+        records = attach_keywords(records, keywords)
+        records = attach_offsets(records, offsets)
+        records = attach_formulas(records, formulas)
         inserted = write_records(records, temp_path)
         ensure_db_indexes(temp_path)
         with closing(sqlite3.connect(temp_path)) as conn:

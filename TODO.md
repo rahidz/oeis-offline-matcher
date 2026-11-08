@@ -221,6 +221,9 @@ v1.0 decision: same-process threads regressed the representative workload and a 
 
 ## Stretch Track (Post-v1.0 or Time-Permitting)
 
+- [x] Add shared CLI/API/UI catalog search for text, keywords, A-numbers, term patterns, and combined filters; separate explainable discovery/notability scores with balanced ranking and pagination.
+- [x] Import rich local OEIS metadata and precompute deterministic rankings; test holdout separation, query semantics, metadata invalidation, and UI integration.
+
 - [ ] Plugin system for third-party transforms and candidate providers.
 - [ ] Symbolic simplification/canonicalization engine for expression equivalence classes.
 - [ ] Deeper arithmetic tooling integration (PARI/GP/Sage/GAP) behind optional adapters.

@@ -11,7 +11,7 @@
   };
 
   const commandViews = {
-    analyze: "analyze", match: "match", tsearch: "transform", combo: "combo",
+    analyze: "analyze", search: "search", match: "match", tsearch: "transform", combo: "combo",
     status: "database", sync: "database", "build-index": "database", "optimize-db": "database",
     bfetch: "bfiles", bindex: "bfiles", bsearch: "bfiles", selfcheck: "selfcheck"
   };
@@ -171,11 +171,11 @@
     }, 700);
   }
 
-  async function startJob(form) {
+  async function startJob(form, argsOverride = null) {
     if (state.activeJob) return toast("Another local job is already running.", "error");
     if (!validateSearchInput(form) || !form.reportValidity()) return;
     const command = form.dataset.command;
-    const args = buildArgs(form);
+    const args = argsOverride || buildArgs(form);
     state.activeForm = form;
     setFormRunning(form, true);
     $("#results").hidden = true;
@@ -280,6 +280,7 @@
   }
 
   function makeResultCard(row, index, fallbackFamily) {
+    const isSearch = fallbackFamily === "search";
     const card = node("article", "result-card");
     card.append(node("div", "rank", row.rank ?? index + 1));
     const main = node("div", "result-main");
@@ -292,6 +293,15 @@
     if (row.ok !== undefined) scoreParts.push(row.ok ? "passed" : "failed");
     if (scoreParts.length) kicker.append(node("span", "score", scoreParts.join(" · ")));
     main.append(kicker);
+    if (isSearch) {
+      const scores = node("div", "search-scores");
+      ["discovery", "notability", "balanced"].forEach(kind => {
+        const badge = node("span", kind === state.lastOutput?.ranking ? "selected" : "");
+        badge.append(node("b", "", `${kind[0].toUpperCase()}${kind.slice(1)}`), document.createTextNode(` ${displayValue(row[kind])} / 100`));
+        scores.append(badge);
+      });
+      main.append(scores);
+    }
 
     const ids = Array.isArray(row.ids) ? row.ids.filter(validId) : (validId(row.id) ? [row.id] : []);
     const names = Array.isArray(row.names) ? row.names.filter(Boolean) : (row.name ? [row.name] : []);
@@ -309,6 +319,14 @@
       title.textContent = row.kind || row.title || row.name || row.expression || row.status || "Result";
     }
     main.append(title);
+    if (isSearch && row.evidence) {
+      const structure = row.evidence.structure || {};
+      const hints = row.evidence.connections?.families || [];
+      const summary = [structure.model || structure.status];
+      if (structure.model) summary.push(`${structure.holdout_passed}/${structure.holdout_terms} held-out terms · ${structure.validated ? "passed" : "failed"}`);
+      if (hints.length) summary.push(`Domain hints: ${hints.join(", ")}`);
+      main.append(node("p", "search-evidence", summary.filter(Boolean).join(" · ")));
+    }
 
     if (isCombination) {
       const components = node("p", "expression");
@@ -345,10 +363,16 @@
       meta.forEach(value => metaRow.append(node("span", "", value)));
       main.append(metaRow);
     }
-    if (row.formula) main.append(node("p", "formula", row.formula));
+    if (row.formula && !isSearch) main.append(node("p", "formula", row.formula));
     const terms = row.combined_terms || row.transformed_terms || row.terms;
-    if (Array.isArray(terms) && terms.length) main.append(node("div", "terms", terms.map(String).join(", ")));
+    if (Array.isArray(terms) && terms.length) {
+      const preview = isSearch ? terms.slice(0, 12) : terms;
+      main.append(node("div", "terms", `${preview.map(String).join(", ")}${preview.length < terms.length ? ", …" : ""}`));
+    }
     appendDetails(main, {
+      formula: isSearch ? row.formula : null,
+      full_terms: isSearch && terms?.length > 12 ? terms : null,
+      ranking_evidence: row.evidence,
       source_terms: row.transformed_terms && row.terms ? row.terms : null,
       component_transforms: row.component_transforms,
       component_terms: row.component_terms,
@@ -382,6 +406,7 @@
     if (Array.isArray(output)) return [["Results", output, "result"]];
     if (!output || typeof output !== "object") return [];
     const command = state.lastJob?.command;
+    if (command === "search") return output.results?.length ? [["Ranked sequences", output.results, "search"]] : [];
     const sections = [];
     const summaries = [];
     if (command === "status" && output.refresh) {
@@ -442,6 +467,24 @@
     renderSummary(sections);
     const diagnostics = output && typeof output === "object" ? output.diagnostics || {} : {};
     const exhausted = Boolean(diagnostics.timed_out || diagnostics.time_budget_exhausted);
+    if (state.lastJob?.command === "search" && output && typeof output === "object") {
+      if (diagnostics.hint) container.append(node("p", "warning-item", diagnostics.hint));
+      if (diagnostics.enriched_metadata === false) container.append(node("p", "warning-item", "Rich metadata is not indexed. Run oeis search-index --oeisdata data/raw/oeisdata to include comments, references, and cross-reference evidence."));
+      const offset = output.offset || 0;
+      const limit = output.limit || 20;
+      const count = output.results?.length || 0;
+      const paging = node("div", "search-paging");
+      paging.append(node("span", "", `${count ? offset + 1 : 0}–${count ? offset + count : 0} of ${displayValue(output.total)} · ${output.ranking} ranking`));
+      [["Previous", Math.max(0, offset - limit), offset <= 0], ["Next", offset + limit, offset + count >= output.total]].forEach(([label, nextOffset, disabled]) => {
+        const button = node("button", "quiet-button", label);
+        button.type = "button";
+        button.disabled = disabled;
+        button.dataset.searchOffset = nextOffset;
+        paging.append(button);
+      });
+      container.append(paging);
+      if (!count) container.append(node("p", "warning-item", "No local entries match this query. Try fewer filters or a different term pattern."));
+    }
     if (exhausted) container.append(node("div", "warning-item", "The time limit was reached. Results found before the limit are shown below."));
     let total = 0;
     sections.forEach(([title, rows, family]) => {
@@ -449,12 +492,12 @@
       section.append(node("h3", "", title));
       rows.forEach((row, index) => {
         const safeRow = row && typeof row === "object" ? row : { title: displayValue(row) };
-        section.append(makeResultCard(safeRow, index, family));
+        section.append(makeResultCard(safeRow, family === "search" ? index + (output.offset || 0) : index, family));
         total += 1;
       });
       container.append(section);
     });
-    if (!sections.length) {
+    if (!sections.length && state.lastJob?.command !== "search") {
       const empty = node("div", "empty-output");
       const text = typeof output === "string" ? output.trim() : "";
       const boundedSearch = ["match", "tsearch", "combo", "analyze"].includes(state.lastJob?.command);
@@ -677,6 +720,16 @@
   }));
   $$(".result-tabs button").forEach(button => button.addEventListener("click", () => showTab(button.dataset.tab)));
   $("#result-cards").addEventListener("click", event => {
+    const page = event.target.closest("[data-search-offset]");
+    if (page && state.lastJob?.command === "search") {
+      const args = [...state.lastJob.args];
+      const offsetIndex = args.findIndex(arg => arg.startsWith("--offset="));
+      if (offsetIndex >= 0) args[offsetIndex] = `--offset=${page.dataset.searchOffset}`;
+      else args.unshift(`--offset=${page.dataset.searchOffset}`);
+      switchView("search");
+      startJob($('#view-search form'), args);
+      return;
+    }
     const button = event.target.closest("[data-copy-text]");
     if (button) copyText(button.dataset.copyText);
   });

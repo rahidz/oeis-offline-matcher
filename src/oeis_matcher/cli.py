@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import sqlite3
 from pathlib import Path
 import math
 import os
@@ -1723,6 +1724,18 @@ def _main(argv=None):
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
+    p_search = sub.add_parser("search", help="Search the catalog by text, fields, or terms; rank by discovery/notability.")
+    p_search.add_argument("query", help='Text, A-number, terms, or fields; e.g. polyomino, "keyword: more", "1,1,2,3"')
+    p_search.add_argument("--rank", choices=("discovery", "notability", "balanced"), default="balanced")
+    p_search.add_argument("--limit", type=int, default=20)
+    p_search.add_argument("--offset", type=int, default=0)
+    p_search.add_argument("--db", default=default_db)
+    p_search.add_argument("--json", action="store_true", dest="as_json")
+    p_search_index = sub.add_parser("search-index", help="Precompute catalog rankings and import optional local mirror metadata.")
+    p_search_index.add_argument("--db", default=default_db)
+    p_search_index.add_argument("--oeisdata", default="data/raw/oeisdata")
+    p_search_index.add_argument("--json", action="store_true", dest="as_json")
+
     def _add_lean_search_flags(p) -> None:
         grp = p.add_mutually_exclusive_group()
         grp.add_argument("--fast", action="store_true", help="Use the fast preset.")
@@ -2255,6 +2268,33 @@ def _main(argv=None):
         from .web import serve
 
         serve(host=args.host, port=args.port, open_browser=not args.no_browser)
+        return 0
+
+    if args.cmd in {"search", "search-index"}:
+        from .search import build_search_profiles, search_catalog
+        from .search_metadata import build_search_metadata
+
+        try:
+            if args.cmd == "search-index":
+                metadata = build_search_metadata(Path(args.db), Path(args.oeisdata))
+                result = {**build_search_profiles(Path(args.db)), "metadata": metadata}
+            else:
+                result = search_catalog(args.query, db_path=args.db, rank=args.rank, limit=args.limit, offset=args.offset)
+        except (ValueError, OSError, sqlite3.Error) as exc:
+            print(f"{args.cmd}: {exc}", file=sys.stderr)
+            return 2
+        if args.as_json:
+            print(json.dumps(result, indent=2))
+        elif args.cmd == "search-index":
+            print(f"Ranked {result['profiles']} sequences; enriched metadata: {result['enriched_metadata']}")
+        else:
+            print(f"{result['total']} matches; ranking={result['ranking']} (heuristic scores /100)")
+            for row in result["results"]:
+                print(f"{row['position']:>3}. {row['id']}  discovery={row['discovery']:.2f}  notability={row['notability']:.2f}  balanced={row['balanced']:.2f}  {row['name'] or ''}")
+                structure = row["evidence"]["structure"]
+                print(f"     {structure['model'] or structure['status']}; held-out {structure['holdout_passed']}/{structure['holdout_terms']}; domain hints: {', '.join(row['evidence']['connections']['families']) or 'none'}")
+            if result["diagnostics"]["hint"]:
+                print(result["diagnostics"]["hint"])
         return 0
 
     if args.cmd == "build-index":
