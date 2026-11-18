@@ -70,6 +70,18 @@ def test_analyze_cli_and_api_share_versioned_json_contract(tmp_path: Path):
     assert set(cli) == set(api)
 
 
+def test_quasipolynomial_cli_and_api_agree_without_catalog_hit(tmp_path: Path):
+    db = _mini_db(tmp_path)
+    query = "0,0,1,2,4,6,9,12,16,20"
+    standalone = _run_json("quasipolynomial", query, "--json")
+    cli = _run_json("analyze", query, "--db", str(db), "--fast", "--json")
+    api = analyze_sequence(query, db_path=db)
+    Draft202012Validator(_schema("analyze.schema.json")).validate(cli)
+    assert cli["quasipolynomial"] == standalone["quasipolynomial"] == api["quasipolynomial"]
+    assert cli["quasipolynomial"]["period"] == 2
+    assert not cli["exact_matches"]
+
+
 def test_combo_cli_matches_versioned_schema(tmp_path: Path):
     payload = _run_json(
         "combo",

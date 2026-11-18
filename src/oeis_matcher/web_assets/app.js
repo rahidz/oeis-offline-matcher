@@ -356,6 +356,8 @@
     if (row.scan_seconds !== undefined) meta.push(`${displayValue(row.scan_seconds)}s scan`);
     if (row.coeffs) meta.push(`coefficients ${displayValue(row.coeffs)}`);
     if (row.shifts) meta.push(`shifts ${displayValue(row.shifts)}`);
+    if (row.period !== undefined) meta.push(`period ${displayValue(row.period)}`);
+    if (row.index_origin !== undefined) meta.push(`index origin ${displayValue(row.index_origin)}`);
     if (row.elapsed_s !== undefined) meta.push(`${displayValue(row.elapsed_s)}s`);
     if (row.keywords) meta.push(`keywords ${displayValue(row.keywords)}`);
     if (meta.length) {
@@ -408,6 +410,10 @@
     const command = state.lastJob?.command;
     if (command === "search") return output.results?.length ? [["Ranked sequences", output.results, "search"]] : [];
     const sections = [];
+    if (command === "analyze" && output.quasipolynomial) {
+      const { period, index_origin, formula } = output.quasipolynomial;
+      sections.push(["Sequence formulas", [{ title: "Quasipolynomial fit", period, index_origin, expression: formula }], "formula"]);
+    }
     const summaries = [];
     if (command === "status" && output.refresh) {
       const refresh = output.refresh;

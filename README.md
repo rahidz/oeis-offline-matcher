@@ -171,6 +171,26 @@ oeis combo "5,17,103,1011,10042" --max
 oeis combo "5,17,103,1011,10042" --max --time-cap 600
 ```
 
+### Quasipolynomial formulas
+
+`analyze` checks whether each index residue class follows its own polynomial.
+To search for just the formula, without loading OEIS:
+
+```bash
+oeis quasipolynomial "0,0,1,2,4,6,9,12,16,20"
+```
+
+Here the even terms satisfy `a(2m) = m²` and the odd terms satisfy `a(2m+1) = m²+m`.
+The first input has index 0; use `--index-origin 1` on the standalone command for one-based data.
+Periods 1–8 are tried in order (1 is an ordinary polynomial), with degrees 0–3 per class.
+Each degree-`d` branch must predict **all** values after its first `d+1`, with at least two
+such checks per class. Agreement is evidence, not proof of the continuation.
+Wildcard queries are not fitted.
+
+Both commands expose the fit in `--json` as `quasipolynomial` (or `null`).
+For each constituent, coefficient `c[j]` multiplies `binom(m,j)`, where
+`m = (n - first_index) / period`.
+
 ### Automatic refresh (Windows + WSL)
 
 `scripts/oeis-refresh` fetches the latest shallow OEIS mirror snapshot, downloads

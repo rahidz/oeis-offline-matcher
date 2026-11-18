@@ -90,6 +90,7 @@ class AnalysisResult:
     combined_combinations: list[tuple[str, CombinationMatch]] | None = None
     ranked_explanations: list[tuple[str, Match | CombinationMatch]] | None = None
     diagnostics: Optional[dict] = None
+    quasipolynomial: dict | None = None
 
     def to_dict(self, *, show_formula: bool = True) -> dict:
         from .serialization import analysis_to_dict

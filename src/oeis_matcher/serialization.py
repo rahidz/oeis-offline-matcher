@@ -55,6 +55,7 @@ def analysis_to_dict(result: AnalysisResult, *, show_formula: bool = True) -> di
     return {
         "schema_version": SCHEMA_VERSION,
         "query": result.query,
+        "quasipolynomial": result.quasipolynomial,
         "exact_matches": [match_to_dict(m, show_formula=show_formula) for m in result.exact_matches],
         "transform_matches": [match_to_dict(m, show_formula=show_formula) for m in result.transform_matches],
         "similarity": result.similarity,

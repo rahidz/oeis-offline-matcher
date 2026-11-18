@@ -21,6 +21,7 @@ from .combination_search import (
 from .explanation_ranking import rerank_explanations
 from .matcher import match_exact, match_exact_db
 from .models import AnalysisResult, CombinationMatch, Match, SequenceQuery
+from .quasipolynomial import detect_quasipolynomial
 from .ranking import rank_candidates_for_query
 from .similarity import growth_rate
 from .storage import iter_sequences
@@ -203,6 +204,14 @@ def run_analysis(
     def emit_combo(stage: str, match: CombinationMatch) -> None:
         if not any(seq_id in exclude_ids for seq_id in match.ids):
             emit("match", stage, match)
+
+    quasipolynomial = None
+    if not budget.exhausted():
+        emit("stage_start", "quasipolynomial")
+        started = time_fn()
+        quasipolynomial = detect_quasipolynomial(query.terms, should_stop=budget.exhausted)
+        timed("quasipolynomial", started)
+        emit("stage_end", "quasipolynomial", quasipolynomial)
 
     emit("stage_start", "exact")
     started = time_fn()
@@ -783,5 +792,6 @@ def run_analysis(
         convolution_combinations=convolution_matches,
         combined_combinations=combined,
         ranked_explanations=ranked,
+        quasipolynomial=quasipolynomial,
         diagnostics=diagnostics,
     )

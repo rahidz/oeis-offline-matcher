@@ -1592,6 +1592,10 @@ def _run_analyze_command(args) -> int:
                 printed[event.stage].add(key)
                 print_value(event.stage, event.value)
         elif event.kind == "stage_end":
+            if event.stage == "quasipolynomial":
+                if event.value:
+                    print(format_quasipolynomial(event.value), flush=True)
+                return
             values = list(event.value or ())
             if event.stage == "exact":
                 if args.preset in {"deep", "max"}:
@@ -1670,6 +1674,8 @@ def _run_analyze_command(args) -> int:
                 line = format_match(match, transform=True) if family == "transform" else format_combo(match, show_coeffs=family.startswith("linear"))
                 print(f"  [{family}] {line.strip()}")
             print()
+        if result.quasipolynomial:
+            print(format_quasipolynomial(result.quasipolynomial))
         print("Exact matches:")
         for match in result.exact_matches:
             print(format_match(match))
@@ -1702,6 +1708,11 @@ def _run_analyze_command(args) -> int:
     return 0
 
 
+def format_quasipolynomial(fit: dict) -> str:
+    return (f"Quasipolynomial conjecture (period {fit['period']}, first index {fit['index_origin']}): "
+            f"{fit['formula']}")
+
+
 def _main(argv=None):
     argv = argv or sys.argv[1:]
     advanced_help = "--help-advanced" in argv
@@ -1723,6 +1734,11 @@ def _main(argv=None):
     parser = argparse.ArgumentParser(prog="oeis", description="Offline OEIS matcher")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = parser.add_subparsers(dest="cmd", required=True)
+
+    p_quasi = sub.add_parser("quasipolynomial", help="Fit a polynomial per index residue class (no database needed).")
+    p_quasi.add_argument("sequence", help="Comma- or space-separated integers")
+    p_quasi.add_argument("--index-origin", type=int, default=0, help="Index of the first term (default: 0)")
+    p_quasi.add_argument("--json", action="store_true", dest="as_json")
 
     p_search = sub.add_parser("search", help="Search the catalog by text, fields, or terms; rank by discovery/notability.")
     p_search.add_argument("query", help='Text, A-number, terms, or fields; e.g. polyomino, "keyword: more", "1,1,2,3"')
@@ -2263,6 +2279,22 @@ def _main(argv=None):
             warn_on_stale=default_warn_on_stale,
             as_json=bool(getattr(args, "as_json", False)),
         )
+
+    if args.cmd == "quasipolynomial":
+        from .quasipolynomial import detect_quasipolynomial
+
+        try:
+            terms = [int(token) for token in args.sequence.replace(",", " ").split()]
+        except ValueError:
+            p_quasi.error("expected a sequence of integers")
+        if not terms:
+            p_quasi.error("expected at least one term")
+        fit = detect_quasipolynomial(terms, index_origin=args.index_origin)
+        if args.as_json:
+            print(json.dumps({"schema_version": SCHEMA_VERSION, "quasipolynomial": fit}, indent=2))
+        else:
+            print(format_quasipolynomial(fit) if fit else "No supported quasipolynomial fit.")
+        return 0
 
     if args.cmd == "ui":
         from .web import serve
