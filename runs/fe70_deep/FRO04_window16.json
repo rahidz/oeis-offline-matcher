@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "query": [
+    2,
+    16,
+    10,
+    1,
+    1,
+    1,
+    1,
+    4,
+    32,
+    168,
+    460,
+    392,
+    114,
+    1,
+    8,
+    96
+  ],
+  "exact_matches": [],
+  "transform_matches": [],
+  "similarity": [
+    {
+      "id": "A364549",
+      "name": "Odd numbers k that divide A005941(k).",
+      "corr": 0.9993105592259032,
+      "mse": 24.70983391497576,
+      "scale": 5.085571074482596e-05,
+      "offset": 3.2831690645054694
+    },
+    {
+      "id": "A385673",
+      "name": "The smallest number k such that k! contains the string concatenation of 0 to n as a substring.",
+      "corr": 0.9990892211947072,
+      "mse": 32.63906396473148,
+      "scale": 0.0016573106139539733,
+      "offset": 2.1673836070417356
+    },
+    {
+      "id": "A007176",
+      "name": "Stopping times (see Borwein-Loring article for precise definition).",
+      "corr": 0.9988467067518998,
+      "mse": 41.324902799984734,
+      "scale": 0.0009968676276430133,
+      "offset": 3.5561876577406277
+    },
+    {
+      "id": "A056266",
+      "name": "Indices of primes in sequence defined by A(0) = 99, A(n) = 10*A(n-1) - 1 for n > 0.",
+      "corr": 0.9987064001787151,
+      "mse": 46.349126342709894,
+      "scale": 0.0011163601318656513,
+      "offset": 5.082455399230205
+    },
+    {
+      "id": "A082719",
+      "name": "Numbers k such that (89*10^(k-1) + 1)/9 is a depression prime.",
+      "corr": 0.9987064001787151,
+      "mse": 46.349126342709944,
+      "scale": 0.0011163601318656513,
+      "offset": 5.080222678966472
+    },
+    {
+      "id": "A259139",
+      "name": "Numbers k such that 8*R_k + 9*10^k + 1 is prime, where R_k = 11...11 is the repunit (A002275) of length k.",
+      "corr": 0.9987064001787151,
+      "mse": 46.349126342709944,
+      "scale": 0.0011163601318656513,
+      "offset": 5.081339039098339
+    },
+    {
+      "id": "A350829",
+      "name": "Number of prime 9-tuples (or: nonuplets) with initial member (A257125) between 10^(n-1) and 10^n.",
+      "corr": 0.9986184362860475,
+      "mse": 49.49865630796575,
+      "scale": 5.281927928392705,
+      "offset": -2.0311089328552665
+    },
+    {
+      "id": "A118988",
+      "name": "Number of different values taken by the permanent of a symmetric real (+1,-1)-matrix of order n.",
+      "corr": 0.9985868248435206,
+      "mse": 50.63043006149473,
+      "scale": 0.22083283148754038,
+      "offset": 0.09446175533731672
+    },
+    {
+      "id": "A342533",
+      "name": "a(n) is the number of n-gons in A000940 that display symmetry (reflection / rotation).",
+      "corr": 0.9985687849063718,
+      "mse": 51.27629175490659,
+      "scale": 0.019801271222531107,
+      "offset": 0.6593075515182302
+    },
+    {
+      "id": "A320800",
+      "name": "Number of non-isomorphic multiset partitions of weight n in which both the multiset union of the parts and the multiset union of the dual parts are aperiodic.",
+      "corr": 0.9981513936432016,
+      "mse": 66.21638002196003,
+      "scale": 0.016241571458203284,
+      "offset": 2.648847045239212
+    }
+  ],
+  "combinations": [],
+  "triple_combinations": [],
+  "modclass_combinations": [],
+  "pointwise_combinations": [],
+  "convolution_combinations": [],
+  "combined_combinations": [],
+  "ranked_explanations": [],
+  "diagnostics": {
+    "query_length": 16,
+    "exact_limit": 15,
+    "transform_limit": 60,
+    "similarity_limit": 10,
+    "combination_limit": 10,
+    "combo_candidate_cap": 60,
+    "combo_max_checks": 400000,
+    "triple_limit": 4,
+    "triple_candidate_cap": 30,
+    "triple_max_checks": 350000,
+    "pointwise_limit": 0,
+    "convolution_limit": 0,
+    "variance_band": null,
+    "growth_band": null,
+    "excluded_ids": [],
+    "query_var": 19400.21484375,
+    "query_diff_var": 13783.12888888889,
+    "query_growth": 0.42787219358669826,
+    "combined_combinations_count": 0,
+    "combined_explanations": [],
+    "ranking": {
+      "enabled": true,
+      "mode": "auto_preset_deepmax",
+      "configured_limit": 0,
+      "default_quota": 1,
+      "quota_overrides": {},
+      "input_counts": {},
+      "post_dedupe_counts": {},
+      "quotas": {},
+      "dedupe_dropped": 0,
+      "selected_count": 0,
+      "selected_counts": {},
+      "limit": 0
+    },
+    "scheduling": {
+      "mode": "latency_first",
+      "combo_stage_requested": true,
+      "transform_probe_used": true,
+      "transform_refined": true,
+      "transform_probe_cap_s": 5.0
+    },
+    "candidate_bucket": {
+      "size": 60,
+      "exact": 22,
+      "similar": 36,
+      "discovery": 0,
+      "provenance_counts": {
+        "index_join": 22,
+        "seed": 6,
+        "similarity": 36
+      },
+      "provider_diagnostics": {
+        "requested": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "enabled": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "unknown": [],
+        "widen_prefilter": false
+      }
+    }
+  },
+  "fe70_input": {
+    "id": "FRO04",
+    "variant": "window16",
+    "start_index": 7,
+    "also_covers": [],
+    "command": [
+      "/home/rahidz/coding/oeis/.venv/bin/oeis",
+      "analyze",
+      "2,16,10,1,1,1,1,4,32,168,460,392,114,1,8,96",
+      "--deep",
+      "--time-cap",
+      "120",
+      "--subsequence",
+      "--json",
+      "--show-terms",
+      "60",
+      "--show-formula"
+    ]
+  }
+}

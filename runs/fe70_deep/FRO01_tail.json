@@ -1,0 +1,232 @@
+{
+  "schema_version": 1,
+  "query": [
+    3,
+    37,
+    17,
+    1,
+    1,
+    1,
+    1,
+    5,
+    33,
+    241,
+    649,
+    553,
+    135,
+    1,
+    9,
+    97,
+    481,
+    2129,
+    5105,
+    7473,
+    11523,
+    8849,
+    2443,
+    1793,
+    7217,
+    23873,
+    55889,
+    103593,
+    176583,
+    173553,
+    275121,
+    269845,
+    289359,
+    310273,
+    686937,
+    1234017,
+    2103649,
+    2992933,
+    5351039,
+    5592385,
+    12775627,
+    20413473,
+    22430435,
+    16222129,
+    26288001,
+    41911441,
+    74436879
+  ],
+  "exact_matches": [],
+  "transform_matches": [],
+  "similarity": [
+    {
+      "id": "A018894",
+      "name": "Numbers k such that sigma(k)/phi(k) sets a new record.",
+      "corr": 0.998382420131033,
+      "mse": 3259188276.4309835,
+      "scale": 0.08595651738599641,
+      "offset": 12337.344130357918
+    },
+    {
+      "id": "A275441",
+      "name": "Sum of the asymmetry degrees of all compositions of n into odd parts.",
+      "corr": 0.9983497668283522,
+      "mse": 3324925604.551046,
+      "scale": 0.028927486080958253,
+      "offset": 24883.8278783012
+    },
+    {
+      "id": "A374496",
+      "name": "The numbers appearing in the first layer of the number stack in A370193.",
+      "corr": 0.9982802460213392,
+      "mse": 3464877090.954249,
+      "scale": 0.004389966825288268,
+      "offset": 9941.418312529913
+    },
+    {
+      "id": "A274642",
+      "name": "Numbers of the form 4^k*(8*j+7) that have exactly three partitions into four positive squares.",
+      "corr": 0.9980657141222885,
+      "mse": 20097397959.021545,
+      "scale": 0.012661832332877335,
+      "offset": 24970.415889981134
+    },
+    {
+      "id": "A297789",
+      "name": "The number of length 2n - 1 strings over the alphabet {0, 1} such that the first half of any initial odd length substring is a permutation of the second half.",
+      "corr": 0.9980341765522456,
+      "mse": 3960158232.67366,
+      "scale": 0.05341785103887782,
+      "offset": 12096.066078416716
+    },
+    {
+      "id": "A006899",
+      "name": "Numbers of the form 2^i or 3^j.",
+      "corr": 0.9979800230484184,
+      "mse": 20986835544.042587,
+      "scale": 0.3711806780554857,
+      "offset": -10612.079500593609
+    },
+    {
+      "id": "A152113",
+      "name": "A001333 with terms repeated.",
+      "corr": 0.9979371613638428,
+      "mse": 21431693289.99012,
+      "scale": 0.2365849835674706,
+      "offset": 31048.272259005415
+    },
+    {
+      "id": "A282240",
+      "name": "a(n) = Fibonacci(n) represented in bijective base-9 numeration.",
+      "corr": 0.9979215898451894,
+      "mse": 4186728618.879376,
+      "scale": 0.037720095206981885,
+      "offset": 23426.422695102792
+    },
+    {
+      "id": "A074693",
+      "name": "a(1) = 1, a(n) = a(n-1) + phi(a(n-1)).",
+      "corr": 0.9978780769215345,
+      "mse": 4274287524.7502694,
+      "scale": 0.03456375877029766,
+      "offset": 16923.148826526765
+    },
+    {
+      "id": "A364549",
+      "name": "Odd numbers k that divide A005941(k).",
+      "corr": 0.9978774666463442,
+      "mse": 151.5603336288246,
+      "scale": 7.170529993473592e-05,
+      "offset": 5.325290952849349
+    }
+  ],
+  "combinations": [],
+  "triple_combinations": [],
+  "modclass_combinations": [],
+  "pointwise_combinations": [],
+  "convolution_combinations": [],
+  "combined_combinations": [],
+  "ranked_explanations": [],
+  "diagnostics": {
+    "query_length": 47,
+    "exact_limit": 15,
+    "transform_limit": 60,
+    "similarity_limit": 10,
+    "combination_limit": 10,
+    "combo_candidate_cap": 60,
+    "combo_max_checks": 400000,
+    "triple_limit": 4,
+    "triple_candidate_cap": 30,
+    "triple_max_checks": 350000,
+    "pointwise_limit": 0,
+    "convolution_limit": 0,
+    "variance_band": null,
+    "growth_band": null,
+    "excluded_ids": [],
+    "query_var": 175397931509449.78,
+    "query_diff_var": 31370407836863.61,
+    "query_growth": 0.4260960322727027,
+    "combined_combinations_count": 0,
+    "combined_explanations": [],
+    "ranking": {
+      "enabled": true,
+      "mode": "auto_preset_deepmax",
+      "configured_limit": 0,
+      "default_quota": 1,
+      "quota_overrides": {},
+      "input_counts": {},
+      "post_dedupe_counts": {},
+      "quotas": {},
+      "dedupe_dropped": 0,
+      "selected_count": 0,
+      "selected_counts": {},
+      "limit": 0
+    },
+    "scheduling": {
+      "mode": "latency_first",
+      "combo_stage_requested": true,
+      "transform_probe_used": true,
+      "transform_refined": true,
+      "transform_probe_cap_s": 5.0
+    },
+    "candidate_bucket": {
+      "size": 60,
+      "exact": 22,
+      "similar": 36,
+      "discovery": 0,
+      "provenance_counts": {
+        "index_join": 22,
+        "seed": 6,
+        "similarity": 36
+      },
+      "provider_diagnostics": {
+        "requested": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "enabled": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "unknown": [],
+        "widen_prefilter": false
+      }
+    }
+  },
+  "fe70_input": {
+    "id": "FRO01",
+    "variant": "tail",
+    "start_index": 7,
+    "also_covers": [],
+    "command": [
+      "/home/rahidz/coding/oeis/.venv/bin/oeis",
+      "analyze",
+      "3,37,17,1,1,1,1,5,33,241,649,553,135,1,9,97,481,2129,5105,7473,11523,8849,2443,1793,7217,23873,55889,103593,176583,173553,275121,269845,289359,310273,686937,1234017,2103649,2992933,5351039,5592385,12775627,20413473,22430435,16222129,26288001,41911441,74436879",
+      "--deep",
+      "--time-cap",
+      "120",
+      "--subsequence",
+      "--json",
+      "--show-terms",
+      "60",
+      "--show-formula"
+    ]
+  }
+}

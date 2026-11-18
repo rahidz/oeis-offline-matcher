@@ -1,0 +1,412 @@
+{
+  "context": {
+    "args": {
+      "allow_constant_transforms": false,
+      "beta_values": "-3,-2,-1,1,2,3",
+      "cmd": "analyze",
+      "combo_candidates": 250,
+      "combo_coeffs": "-5,-4,-3,-2,-1,1,2,3,4,5",
+      "combo_component_transforms": "id,diff,partial_sum",
+      "combo_discovery": true,
+      "combo_discovery_limit": 16,
+      "combo_discovery_tools": "sympy",
+      "combo_expanded": true,
+      "combo_expanded_anchors": 800,
+      "combo_expanded_pointwise": null,
+      "combo_max_checks": 2000000,
+      "combo_max_combinations": null,
+      "combo_max_complexity": null,
+      "combo_max_shift": 5,
+      "combo_max_shift_back": 1,
+      "combo_min_score": null,
+      "combo_rational": false,
+      "combo_unfiltered": true,
+      "combo_wide_prefilter": true,
+      "combos": 20,
+      "convolution_limit": 5,
+      "convolution_ops": "cauchy,dirichlet",
+      "db": "data/processed/oeis.db",
+      "decimate": "2,3:1,4:1",
+      "deep": false,
+      "exclude_ids": [],
+      "extra_transforms": "diff2,cumprod,altsign,reverse,evenodd,movsum2,movsum3,movsum4,binomial,invbinomial,euler,eulerogf,inveulerogf,stirling1,stirling2,invstirling1,invstirling2,ogfinv,seriesrev,mobius,digitsum10,popcount,mod2,xorindex,rle,rledec,concat,log2,loge,exp2,omega,bigomega,tau,sigma,phi,v2,vp3,vp5,lpf,gpf,rad,squarefree,liouville,ratioint,indexsquare,primeindex,indexpow2,indexfactorial,indextri,indexfib,indexpowk3,indexpowk4",
+      "fast": false,
+      "growth_band": null,
+      "limit": 25,
+      "max": false,
+      "max_depth": 2,
+      "max_mse": null,
+      "min_corr": null,
+      "min_match_length": 3,
+      "modclass": 10,
+      "modclass_moduli": "2,3",
+      "no_abs": false,
+      "no_diff": false,
+      "no_gcd_norm": false,
+      "no_partial_sum": false,
+      "no_subsequence_fallback": false,
+      "pointwise_limit": 10,
+      "pointwise_ops": "mul,gcd,lcm",
+      "preset": "max",
+      "rerank": null,
+      "rerank_default_quota": 1,
+      "rerank_limit": 0,
+      "rerank_quotas": "",
+      "scale_values": "-5,-4,-3,-2,-1,2,3,4,5",
+      "sequence": "1,1,4,3,24,12,3,140,56,504,48,1540,9240,180180,10010,131040,2880,342720,64260,8139600",
+      "shift_values": "-1,1,2,3,4",
+      "show_formula": false,
+      "show_terms": null,
+      "similar": 20,
+      "subsequence": false,
+      "time_cap": 3600.0,
+      "tlimit": 80,
+      "transform_max_complexity": 7.0,
+      "transform_min_score": 0.8,
+      "triple_candidates": 200,
+      "triple_max_checks": 2000000,
+      "triple_max_combinations": null,
+      "triple_max_complexity": null,
+      "triple_min_score": null,
+      "triple_rational": false,
+      "triples": 10,
+      "variance_band": null
+    },
+    "cmd": "analyze",
+    "db": {
+      "bytes": 406351872,
+      "exists": true,
+      "mtime_ns": 1792945309412380286,
+      "path": "data/processed/oeis.db"
+    },
+    "query_terms": [
+      1,
+      1,
+      4,
+      3,
+      24,
+      12,
+      3,
+      140,
+      56,
+      504,
+      48,
+      1540,
+      9240,
+      180180,
+      10010,
+      131040,
+      2880,
+      342720,
+      64260,
+      8139600
+    ]
+  },
+  "created_utc": "2026-10-28T03:09:12Z",
+  "schema_version": 1,
+  "stages": {
+    "combo": {
+      "matches": []
+    },
+    "convolution": {
+      "matches": []
+    },
+    "exact": {
+      "fallback_used": true,
+      "matches": []
+    },
+    "modclass": {
+      "matches": []
+    },
+    "pointwise": {
+      "matches": [
+        {
+          "candidate_provenance": [
+            [
+              "seed"
+            ],
+            [
+              "similarity"
+            ]
+          ],
+          "coeffs": [
+            "1",
+            "1"
+          ],
+          "combined_terms": [
+            1,
+            4,
+            3
+          ],
+          "component_terms": [
+            [
+              1,
+              4,
+              9
+            ],
+            [
+              2,
+              324,
+              48869983488
+            ]
+          ],
+          "component_transforms": [
+            "id",
+            "id"
+          ],
+          "expression": "a(n) = gcd(A000290(n), A006475(n-1))",
+          "ids": [
+            "A000290",
+            "A006475"
+          ],
+          "latex_expression": "a_{n} = \\gcd(\\mathrm{A000290}(n), \\mathrm{A006475}(n-1))",
+          "length": 3,
+          "names": [
+            "The squares: a(n) = n^2.",
+            "Number of 2-tournaments on n nodes."
+          ],
+          "score": 1.0371428571428571,
+          "shifts": [
+            0,
+            -1
+          ]
+        },
+        {
+          "candidate_provenance": [
+            [
+              "exact",
+              "seed"
+            ],
+            [
+              "similarity"
+            ]
+          ],
+          "coeffs": [
+            "1",
+            "1"
+          ],
+          "combined_terms": [
+            1,
+            4,
+            3
+          ],
+          "component_terms": [
+            [
+              7,
+              8,
+              9
+            ],
+            [
+              2,
+              324,
+              48869983488
+            ]
+          ],
+          "component_transforms": [
+            "id",
+            "id"
+          ],
+          "expression": "a(n) = gcd(A000027(n+5), A006475(n-1))",
+          "ids": [
+            "A000027",
+            "A006475"
+          ],
+          "latex_expression": "a_{n} = \\gcd(\\mathrm{A000027}(n+5), \\mathrm{A006475}(n-1))",
+          "length": 3,
+          "names": [
+            "The positive integers. Also called the natural numbers, the whole numbers or the counting numbers, but these terms are ambiguous.",
+            "Number of 2-tournaments on n nodes."
+          ],
+          "score": 0.575,
+          "shifts": [
+            5,
+            -1
+          ]
+        },
+        {
+          "candidate_provenance": [
+            [
+              "exact"
+            ],
+            [
+              "similarity"
+            ]
+          ],
+          "coeffs": [
+            "1",
+            "1"
+          ],
+          "combined_terms": [
+            1,
+            4,
+            3
+          ],
+          "component_terms": [
+            [
+              -1,
+              4,
+              -3
+            ],
+            [
+              2,
+              324,
+              48869983488
+            ]
+          ],
+          "component_transforms": [
+            "diff",
+            "id"
+          ],
+          "expression": "a(n) = gcd(diff(A000001(n+5), A006475(n-1))",
+          "ids": [
+            "A000001",
+            "A006475"
+          ],
+          "latex_expression": "a_{n} = \\gcd(\\Delta\\,\\mathrm{A000001}(n+5), \\mathrm{A006475}(n-1))",
+          "length": 3,
+          "names": [
+            "Number of groups of order n.",
+            "Number of 2-tournaments on n nodes."
+          ],
+          "score": 0.49999999999999994,
+          "shifts": [
+            5,
+            -1
+          ]
+        },
+        {
+          "candidate_provenance": [
+            [
+              "exact",
+              "seed"
+            ],
+            [
+              "similarity"
+            ]
+          ],
+          "coeffs": [
+            "1",
+            "1"
+          ],
+          "combined_terms": [
+            1,
+            4,
+            3
+          ],
+          "component_terms": [
+            [
+              7,
+              8,
+              9
+            ],
+            [
+              2,
+              324,
+              48869983488
+            ]
+          ],
+          "component_transforms": [
+            "partial_sum",
+            "id"
+          ],
+          "expression": "a(n) = gcd(partial_sum(A000012(n+5), A006475(n-1))",
+          "ids": [
+            "A000012",
+            "A006475"
+          ],
+          "latex_expression": "a_{n} = \\gcd(\\mathrm{psum}\\,\\mathrm{A000012}(n+5), \\mathrm{A006475}(n-1))",
+          "length": 3,
+          "names": [
+            "The simplest sequence of positive numbers: the all 1's sequence.",
+            "Number of 2-tournaments on n nodes."
+          ],
+          "score": 0.4859154929577465,
+          "shifts": [
+            5,
+            -1
+          ]
+        }
+      ]
+    },
+    "similarity": {
+      "matches": [
+        {
+          "corr": 0.9834602788241459,
+          "id": "A286671",
+          "mse": 102485199777.32028,
+          "name": "Decimal representation of the diagonal from the origin to the corner of the n-th stage of growth of the two-dimensional cellular automaton defined by \"Rule 201\", based on the 5-celled von Neumann neighborhood.",
+          "offset": -78031.65730842557,
+          "scale": 8.551447279624718
+        },
+        {
+          "corr": 0.8848742937229066,
+          "id": "A287717",
+          "mse": 677897698442.4177,
+          "name": "Decimal representation of the diagonal from the origin to the corner of the n-th stage of growth of the two-dimensional cellular automaton defined by \"Rule 329\", based on the 5-celled von Neumann neighborhood.",
+          "offset": -151835.2073617503,
+          "scale": 12.614362085947008
+        },
+        {
+          "corr": 0.7412431446854797,
+          "id": "A288193",
+          "mse": 1407539996311.7622,
+          "name": "Decimal representation of the diagonal from the origin to the corner of the n-th stage of growth of the two-dimensional cellular automaton defined by \"Rule 429\", based on the 5-celled von Neumann neighborhood.",
+          "offset": -77555.20452053184,
+          "scale": 9.084242050730499
+        },
+        {
+          "corr": 0.5767258102413361,
+          "id": "A286641",
+          "mse": 2084910537387.0051,
+          "name": "Decimal representation of the diagonal from the origin to the corner of the n-th stage of growth of the two-dimensional cellular automaton defined by \"Rule 193\", based on the 5-celled von Neumann neighborhood.",
+          "offset": 4149.527745992504,
+          "scale": 12.862764121452253
+        },
+        {
+          "corr": 0.5767258102413361,
+          "id": "A288360",
+          "mse": 2084910537387.0051,
+          "name": "Decimal representation of the diagonal from the origin to the corner of the n-th stage of growth of the two-dimensional cellular automaton defined by \"Rule 449\", based on the 5-celled von Neumann neighborhood.",
+          "offset": 4149.527745992504,
+          "scale": 12.862764121452253
+        },
+        {
+          "corr": 0.43739622468596695,
+          "id": "A288400",
+          "mse": 2526321408574.791,
+          "name": "Decimal representation of the diagonal from the origin to the corner of the n-th stage of growth of the two-dimensional cellular automaton defined by \"Rule 457\", based on the 5-celled von Neumann neighborhood.",
+          "offset": 83068.59358767048,
+          "scale": 11.804073582005415
+        },
+        {
+          "corr": 0.21447302822180778,
+          "id": "A288011",
+          "mse": 2980289385899.2783,
+          "name": "Decimal representation of the diagonal from the origin to the corner of the n-th stage of growth of the two-dimensional cellular automaton defined by \"Rule 397\", based on the 5-celled von Neumann neighborhood.",
+          "offset": 300954.91295347165,
+          "scale": 3.7124549143132697
+        },
+        {
+          "corr": 0.19166864040336978,
+          "id": "A288434",
+          "mse": 3009223182712.37,
+          "name": "Decimal representation of the diagonal from the origin to the corner of the n-th stage of growth of the two-dimensional cellular automaton defined by \"Rule 461\", based on the 5-celled von Neumann neighborhood.",
+          "offset": 310026.76125900523,
+          "scale": 4.501957884874448
+        },
+        {
+          "corr": -0.06542522682126513,
+          "id": "A288664",
+          "mse": 3110616634128.219,
+          "name": "Decimal representation of the diagonal from the origin to the corner of the n-th stage of growth of the two-dimensional cellular automaton defined by \"Rule 493\", based on the 5-celled von Neumann neighborhood.",
+          "offset": 479058.57913905603,
+          "scale": -0.99980628143574
+        }
+      ]
+    },
+    "triple": {
+      "matches": []
+    }
+  },
+  "updated_utc": "2026-10-28T03:52:49Z"
+}

@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "query": [
+    8,
+    4,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    64,
+    96,
+    56,
+    12,
+    0,
+    0,
+    0,
+    0
+  ],
+  "exact_matches": [],
+  "transform_matches": [],
+  "similarity": [
+    {
+      "id": "A173896",
+      "name": "Exponents in the prime factorization of 43252003274489856000, the number of possible moves for a 3 X 3 X 3 Rubik's Cube: 2^27 * 3^14 * 5^3 * 7^2 * 11^1.",
+      "corr": 0.9977977560745227,
+      "mse": 0.045052292839903474,
+      "scale": 0.32019308125502816,
+      "offset": -0.6098149637972646
+    },
+    {
+      "id": "A266173",
+      "name": "Number of species of sets of four orthogonal Latin squares.",
+      "corr": 0.9914411656654221,
+      "mse": 6.693194482506623,
+      "scale": 0.6545354891751165,
+      "offset": 1.1718278980542607
+    },
+    {
+      "id": "A255538",
+      "name": "Number of connected rigid digital images of n points, up to isomorphism.",
+      "corr": 0.9889212870675816,
+      "mse": 8.652831548322112,
+      "scale": 0.11526791114391446,
+      "offset": 1.1057207682818904
+    },
+    {
+      "id": "A248571",
+      "name": "Number of connected irreducible digital images of n points up to homotopy equivalence.",
+      "corr": 0.9885472683945272,
+      "mse": 8.943270068472186,
+      "scale": 0.11470469217992588,
+      "offset": 1.0396193159403408
+    },
+    {
+      "id": "A090163",
+      "name": "Triangle T(j,k) read by rows, where T(j,K)=number of different configurations having the largest required number of moves S(j,k)=A090033(n) in optimal solutions of the j X k generalization of Sam Loyd's sliding block 15-puzzle, starting with the empty square in a corner.",
+      "corr": 0.9878979035203526,
+      "mse": 9.447263536502382,
+      "scale": 3.6850393700787403,
+      "offset": -2.610673665791776
+    },
+    {
+      "id": "A081419",
+      "name": "Largest value held in any register at the end of a halting computation by an n-instruction register Minsky machine.",
+      "corr": 0.9864180822281169,
+      "mse": 10.59456428684792,
+      "scale": 0.12110975571611773,
+      "offset": 0.6530501600408706
+    },
+    {
+      "id": "A350585",
+      "name": "a(n) is the number of distinct numbers of transversals that an orthogonal diagonal Latin square of order n can have.",
+      "corr": 0.9853657426048009,
+      "mse": 11.40939345425544,
+      "scale": 0.2127865449235587,
+      "offset": 0.7131999788884779
+    },
+    {
+      "id": "A112647",
+      "name": "a(n)=x is the smallest solution to abs(sigma(x+1)-sigma(x))=n, or 0 if no solution exists.",
+      "corr": 0.9851959723543411,
+      "mse": 11.540765503385163,
+      "scale": 1.0829661145722536,
+      "offset": -4.671478498708404
+    },
+    {
+      "id": "A263822",
+      "name": "Conjectured number of terms in A263644 less than 10^n.",
+      "corr": 0.9836177640652112,
+      "mse": 12.760935367925946,
+      "scale": 0.44320473868307503,
+      "offset": 0.811473944902597
+    },
+    {
+      "id": "A006181",
+      "name": "Maximal partial Steiner triple systems of order n.",
+      "corr": 0.9832101016409305,
+      "mse": 13.07579601186907,
+      "scale": 0.13314653383146532,
+      "offset": 0.45565241455652483
+    }
+  ],
+  "combinations": [],
+  "triple_combinations": [],
+  "modclass_combinations": [],
+  "pointwise_combinations": [],
+  "convolution_combinations": [],
+  "combined_combinations": [],
+  "ranked_explanations": [],
+  "diagnostics": {
+    "query_length": 16,
+    "exact_limit": 15,
+    "transform_limit": 60,
+    "similarity_limit": 10,
+    "combination_limit": 10,
+    "combo_candidate_cap": 60,
+    "combo_max_checks": 400000,
+    "triple_limit": 4,
+    "triple_candidate_cap": 30,
+    "triple_max_checks": 350000,
+    "pointwise_limit": 0,
+    "convolution_limit": 0,
+    "variance_band": null,
+    "growth_band": null,
+    "excluded_ids": [],
+    "query_var": 817.0,
+    "query_diff_var": 588.5155555555556,
+    "query_growth": 0.7507552223693231,
+    "combined_combinations_count": 0,
+    "combined_explanations": [],
+    "ranking": {
+      "enabled": true,
+      "mode": "auto_preset_deepmax",
+      "configured_limit": 0,
+      "default_quota": 1,
+      "quota_overrides": {},
+      "input_counts": {},
+      "post_dedupe_counts": {},
+      "quotas": {},
+      "dedupe_dropped": 0,
+      "selected_count": 0,
+      "selected_counts": {},
+      "limit": 0
+    },
+    "scheduling": {
+      "mode": "latency_first",
+      "combo_stage_requested": true,
+      "transform_probe_used": true,
+      "transform_refined": true,
+      "transform_probe_cap_s": 5.0
+    },
+    "candidate_bucket": {
+      "size": 60,
+      "exact": 21,
+      "similar": 36,
+      "discovery": 0,
+      "provenance_counts": {
+        "index_join": 21,
+        "seed": 6,
+        "similarity": 36
+      },
+      "provider_diagnostics": {
+        "requested": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "enabled": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "unknown": [],
+        "widen_prefilter": false
+      }
+    }
+  },
+  "fe70_input": {
+    "id": "LAN16",
+    "variant": "window16",
+    "start_index": 8,
+    "also_covers": [],
+    "command": [
+      "/home/rahidz/coding/oeis/.venv/bin/oeis",
+      "analyze",
+      "8,4,0,0,0,0,0,0,64,96,56,12,0,0,0,0",
+      "--deep",
+      "--time-cap",
+      "120",
+      "--subsequence",
+      "--json",
+      "--show-terms",
+      "60",
+      "--show-formula"
+    ]
+  }
+}

@@ -1,0 +1,4105 @@
+{
+  "context": {
+    "args": {
+      "allow_constant_transforms": false,
+      "beta_values": "-3,-2,-1,1,2,3",
+      "cmd": "analyze",
+      "combo_candidates": 250,
+      "combo_coeffs": "-5,-4,-3,-2,-1,1,2,3,4,5",
+      "combo_component_transforms": "id,diff,partial_sum",
+      "combo_discovery": true,
+      "combo_discovery_limit": 16,
+      "combo_discovery_tools": "sympy",
+      "combo_expanded": true,
+      "combo_expanded_anchors": 800,
+      "combo_expanded_pointwise": null,
+      "combo_max_checks": 2000000,
+      "combo_max_combinations": null,
+      "combo_max_complexity": null,
+      "combo_max_shift": 5,
+      "combo_max_shift_back": 1,
+      "combo_min_score": null,
+      "combo_rational": false,
+      "combo_unfiltered": true,
+      "combo_wide_prefilter": true,
+      "combos": 20,
+      "convolution_limit": 5,
+      "convolution_ops": "cauchy,dirichlet",
+      "db": "data/processed/oeis.db",
+      "decimate": "2,3:1,4:1",
+      "deep": false,
+      "exclude_ids": [],
+      "extra_transforms": "diff2,cumprod,altsign,reverse,evenodd,movsum2,movsum3,movsum4,binomial,invbinomial,euler,eulerogf,inveulerogf,stirling1,stirling2,invstirling1,invstirling2,ogfinv,seriesrev,mobius,digitsum10,popcount,mod2,xorindex,rle,rledec,concat,log2,loge,exp2,omega,bigomega,tau,sigma,phi,v2,vp3,vp5,lpf,gpf,rad,squarefree,liouville,ratioint,indexsquare,primeindex,indexpow2,indexfactorial,indextri,indexfib,indexpowk3,indexpowk4",
+      "fast": false,
+      "growth_band": null,
+      "limit": 25,
+      "max": false,
+      "max_depth": 2,
+      "max_mse": null,
+      "min_corr": null,
+      "min_match_length": 3,
+      "modclass": 10,
+      "modclass_moduli": "2,3",
+      "no_abs": false,
+      "no_diff": false,
+      "no_gcd_norm": false,
+      "no_partial_sum": false,
+      "no_subsequence_fallback": false,
+      "pointwise_limit": 10,
+      "pointwise_ops": "mul,gcd,lcm",
+      "preset": "max",
+      "rerank": null,
+      "rerank_default_quota": 1,
+      "rerank_limit": 0,
+      "rerank_quotas": "",
+      "scale_values": "-5,-4,-3,-2,-1,2,3,4,5",
+      "sequence": "1,1,5,4,35,19,5,327,201,1895,193,6541,37831,825299,25481,503729,11851,1484003,300479,39553121",
+      "shift_values": "-1,1,2,3,4",
+      "show_formula": false,
+      "show_terms": null,
+      "similar": 20,
+      "subsequence": false,
+      "time_cap": 3600.0,
+      "tlimit": 80,
+      "transform_max_complexity": 7.0,
+      "transform_min_score": 0.8,
+      "triple_candidates": 200,
+      "triple_max_checks": 2000000,
+      "triple_max_combinations": null,
+      "triple_max_complexity": null,
+      "triple_min_score": null,
+      "triple_rational": false,
+      "triples": 10,
+      "variance_band": null
+    },
+    "cmd": "analyze",
+    "db": {
+      "bytes": 406351872,
+      "exists": true,
+      "mtime_ns": 1792945309412380286,
+      "path": "data/processed/oeis.db"
+    },
+    "query_terms": [
+      1,
+      1,
+      5,
+      4,
+      35,
+      19,
+      5,
+      327,
+      201,
+      1895,
+      193,
+      6541,
+      37831,
+      825299,
+      25481,
+      503729,
+      11851,
+      1484003,
+      300479,
+      39553121
+    ]
+  },
+  "created_utc": "2026-10-28T04:15:09Z",
+  "schema_version": 1,
+  "stages": {
+    "combo": {
+      "matches": []
+    },
+    "convolution": {
+      "matches": []
+    },
+    "exact": {
+      "fallback_used": true,
+      "matches": []
+    },
+    "modclass": {
+      "matches": []
+    },
+    "pointwise": {
+      "matches": []
+    },
+    "similarity": {
+      "matches": []
+    },
+    "transform": {
+      "matches": [
+        {
+          "explanation": "v2, then Divide by gcd",
+          "formula": "a(n) = A179184(n) - A185114(n).\na(n) = [n = 3], where [ ] is the Iverson bracket. - _Wesley Ivan Hurt_, Dec 13 2013",
+          "has_formula": true,
+          "id": "A185013",
+          "keywords": [
+            "nonn",
+            "easy"
+          ],
+          "latex": "\\mathrm{v2} /\\gcd\\,a_n",
+          "length": 20,
+          "match_type": "prefix",
+          "name": "Characteristic function of {3}.",
+          "offset": 0,
+          "score": 8.451591674832358,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "symbolic": "A185013(n) = v2(a(n))/gcd",
+          "symbolic_latex": "\\mathrm{A185013}(n) = \\mathrm{v2}(a_n)/\\gcd",
+          "transform_desc": "v2 \u2218 gcd_norm",
+          "transformed_terms": [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then p-adic valuation 3",
+          "formula": null,
+          "has_formula": null,
+          "id": "A103675",
+          "keywords": [
+            "base",
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{v_p}\\,a_n",
+          "length": 20,
+          "match_type": "prefix",
+          "name": "a(n) = 1 if the binary representation of n! contains 7! (bit string \"1001110110000\"), otherwise a(n) = 0.",
+          "offset": 0,
+          "score": 8.285874191012114,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "symbolic": "A103675(n) = vp(3)(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A103675}(n) = \\mathrm{vp(3)}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 vp(3)",
+          "transformed_terms": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "explanation": "v2, then Divide by gcd",
+          "formula": "T(d^(2x), d^(2y-1)) = 1 for all positive integers d > 1, x, y.\nT(A000302(n), A004171(k)) = T(A001019(n), A013708(k)) = T(A001025(n), A013709(k)) = T(A009969(n), A013710(k)) = T(A009980(n), A013711(k)) = T(A087752(n), A013712(k)) = T(A089357(n), A013713(k)) = T(A089683(n), A013714(k)) = T(A098608(n), A013715(k)) = 1 for all n >= 1, k >= 0.",
+          "has_formula": true,
+          "id": "A346459",
+          "keywords": [
+            "nonn",
+            "tabl"
+          ],
+          "latex": "\\mathrm{v2} /\\gcd\\,a_n",
+          "length": 20,
+          "match_type": "prefix",
+          "name": "Triangle read by rows: T(n,k) = 0 if all positive integers can be colored with two colors without any positive integer x being the same color as n*x or k*x; otherwise, T(n,k) = 1 (for 2 <= k <= n).",
+          "offset": 0,
+          "score": 8.049134928411767,
+          "seq_offset": [
+            2,
+            0
+          ],
+          "snippet": [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "symbolic": "A346459(n) = v2(a(n))/gcd",
+          "symbolic_latex": "\\mathrm{A346459}(n) = \\mathrm{v2}(a_n)/\\gcd",
+          "transform_desc": "v2 \u2218 gcd_norm",
+          "transformed_terms": [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "explanation": "Moving sum 3, then v2",
+          "formula": null,
+          "has_formula": null,
+          "id": "A236619",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{movsum} \\mathrm{v2}\\,a_n",
+          "length": 18,
+          "match_type": "prefix",
+          "name": "a(n) = |{0 < k < n: prime(m)^3 + 2*m^3 and m^3 + 2*prime(m)^3 are both prime with m = 3*phi(k) + phi(n-k) - 1}|, where phi(.) is Euler's totient function.",
+          "offset": 0,
+          "score": 5.513872643473518,
+          "seq_offset": [
+            1,
+            3
+          ],
+          "snippet": [
+            0,
+            1,
+            2,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "symbolic": "A236619(n) = v2(movsum(a(n)))",
+          "symbolic_latex": "\\mathrm{A236619}(n) = \\mathrm{v2}(\\mathrm{movsum}(3,a_n))",
+          "transform_desc": "movsum(3) \u2218 v2",
+          "transformed_terms": [
+            0,
+            1,
+            2,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "G.f.: (1+x-sqrt(1-2*x-19*x^2))/(2*x). - C. Ronaldo (aga_new_ac(AT)hotmail.com), Dec 19 2004\nG.f.: 1 + 5*x/G(x) with G(x) = (1 - x - 5*x^2/G(x)) (continued fraction). - _Nikolaos Pantelidis_, Dec 12 2022\nD-finite with recurrence: 19*n*a(n) + (3 + 2*n)*a(1 + n) + (-3 - n)*a(n + 2) = 0. - _Robert Israel_, Apr 29 2026",
+          "has_formula": true,
+          "id": "A014434",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(n) = Sum_{i=0..n-1} a(i) * a(n-i), a(0) = 1, a(1) = 5.",
+          "offset": 0,
+          "score": 1.1611681436997656,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            30,
+            80,
+            405,
+            1505,
+            7255,
+            31155,
+            149455,
+            688655,
+            3334880,
+            15965130,
+            78294155,
+            383599455,
+            1903940030,
+            9474093880,
+            47514889255,
+            239112929655,
+            1209724381330
+          ],
+          "symbolic": "A014434(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A014434}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "G.f.: x^(5/8)*theta_2(sqrt(x))^5/theta_2(x)^5, where theta_() is the Jacobi theta function. - _Ilya Gutkovskiy_, Dec 04 2017\nEmpirical: Sum_{n>=0} a(n) / exp(n*Pi) = 8 * exp(-5*Pi/8) * 2^(1/8) = A388381. - _Simon Plouffe_, Sep 15 2025",
+          "has_formula": true,
+          "id": "A029842",
+          "keywords": [
+            "sign"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Expansion of Product_{m>=1} ((1+q^(2*m-1))/(1+q^(2*m)))^5.",
+          "offset": 0,
+          "score": 1.1611681436997656,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            -10,
+            -10,
+            31,
+            20,
+            -75,
+            -40,
+            150,
+            84,
+            -280,
+            -165,
+            520,
+            290,
+            -935,
+            -495,
+            1595,
+            855,
+            -2640
+          ],
+          "symbolic": "A029842(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A029842}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "T(n,0) = A000328(n).",
+          "has_formula": true,
+          "id": "A049735",
+          "keywords": [
+            "nonn",
+            "tabl"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Array T(i,j) is the number of lattice points (x,y) in circle with radius (0,0)-to-(i,j), read by antidiagonals.",
+          "offset": 0,
+          "score": 1.1611681436997656,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            13,
+            9,
+            13,
+            29,
+            21,
+            21,
+            29,
+            49,
+            37,
+            25,
+            37,
+            49,
+            81,
+            57,
+            45,
+            45,
+            57
+          ],
+          "symbolic": "A049735(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A049735}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "a(n) = 5^floor((n+1)/2).\na(n) = 5*a(n-2). - _Colin Barker_, May 06 2012\nG.f.: (1+5*x) / (1-5*x^2). - _Colin Barker_, May 06 2012 [Adapted to offset 0 by _Robert A. Russell_, Nov 07 2018]\na(n) = C(5,0)*A000007(n) + C(5,1)*A057427(n) + C(5,2)*A056453(n) + C(5,3)*A056454(n) + C(5,4)*A056455(n) + C(5,5)*A056456(n). - _Robert A. Russell_, Nov 08 2018\nE.g.f.: cosh(sqrt(5)*x) + sqrt(5)*sinh(sqrt(5)*x). - _Stefano Spezia_, Jun 06 2023",
+          "has_formula": true,
+          "id": "A056451",
+          "keywords": [
+            "nonn",
+            "easy"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Number of palindromes using a maximum of five different symbols.",
+          "offset": 0,
+          "score": 1.1611681436997656,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            25,
+            25,
+            125,
+            125,
+            625,
+            625,
+            3125,
+            3125,
+            15625,
+            15625,
+            78125,
+            78125,
+            390625,
+            390625,
+            1953125,
+            1953125,
+            9765625
+          ],
+          "symbolic": "A056451(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A056451}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "a(0)=1; thereafter a(2t)=a(t), a(4t+1)=5*a(t), a(4t+3)=3*a(2t+1)+2*a(t). - _N. J. A. Sloane_, Jan 26 2015",
+          "has_formula": true,
+          "id": "A072272",
+          "keywords": [
+            "nonn",
+            "nice"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Number of active cells in n-th stage of growth of two-dimensional cellular automaton defined by \"Rule 614\", based on the 5-celled von Neumann neighborhood.",
+          "offset": 0,
+          "score": 1.1611681436997656,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            17,
+            5,
+            25,
+            17,
+            61,
+            5,
+            25,
+            25,
+            85,
+            17,
+            85,
+            61,
+            217,
+            5,
+            25,
+            25,
+            85
+          ],
+          "symbolic": "A072272(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A072272}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "a(n) = a(n-1) + A151921(n) (and we have an explicit formula for A151921).",
+          "has_formula": true,
+          "id": "A079317",
+          "keywords": [
+            "nonn",
+            "easy"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Number of ON cells after n generations of cellular automaton on square grid in which cells which share exactly one edge with an ON cell change their state.",
+          "offset": 0,
+          "score": 1.1611681436997656,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            17,
+            9,
+            29,
+            21,
+            65,
+            25,
+            77,
+            37,
+            113,
+            49,
+            149,
+            85,
+            257,
+            89,
+            269,
+            101,
+            305
+          ],
+          "symbolic": "A079317(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A079317}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "G.f. : (1+4x)/(1-x-16x^3); a(n)=a(n-1)+16a(n-3).",
+          "has_formula": true,
+          "id": "A097336",
+          "keywords": [
+            "easy",
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Sum k=0..n, C(n-k, floor(k/2))4^k.",
+          "offset": 0,
+          "score": 1.1611681436997656,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            21,
+            101,
+            181,
+            517,
+            2133,
+            5029,
+            13301,
+            47429,
+            127893,
+            340709,
+            1099573,
+            3145861,
+            8597205,
+            26190373,
+            76524149,
+            214079429,
+            633125397
+          ],
+          "symbolic": "A097336(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A097336}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "G.f.: (1 +4*x +x^4 +2*x^5)/(1 -x -x^8 +x^9). - _G. C. Greubel_, Apr 30 2018",
+          "has_formula": true,
+          "id": "A127934",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(8n)=8n+1, a(8n+1)=a(8n+2)=a(8n+3)=8n+5, a(8n+4)=8n+6, a(8n+5)=a(8n+6)=a(8n+7)=8n+8.",
+          "offset": 0,
+          "score": 1.1611681436997656,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            5,
+            6,
+            8,
+            8,
+            8,
+            9,
+            13,
+            13,
+            13,
+            14,
+            16,
+            16,
+            16,
+            17,
+            21,
+            21,
+            21
+          ],
+          "symbolic": "A127934(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A127934}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "T(n,k) = 5*binomial(n,k), n > 0, 0 <= k <= n.\nEquals 2*A134059(n,k) - A007318(n,k).\nG.f.: (1+4*x+4*x*y)/(1-x-x*y). - _Philippe Del\u00e9ham_, Nov 24 2013\nSum_{k=0..n} T(n,k) = A020714(n) - 4*[n=0]. - _G. C. Greubel_, May 03 2021",
+          "has_formula": true,
+          "id": "A135089",
+          "keywords": [
+            "nonn",
+            "tabl"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Triangle T(n,k) = 5*binomial(n,k) with T(0,0) = 1, read by rows.",
+          "offset": 0,
+          "score": 1.1611681436997656,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            5,
+            10,
+            5,
+            5,
+            15,
+            15,
+            5,
+            5,
+            20,
+            30,
+            20,
+            5,
+            5,
+            25,
+            50,
+            50,
+            25
+          ],
+          "symbolic": "A135089(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A135089}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "Expansion of eta(q^2)^15 * eta(q^5) * eta(q^20) / (eta(q)^5 * eta(q^4)^5 * eta(q^10)^3) in powers of q.\nEuler transform of period 20 sequence [ 5, -10, 5, -5, 4, -10, 5, -5, 5, -8, 5, -5, 5, -10, 4, -5, 5, -10, 5, -4, ...].\na(n) = 5*b(n) where b() is multiplicative with b(2^e) = ((-2)^(n+1) - 1) / 3, b(p^e) = ((-p)^(e+1) - 1) / (-p - 1) if p == 2, 3 (mod 5), b(p^e) = (p^(e+1) - 1) / (p - 1) if p == 1, 4 (mod 5).\nG.f.: Product_{k>0} (1 - (-x)^k)^5 / (1 - (-x)^(5*k)).\na(n) = (-1)^n * A109064(n). a(n) = 5 * A138507(n) unless n=0.\nSum_{k=1..n} abs(a(k)) ~ c * n^2, where c = Pi^2/(3*sqrt(5)) = 1.471273... . - _Amiram Eldar_, Jan 29 2024\nEmpirical: Sum_{n>=0} a(n) / exp(n*Pi) = -(1/8) * Pi * 2^(4/5) * 5^(1/4) * Gamma(4/5)^2 * (-5+5^(1/2)) / Gamma(3/4)^4 / Gamma(9/10) / Gamma(7/10) = A388636. - _Simon Plouffe_, Sep 18 2025",
+          "has_formula": true,
+          "id": "A138506",
+          "keywords": [
+            "sign"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Expansion of f(q)^5 / f(q^5) in powers of q where f() is a Ramanujan theta function.",
+          "offset": 0,
+          "score": 1.1611681436997656,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            -10,
+            -15,
+            5,
+            -10,
+            -30,
+            25,
+            35,
+            5,
+            60,
+            30,
+            -60,
+            -30,
+            -10,
+            -55,
+            -80,
+            35,
+            100
+          ],
+          "symbolic": "A138506(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A138506}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "index_factorial, then Partial sums",
+          "formula": "a(n) = a(n-1) * (a(n-1) - 5) + 5. - _Charles R Greathouse IV_, Dec 09 2011\na(n) ~ c^(2^n), where c = 1.696053774403103324180661918166106455311376345474042496749974632237971081462... . - _Vaclav Kotesovec_, Dec 17 2014",
+          "has_formula": true,
+          "id": "A001543",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{index_factorial} \\mathrm{psum}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(0) = 1, a(n) = 5 + Product_{i=0..n-1} a(i) for n > 0.",
+          "offset": 0,
+          "score": 0.8571719834972362,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            6,
+            11,
+            71,
+            4691,
+            21982031,
+            483209576974811,
+            233491495280173380882643611671,
+            54518278368171228201482876236565907627201914279213829353891
+          ],
+          "symbolic": "A001543(n) = \u03a3 index_factorial(a(n))",
+          "symbolic_latex": "\\mathrm{A001543}(n) = \\Sigma \\mathrm{index_factorial}(a_n)",
+          "transform_desc": "index_factorial \u2218 partial_sum",
+          "transformed_terms": [
+            1,
+            6,
+            11
+          ]
+        },
+        {
+          "explanation": "index_factorial, then Partial sums",
+          "formula": "a(n) = floor( (n+1/4)*(3+sqrt(5)) ). - _R. J. Mathar_, Feb 14 2011",
+          "has_formula": true,
+          "id": "A001964",
+          "keywords": [
+            "nonn",
+            "easy"
+          ],
+          "latex": "\\mathrm{index_factorial} \\mathrm{psum}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "v-pile positions of the 4-Wythoff game with i=1.",
+          "offset": 0,
+          "score": 0.8571719834972362,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            6,
+            11,
+            17,
+            22,
+            27,
+            32,
+            37,
+            43,
+            48,
+            53,
+            58,
+            64,
+            69,
+            74,
+            79,
+            85,
+            90,
+            95,
+            100
+          ],
+          "symbolic": "A001964(n) = \u03a3 index_factorial(a(n))",
+          "symbolic_latex": "\\mathrm{A001964}(n) = \\Sigma \\mathrm{index_factorial}(a_n)",
+          "transform_desc": "index_factorial \u2218 partial_sum",
+          "transformed_terms": [
+            1,
+            6,
+            11
+          ]
+        },
+        {
+          "explanation": "index_factorial, then Partial sums",
+          "formula": "G.f.: (1+4*x)/(1-x)^2.\nRow sums of triangle A131843. - _Gary W. Adamson_, Jul 21 2007\na(n) = 2*a(n-1) - a(n-2) with a(0)=1, a(1)=6. - _Vincenzo Librandi_, Aug 01 2010\na(n) = A017293(n)/2 = A008587(n)+1. - _Wesley Ivan Hurt_, May 03 2014\nE.g.f.: exp(x)*(1 + 5*x). - _Stefano Spezia_, Mar 23 2021\nSum_{n>=0} (-1)^n/a(n) = sqrt(2+2/sqrt(5))*Pi/10 + log(phi)/sqrt(5) + log(2)/5, where phi is the golden ratio (A001622). - _Amiram Eldar_, Apr 15 2023",
+          "has_formula": true,
+          "id": "A016861",
+          "keywords": [
+            "nonn",
+            "easy"
+          ],
+          "latex": "\\mathrm{index_factorial} \\mathrm{psum}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(n) = 5*n + 1.",
+          "offset": 0,
+          "score": 0.8571719834972362,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            6,
+            11,
+            16,
+            21,
+            26,
+            31,
+            36,
+            41,
+            46,
+            51,
+            56,
+            61,
+            66,
+            71,
+            76,
+            81,
+            86,
+            91,
+            96
+          ],
+          "symbolic": "A016861(n) = \u03a3 index_factorial(a(n))",
+          "symbolic_latex": "\\mathrm{A016861}(n) = \\Sigma \\mathrm{index_factorial}(a_n)",
+          "transform_desc": "index_factorial \u2218 partial_sum",
+          "transformed_terms": [
+            1,
+            6,
+            11
+          ]
+        },
+        {
+          "explanation": "index_factorial, then Partial sums",
+          "formula": "a(2n) = 6*[10^{2^(n)} - 1]/9 a(2n+1) = [10^(2^n) - 1]/9",
+          "has_formula": true,
+          "id": "A061519",
+          "keywords": [
+            "base",
+            "nonn"
+          ],
+          "latex": "\\mathrm{index_factorial} \\mathrm{psum}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(0) = 1; a(n) is obtained by incrementing each digit of a(n-1) by 5.",
+          "offset": 0,
+          "score": 0.8571719834972362,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            6,
+            11,
+            66,
+            1111,
+            6666,
+            11111111,
+            66666666,
+            1111111111111111,
+            6666666666666666,
+            11111111111111111111111111111111,
+            66666666666666666666666666666666
+          ],
+          "symbolic": "A061519(n) = \u03a3 index_factorial(a(n))",
+          "symbolic_latex": "\\mathrm{A061519}(n) = \\Sigma \\mathrm{index_factorial}(a_n)",
+          "transform_desc": "index_factorial \u2218 partial_sum",
+          "transformed_terms": [
+            1,
+            6,
+            11
+          ]
+        },
+        {
+          "explanation": "index_factorial, then Partial sums",
+          "formula": "a(n) = a(n-5). - _R. J. Mathar_, Apr 20 2010\nG.f.: ( -1-6*x-11*x^2-16*x^3-21*x^4 ) / ((x-1)*(1+x+x^2+x^3+x^4)).  - _R. J. Mathar_, Apr 20 2010",
+          "has_formula": true,
+          "id": "A070397",
+          "keywords": [
+            "nonn",
+            "easy"
+          ],
+          "latex": "\\mathrm{index_factorial} \\mathrm{psum}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(n) = 6^n mod 25.",
+          "offset": 0,
+          "score": 0.8571719834972362,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            6,
+            11,
+            16,
+            21,
+            1,
+            6,
+            11,
+            16,
+            21,
+            1,
+            6,
+            11,
+            16,
+            21,
+            1,
+            6,
+            11,
+            16,
+            21
+          ],
+          "symbolic": "A070397(n) = \u03a3 index_factorial(a(n))",
+          "symbolic_latex": "\\mathrm{A070397}(n) = \\Sigma \\mathrm{index_factorial}(a_n)",
+          "transform_desc": "index_factorial \u2218 partial_sum",
+          "transformed_terms": [
+            1,
+            6,
+            11
+          ]
+        },
+        {
+          "explanation": "index_factorial, then Partial sums",
+          "formula": "After 1 step enters a cycle of length 207.\nIt appears that there is a unique cycle of length 207 for the reverse-and-add-5 problem. Klaus Brockhaus has done an extensive search without finding any further cycle of length 207. There are many cycles of lengths 36 and 756. See A118878.",
+          "has_formula": true,
+          "id": "A117800",
+          "keywords": [
+            "nonn",
+            "base"
+          ],
+          "latex": "\\mathrm{index_factorial} \\mathrm{psum}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Start with 1 and repeatedly reverse the digits and add 5 to get the next term.",
+          "offset": 0,
+          "score": 0.8571719834972362,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            6,
+            11,
+            16,
+            66,
+            71,
+            22,
+            27,
+            77,
+            82,
+            33,
+            38,
+            88,
+            93,
+            44,
+            49,
+            99,
+            104,
+            406,
+            609
+          ],
+          "symbolic": "A117800(n) = \u03a3 index_factorial(a(n))",
+          "symbolic_latex": "\\mathrm{A117800}(n) = \\Sigma \\mathrm{index_factorial}(a_n)",
+          "transform_desc": "index_factorial \u2218 partial_sum",
+          "transformed_terms": [
+            1,
+            6,
+            11
+          ]
+        },
+        {
+          "explanation": "index_factorial, then Partial sums",
+          "formula": "G.f. -(x^2+3*x+1)^2 / ( (x-1)*(1+x+x^2+x^3+x^4) ). - _R. J. Mathar_, Apr 02 2011",
+          "has_formula": true,
+          "id": "A134012",
+          "keywords": [
+            "nonn",
+            "easy"
+          ],
+          "latex": "\\mathrm{index_factorial} \\mathrm{psum}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Period 5: repeat [1, 6, 11, 6, 1].",
+          "offset": 0,
+          "score": 0.8571719834972362,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            6,
+            11,
+            6,
+            1,
+            1,
+            6,
+            11,
+            6,
+            1,
+            1,
+            6,
+            11,
+            6,
+            1,
+            1,
+            6,
+            11,
+            6,
+            1
+          ],
+          "symbolic": "A134012(n) = \u03a3 index_factorial(a(n))",
+          "symbolic_latex": "\\mathrm{A134012}(n) = \\Sigma \\mathrm{index_factorial}(a_n)",
+          "transform_desc": "index_factorial \u2218 partial_sum",
+          "transformed_terms": [
+            1,
+            6,
+            11
+          ]
+        },
+        {
+          "explanation": "index_factorial, then Partial sums",
+          "formula": "G.f.: f(z) = (1-sqrt(1-4*z*(a(0)-z*a(0)^2+z*a(1)+(k+l)*z^2/(1-z)+k*z^2/(1-z)^2)))/(2*z) (k=0, l=-1).\nD-finite with recurrence: (n+1)*a(n) = 2*(3*n-1)*a(n-1) - (27 - 11*n)*a(n-2) - 4*(10*n-31)*a(n-3) + 24*(n-4)*a(n-4). - _Vaclav Kotesovec_, Oct 24 2012\na(n) ~ sqrt(5*sqrt(2)-3)*(4+2*sqrt(2))^n/(sqrt(Pi)*n^(3/2)). - _Vaclav Kotesovec_, Oct 24 2012",
+          "has_formula": true,
+          "id": "A177162",
+          "keywords": [
+            "easy",
+            "nonn"
+          ],
+          "latex": "\\mathrm{index_factorial} \\mathrm{psum}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Sequence defined by the recurrence formula a(n+1) = sum(a(p)*a(n-p)+k,p=0..n)+l for n>=1, with here a(0)=1, a(1)=6, k=0 and l=-1.",
+          "offset": 0,
+          "score": 0.8571719834972362,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            6,
+            11,
+            57,
+            245,
+            1294,
+            6781,
+            37728,
+            213225,
+            1235908,
+            7267625,
+            43355213,
+            261455499,
+            1592057090,
+            9772992459,
+            60420010845,
+            375850271829,
+            2350842606832,
+            14775426937345,
+            93270580122351
+          ],
+          "symbolic": "A177162(n) = \u03a3 index_factorial(a(n))",
+          "symbolic_latex": "\\mathrm{A177162}(n) = \\Sigma \\mathrm{index_factorial}(a_n)",
+          "transform_desc": "index_factorial \u2218 partial_sum",
+          "transformed_terms": [
+            1,
+            6,
+            11
+          ]
+        },
+        {
+          "explanation": "index_factorial, then Partial sums",
+          "formula": "G.f f: f(z)=(1-sqrt(1-4*z*(a(0)-z*a(0)^2+z*a(1)+(k+l)*z^2/(1-z)+k*z^2/(1-z)^2)))/(2*z) (k=-1, l=1).\nConjecture: +(n+1)*a(n) +(-7*n+2)*a(n-1) +(-5*n+19)*a(n-2) +3*(17*n-54)*a(n-3) +60*(-n+4)*a(n-4) +20*(n-5)*a(n-5)=0. - _R. J. Mathar_, Mar 02 2016",
+          "has_formula": true,
+          "id": "A177197",
+          "keywords": [
+            "easy",
+            "nonn"
+          ],
+          "latex": "\\mathrm{index_factorial} \\mathrm{psum}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Sequence defined by the recurrence formula a(n+1)=sum(a(p)*a(n-p)+k,p=0..n)+l for n>=1, with here a(0)=1, a(1)=6, k=-1 and l=1.",
+          "offset": 0,
+          "score": 0.8571719834972362,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            6,
+            11,
+            56,
+            241,
+            1271,
+            6661,
+            37006,
+            208891,
+            1208821,
+            7097111,
+            42266381,
+            254457091,
+            1546758771,
+            9478386011,
+            58495688356,
+            363237501841,
+            2267924619371,
+            14228919052861,
+            89660508722431
+          ],
+          "symbolic": "A177197(n) = \u03a3 index_factorial(a(n))",
+          "symbolic_latex": "\\mathrm{A177197}(n) = \\Sigma \\mathrm{index_factorial}(a_n)",
+          "transform_desc": "index_factorial \u2218 partial_sum",
+          "transformed_terms": [
+            1,
+            6,
+            11
+          ]
+        },
+        {
+          "explanation": "index_factorial, then Partial sums",
+          "formula": "G.f.: ( 1+4*x-x^2 ) / ( (x-1)*(x^2+x-1) ). The first differences are in A022088. - _R. J. Mathar_, May 04 2014\na(n) = 5*Fibonacci(n+2)-4. - _Gerry Martens_, Jul 04 2015\na(n) = A265752(A265750(n)). - _Antti Karttunen_, Dec 15 2015",
+          "has_formula": true,
+          "id": "A192750",
+          "keywords": [
+            "nonn",
+            "easy"
+          ],
+          "latex": "\\mathrm{index_factorial} \\mathrm{psum}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Define a pair of sequences c_n, d_n by c_0=0, d_0=1 and thereafter c_n = c_{n-1}+d_{n-1}, d_n = c_{n-1}+4*n+2; sequence here is d_n.",
+          "offset": 0,
+          "score": 0.8571719834972362,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            6,
+            11,
+            21,
+            36,
+            61,
+            101,
+            166,
+            271,
+            441,
+            716,
+            1161,
+            1881,
+            3046,
+            4931,
+            7981,
+            12916,
+            20901,
+            33821,
+            54726
+          ],
+          "symbolic": "A192750(n) = \u03a3 index_factorial(a(n))",
+          "symbolic_latex": "\\mathrm{A192750}(n) = \\Sigma \\mathrm{index_factorial}(a_n)",
+          "transform_desc": "index_factorial \u2218 partial_sum",
+          "transformed_terms": [
+            1,
+            6,
+            11
+          ]
+        },
+        {
+          "explanation": "Partial sums, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A260566",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{psum} \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Numbers n such that (n^61+1)/(n+1) is prime.",
+          "offset": 0,
+          "score": 0.8003473235273413,
+          "seq_offset": [
+            1,
+            1
+          ],
+          "snippet": [
+            2,
+            7,
+            70,
+            178,
+            208,
+            251,
+            274,
+            276,
+            290,
+            326,
+            328,
+            350,
+            413,
+            452,
+            552,
+            558,
+            594,
+            595,
+            605,
+            607
+          ],
+          "symbolic": "A260566(n) = index_factorial(\u03a3 a(n))",
+          "symbolic_latex": "\\mathrm{A260566}(n) = \\mathrm{index_factorial}(\\Sigma a_n)",
+          "transform_desc": "partial_sum \u2218 index_factorial",
+          "transformed_terms": [
+            2,
+            7,
+            70
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "a(n) = numerator of 5/(6*n)^2.\nG.f.: (1 + 5*x + 5*x^2 + 5*x^3 + 5*x^4)/((1-x)*(1 + x + x^2 + x^3 + x^4)).\na(n) = 1 + 4*sign(n mod 5). - _Wesley Ivan Hurt_, Sep 26 2018\na(n) = (21-8*cos(2*n*Pi/5)-8*cos(4*n*Pi/5))/5. - _Wesley Ivan Hurt_, Sep 27 2018",
+          "has_formula": true,
+          "id": "A171372",
+          "keywords": [
+            "nonn",
+            "easy",
+            "frac"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(n) = numerator of 1/(2*n)^2 - 1/(3*n)^2 for n > 0, a(0) = 1.",
+          "offset": 0,
+          "score": 1.1611681436997656,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            5,
+            5,
+            1,
+            5,
+            5,
+            5,
+            5,
+            1,
+            5,
+            5,
+            5,
+            5,
+            1,
+            5,
+            5,
+            5,
+            5
+          ],
+          "symbolic": "A171372(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A171372}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "G.f.: (1 + 4*x - 6*x^2 - 16*x^3 + 20*x^4)/((1-x)*(1-2*x)*(1+2*x)*(1-2*x^2)). - _Colin Barker_, Apr 27 2013",
+          "has_formula": true,
+          "id": "A171663",
+          "keywords": [
+            "easy",
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Expansion of (1 + 4*x - 6*x^2 - 16*x^3 + 20*x^4)/((1-x)*(1-2*x)*(1+2*x)*(1-2*x^2)).",
+          "offset": 0,
+          "score": 1.1611681436997656,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            13,
+            25,
+            41,
+            113,
+            145,
+            481,
+            545,
+            1985,
+            2113,
+            8065,
+            8321,
+            32513,
+            33025,
+            130561,
+            131585,
+            523265,
+            525313
+          ],
+          "symbolic": "A171663(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A171663}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "T(n,k) = C(n+4,4) * C(n,k), 0 <= k <= n.\nFor element a in A178819: a_(5, i, j) = (i+3; 4, i-j, j-1), i >= 1, 1 <= j <= i.\nG.f.: 1/(1 - x - x*y)^5. - _Ilya Gutkovskiy_, Mar 20 2020",
+          "has_formula": true,
+          "id": "A178821",
+          "keywords": [
+            "easy",
+            "nonn",
+            "tabl"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Triangle read by rows: T(n,k) = binomial(n+4,4) * binomial(n,k), 0 <= k <= n.",
+          "offset": 0,
+          "score": 1.1611681436997656,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            15,
+            30,
+            15,
+            35,
+            105,
+            105,
+            35,
+            70,
+            280,
+            420,
+            280,
+            70,
+            126,
+            630,
+            1260,
+            1260,
+            630
+          ],
+          "symbolic": "A178821(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A178821}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "a(n) = 5^Fibonacci(n).",
+          "has_formula": true,
+          "id": "A214706",
+          "keywords": [
+            "nonn",
+            "easy"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(n) = a(n-1)*a(n-2) with a(0)=1, a(1)=5.",
+          "offset": 0,
+          "score": 1.1611681436997656,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            25,
+            125,
+            3125,
+            390625,
+            1220703125,
+            476837158203125,
+            582076609134674072265625,
+            277555756156289135105907917022705078125,
+            161558713389263217748322010169914619837072677910327911376953125
+          ],
+          "symbolic": "A214706(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A214706}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "G.f.: (x^2-4*x-1)/(x^3+x^2+x-1).\na(n) = -A000073(n) + 4*A000073(n+1) + A000073(n+2). - _R. J. Mathar_, Jul 29 2012",
+          "has_formula": true,
+          "id": "A214827",
+          "keywords": [
+            "nonn",
+            "easy"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(n) = a(n-1) + a(n-2) + a(n-3), with a(0) = 1, a(1) = a(2) = 5.",
+          "offset": 0,
+          "score": 1.1611681436997656,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            11,
+            21,
+            37,
+            69,
+            127,
+            233,
+            429,
+            789,
+            1451,
+            2669,
+            4909,
+            9029,
+            16607,
+            30545,
+            56181,
+            103333,
+            190059
+          ],
+          "symbolic": "A214827(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A214827}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A019805",
+          "keywords": [
+            "nonn",
+            "cons"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Decimal expansion of sqrt(2*e)/15.",
+          "offset": 0,
+          "score": 1.1384001408821232,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            4,
+            4,
+            2,
+            9,
+            3,
+            2,
+            1,
+            0,
+            6,
+            4,
+            7,
+            4,
+            9,
+            4,
+            6,
+            8,
+            9
+          ],
+          "symbolic": "A019805(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A019805}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A038247",
+          "keywords": [
+            "nonn",
+            "tabl",
+            "easy"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Triangle whose (i,j)-th entry is binomial(i,j)*5^(i-j)*5^j.",
+          "offset": 0,
+          "score": 1.1384001408821232,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            25,
+            50,
+            25,
+            125,
+            375,
+            375,
+            125,
+            625,
+            2500,
+            3750,
+            2500,
+            625,
+            3125,
+            15625,
+            31250,
+            31250,
+            15625
+          ],
+          "symbolic": "A038247(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A038247}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A046263",
+          "keywords": [
+            "nonn",
+            "base"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Largest palindromic substring in 5^n.",
+          "offset": 0,
+          "score": 1.1384001408821232,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            5,
+            6,
+            5,
+            6,
+            8,
+            9,
+            9,
+            656,
+            828,
+            414,
+            22,
+            515,
+            757,
+            878,
+            939,
+            26562,
+            9
+          ],
+          "symbolic": "A046263(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A046263}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A083945",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Least integer coefficients of A(x), where 1<=a(n)<=5, such that A(x)^(1/5) consists entirely of integer coefficients.",
+          "offset": 0,
+          "score": 1.1384001408821232,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            5,
+            5,
+            1,
+            5,
+            5,
+            5,
+            5,
+            4,
+            5,
+            5,
+            5,
+            5,
+            3,
+            5,
+            5,
+            5,
+            5
+          ],
+          "symbolic": "A083945(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A083945}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A151728",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "A151727/4.",
+          "offset": 0,
+          "score": 1.1384001408821232,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            11,
+            7,
+            15,
+            19,
+            23,
+            7,
+            15,
+            21,
+            29,
+            29,
+            49,
+            59,
+            47,
+            7,
+            15,
+            21,
+            29
+          ],
+          "symbolic": "A151728(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A151728}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A176160",
+          "keywords": [
+            "nonn",
+            "tabl",
+            "less"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Triangle read by rows: T(n,k) = (1 + 4*binomial(n, k))^n.",
+          "offset": 0,
+          "score": 1.1384001408821232,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            25,
+            81,
+            25,
+            125,
+            2197,
+            2197,
+            125,
+            625,
+            83521,
+            390625,
+            83521,
+            625,
+            3125,
+            4084101,
+            115856201,
+            115856201,
+            4084101
+          ],
+          "symbolic": "A176160(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A176160}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "Equals A005532 ^2. - _R. J. Mathar_, Dec 17 2024",
+          "has_formula": true,
+          "id": "A011094",
+          "keywords": [
+            "nonn",
+            "cons"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Decimal expansion of 5th root of 9.",
+          "offset": 0,
+          "score": 1.1058744225712054,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            1,
+            8,
+            4,
+            5,
+            5,
+            7,
+            3,
+            9,
+            1,
+            5,
+            3,
+            5,
+            9,
+            6,
+            7,
+            4,
+            2
+          ],
+          "symbolic": "A011094(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A011094}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "a(n) = A000400(n) - A104091(n). - _Michel Marcus_, Jan 13 2020",
+          "has_formula": true,
+          "id": "A013607",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(n) = 6^n-prevprime(6^n).",
+          "offset": 0,
+          "score": 1.1058744225712054,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            5,
+            17,
+            7,
+            17,
+            7,
+            7,
+            7,
+            59,
+            19,
+            17,
+            13,
+            7,
+            19,
+            49,
+            13,
+            19,
+            7
+          ],
+          "symbolic": "A013607(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A013607}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "Equals log(2)/LambertW(log(2)). - _Simon Plouffe_, Mar 23 2005\nEquals 1/A104748.",
+          "has_formula": true,
+          "id": "A030798",
+          "keywords": [
+            "nonn",
+            "cons"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Decimal expansion of the solution to x^x = 2.",
+          "offset": 0,
+          "score": 1.1058744225712054,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            9,
+            6,
+            1,
+            0,
+            4,
+            6,
+            9,
+            4,
+            6,
+            2,
+            3,
+            6,
+            9,
+            3,
+            4,
+            9,
+            9
+          ],
+          "symbolic": "A030798(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A030798}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "Equals (28*c+2)/sqrt(196*c^2+28*c+145) where c = cos(arctan(12*sqrt(237)/289)/3). - _Robert FERREOL_, Jun 22 2019",
+          "has_formula": true,
+          "id": "A046095",
+          "keywords": [
+            "nonn",
+            "cons"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Decimal expansion of Calabi's constant.",
+          "offset": 0,
+          "score": 1.1058744225712054,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            1,
+            3,
+            8,
+            7,
+            5,
+            2,
+            4,
+            5,
+            4,
+            8,
+            3,
+            2,
+            0,
+            3,
+            9,
+            2,
+            2
+          ],
+          "symbolic": "A046095(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A046095}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "Equals Sum_{k>=1} (-1)^(k+1) * B(2*k) * 2^(2*k) * (2^(2*k) - 1) / (2*k)!, where B(k) is the k-th Bernoulli number. - _Amiram Eldar_, May 15 2021",
+          "has_formula": true,
+          "id": "A049471",
+          "keywords": [
+            "cons",
+            "easy",
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Decimal expansion of tan(1).",
+          "offset": 0,
+          "score": 1.1058744225712054,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            7,
+            4,
+            0,
+            7,
+            7,
+            2,
+            4,
+            6,
+            5,
+            4,
+            9,
+            0,
+            2,
+            2,
+            3,
+            0,
+            5
+          ],
+          "symbolic": "A049471(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A049471}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "tau_k(n) = |{(x_1,x_2,...,x_k): x_1*x_2*...*x_k=n}|, number of ordered k-factorizations of n.\ntau_k(p^m) = (-1)^(k-1)*binomial(-m-1,k-1), p prime.\nlimit(tau_k(n)/n^epsilon, n=infinity) = 0, for any epsilon>0.\ntau_k(n) = Sum_{d|n} tau_(k-1)(d), tau_1(n)=1.\nDirichlet g.f.: (zeta(s))^k.\nFor explicit formula, see A007425.\nG.f.: Sum_{k>=1} tau_4(k)*x^k/(1 - x^k). - _Ilya Gutkovskiy_, Oct 30 2018",
+          "has_formula": true,
+          "id": "A061200",
+          "keywords": [
+            "easy",
+            "nonn",
+            "mult"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "tau_5(n) = number of ordered 5-factorizations of n.",
+          "offset": 0,
+          "score": 1.1058744225712054,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            15,
+            5,
+            25,
+            5,
+            35,
+            15,
+            25,
+            5,
+            75,
+            5,
+            25,
+            25,
+            70,
+            5,
+            75,
+            5,
+            75
+          ],
+          "symbolic": "A061200(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A061200}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "t(n, k) = Sum_{d|n} tau(d^k) is multiplicative: if the canonical factorization of n = Product p^e(p) over primes then t(n, k) = Product t(p^e(p), k), t(p^e(p), k) = (1/2) *(k*e(p)+2)*(e(p)+1).\nFor k=2 we get an interesting identity: Sum_{d|n} tau(d^2)=(tau(n))^2, cf. A048691, A035116.\na(n) = Sum_{d|n} tau(n*d). - _Benoit Cloitre_, Nov 30 2002\nG.f.: Sum_{n>=1} tau(n^3)*x^n/(1-x^n). - _Joerg Arndt_, Jan 01 2011\nDirichlet g.f.: zeta(s)^3 * Product_{primes p} (1 + 2/p^s). - _Vaclav Kotesovec_, May 15 2021\nDirichlet g.f.: zeta(s)^5 * Product_{primes p} (1 - 3/p^(2*s) + 2/p^(3*s)). - _Vaclav Kotesovec_, Aug 20 2021",
+          "has_formula": true,
+          "id": "A061391",
+          "keywords": [
+            "nonn",
+            "mult"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(n) = t(n,3) = Sum_{d|n} tau(d^3), where tau(n) = number of divisors of n, cf. A000005.",
+          "offset": 0,
+          "score": 1.1058744225712054,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            12,
+            5,
+            25,
+            5,
+            22,
+            12,
+            25,
+            5,
+            60,
+            5,
+            25,
+            25,
+            35,
+            5,
+            60,
+            5,
+            60
+          ],
+          "symbolic": "A061391(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A061391}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "a(n) = Sum_{i|n, j|n} tau(gcd(i, j)) = Sum_{d|n} tau(d)^2.\na(n) = Sum_{i|n, j|n} tau(i)*tau(j)/tau(lcm(i, j)), where tau(n) = number of divisors of n, cf. A000005.\nDirichlet convolution of A035116 and A000012 (i.e., inverse Mobius transform of A035116). Dirichlet g.f.: zeta^5(s)/zeta(2s). - _R. J. Mathar_, Feb 03 2011\nG.f.: Sum_{n>=1} A000005(n)^2*x^n/(1-x^n). - _Mircea Merca_, Feb 26 2014\nL.g.f.: -log(Product_{k>=1} (1 - x^k)^(tau(k)^2/k)) = Sum_{n>=1} a(n)*x^n/n. - _Ilya Gutkovskiy_, May 23 2018\nDirichlet convolution of A007426 and A008966. Dirichlet convolution of A007425 and A034444. - _R. J. Mathar_, Jun 05 2020\nLet b(n), n > 0, be Dirichlet inverse of a(n). Then b(n) is multiplicative with b(p^e) = (-1)^e*(Sum_{i=0..e} binomial(4,i)) for prime p and e >= 0, where binomial(n,k)=0 if n < k; abs(b(n)) is multiplicative and has the Dirichlet g.f.: (zeta(s))^5/(zeta(2*s))^4. - _Werner Schulte_, Feb 07 2021\na(n) = Sum_{d divides n} tau(d^2)*tau(n/d), Dirichlet convolution of A048691 and A000005. - _Peter Bala_, Jan 26 2024",
+          "has_formula": true,
+          "id": "A062367",
+          "keywords": [
+            "nonn",
+            "mult"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Multiplicative with a(p^e) = (e+1)*(e+2)*(2*e+3)/6.",
+          "offset": 0,
+          "score": 1.1058744225712054,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            14,
+            5,
+            25,
+            5,
+            30,
+            14,
+            25,
+            5,
+            70,
+            5,
+            25,
+            25,
+            55,
+            5,
+            70,
+            5,
+            70
+          ],
+          "symbolic": "A062367(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A062367}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "Quasipolynomial: a(n) = n(n+1)(n+2)(n+3)/72 if 3|n and a(n) = n(n+1)(n+2)(n+3)/24 otherwise.\na(n) = n*(n+1)*(n+2)*(n+3)/(8*(5+4*cos(2*n*Pi/3))). - _Gary Detlefs_, Apr 01 2011\nG.f.: -x*(x^10 + 5*x^9 + 5*x^8 + 30*x^7 + 45*x^6 + 17*x^5 + 45*x^4 + 30*x^3 + 5*x^2 + 5*x+1)/ ((x-1)^5*(x^2+x+1)^5). - _Colin Barker_, Jul 01 2012\nFrom _Amiram Eldar_, Sep 29 2022: (Start)\nSum_{n>=1} 1/a(n) = 16 - 8*Pi/sqrt(3).\nSum_{n>=1} (-1)^(n+1)/a(n) = 160*log(2)/3 - 36. (End)",
+          "has_formula": true,
+          "id": "A067047",
+          "keywords": [
+            "nonn",
+            "easy"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(n) = lcm(n, n+1, n+2, n+3)/12.",
+          "offset": 0,
+          "score": 1.1058744225712054,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            35,
+            70,
+            42,
+            210,
+            330,
+            165,
+            715,
+            1001,
+            455,
+            1820,
+            2380,
+            1020,
+            3876,
+            4845,
+            1995,
+            7315,
+            8855
+          ],
+          "symbolic": "A067047(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A067047}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "a(n) = 5^omega(n); multiplicative with a(p^e)=5.\na(n) = abs(sum(d|n, mu(d)*tau_3(d^2))), where tau_3 is A007425. - _Enrique P\u00e9rez Herrero_, Mar 29 2010\na(n) = tau_5(rad(n)) = A061200(A007947(n)). - _Enrique P\u00e9rez Herrero_, Jun 24 2010\na(n) = A000351(A001221(n)). - _Antti Karttunen_, Jul 26 2017\nFrom _Vaclav Kotesovec_, Feb 28 2023: (Start)\nDirichlet g.f.: Product_{primes p} (1 + 5/(p^s - 1)).\nDirichlet g.f.: zeta(s)^5 * Product_{primes p} (1 - 10/p^(2*s) + 20/p^(3*s) - 15/p^(4*s) + 4/p^(5*s)), (with a product that converges for s=1). (End)",
+          "has_formula": true,
+          "id": "A082476",
+          "keywords": [
+            "mult",
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(n) = Sum_{d|n} mu(d)^2*tau(d)^2.",
+          "offset": 0,
+          "score": 1.1058744225712054,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            5,
+            5,
+            25,
+            5,
+            5,
+            5,
+            25,
+            5,
+            25,
+            5,
+            25,
+            25,
+            5,
+            5,
+            25,
+            5,
+            25
+          ],
+          "symbolic": "A082476(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A082476}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "a(n) = A013632(A006562(n))-1. - _Antti Karttunen_, Dec 16 2017",
+          "has_formula": true,
+          "id": "A101597",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Number of consecutive composite numbers between balanced primes and their lower or upper prime neighbor.",
+          "offset": 0,
+          "score": 1.1058744225712054,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            5,
+            11,
+            5,
+            5,
+            5,
+            5,
+            5,
+            5,
+            5,
+            5,
+            5,
+            5,
+            5,
+            5,
+            5,
+            5,
+            5
+          ],
+          "symbolic": "A101597(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A101597}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "T(n,k) = 5/(n+1)*binomial(n+1,k+4)*binomial(n+1,k-1) for n >=4 and 1 <= k <= n-3. In the notation of [Guy], T(n,k) equals w_n(x,y) at (x,y) = (2*k - n + 2,4). Row sums A003519.\nO.g.f. for column k+2: 5/(k + 1) * y^(k+5)/(1 - y)^(k+7) * Jacobi_P(k,5,1,(1 + y)/(1 - y)).\nIdentities for row polynomials R_n(x) := sum {k = 1..n-3} T(n,k)*x^k:\nx^4*R_(n-1)(x) = 5*(n - 1)*(n - 2)*(n - 3)*(n - 4)/((n + 1)*(n + 2)*(n + 3)*(n + 4)*(n + 5)) * sum {k = 0..n} binomial(n + 5,k) * binomial(2n - k,n) * (x - 1)^k;\nsum {k = 1..n} (-1)^k*binomial(n,k)*R_k(x^2)*(1 + x)^(2*(n-k)) = R_n(1)*x^(n-2) = A003519(n)*x^(n-2).\nRow generating polynomial R_(n+4)(x) = 5/(n+5)*x*(1-x)^n * Jacobi_P(n,5,5,(1+x)/(1-x)). [From _Peter Bala_, Oct 31 2008]",
+          "has_formula": true,
+          "id": "A145599",
+          "keywords": [
+            "easy",
+            "nonn",
+            "tabl"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Triangular array of generalized Narayana numbers: T(n,k) = 5/(n+1)*binomial(n+1,k+4)*binomial(n+1,k-1).",
+          "offset": 0,
+          "score": 1.1058744225712054,
+          "seq_offset": [
+            4,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            15,
+            35,
+            15,
+            35,
+            140,
+            140,
+            35,
+            70,
+            420,
+            720,
+            420,
+            70,
+            126,
+            1050,
+            2700,
+            2700,
+            1050
+          ],
+          "symbolic": "A145599(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A145599}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "a(n)+1 = A153845(n) (mod 7). [_R. J. Mathar_, Mar 20 2010]",
+          "has_formula": true,
+          "id": "A153839",
+          "keywords": [
+            "nonn",
+            "fini",
+            "full"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "First Sunday in n-th month of 365-day year starting on Sunday.",
+          "offset": 0,
+          "score": 1.1058744225712054,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            2,
+            7,
+            4,
+            2,
+            6,
+            3,
+            1,
+            5,
+            3
+          ],
+          "symbolic": "A153839(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A153839}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "Antiharmonic mean of divisors of number n = Product (p_i^e_i) is sigma_2(n)/sigma_1(n) = A001157(n)/A000203(n) = Product ((p_i^(e_i+1)+1)/(p_i+1)).\nSum_{k=1..n} a(k)/A158275(k) ~ c * n^2, where c = (Pi^4/72) * Product_{p prime} (1 - (3*p-2)/(p^3)) = A152649 * A065473 = 0.387941... . - _Amiram Eldar_, Nov 21 2022",
+          "has_formula": true,
+          "id": "A158274",
+          "keywords": [
+            "nonn",
+            "frac"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Numerators of antiharmonic means of divisors of n.",
+          "offset": 0,
+          "score": 1.1058744225712054,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            3,
+            13,
+            25,
+            25,
+            17,
+            7,
+            65,
+            61,
+            15,
+            85,
+            125,
+            65,
+            11,
+            145,
+            35,
+            181,
+            13
+          ],
+          "symbolic": "A158274(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A158274}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "a(n) = 5^((1/4)*(2*n-1+(-1)^n)).\nG.f.: x*(1+5*x)/(1-5*x^2).",
+          "has_formula": true,
+          "id": "A162962",
+          "keywords": [
+            "nonn",
+            "easy"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(n) = 5*a(n-2) for n > 2; a(1) = 1, a(2) = 5.",
+          "offset": 0,
+          "score": 1.1058744225712054,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            25,
+            25,
+            125,
+            125,
+            625,
+            625,
+            3125,
+            3125,
+            15625,
+            15625,
+            78125,
+            78125,
+            390625,
+            390625,
+            1953125,
+            1953125,
+            9765625
+          ],
+          "symbolic": "A162962(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A162962}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "a(n) = A005843(n) - (-1)^A001477(n).\na(n) = 2*A000027(n) + (-1)^A000027(n).\na(n) = A005843(n) + A033999(n).\nFrom _R. J. Mathar_, Aug 21 2009: (Start)\na(n) = a(n-1) + a(n-2) - a(n-3).\nG.f.: x*(1+4*x-x^2)/((1+x)*(1-x)^2). (End)\na(n) = 4*n - 2 - a(n-1), with a(1)=1. - _Vincenzo Librandi_, Nov 30 2010\nE.g.f.: (2*x+1)*cosh(x) +(2*x-1)* sinh(x) -1. - _G. C. Greubel_, Aug 24 2017\nSum_{n>=1} 1/a(n)^2 = Pi^2/8 + G - 1, where G is Catalan's constant (A006752). - _Amiram Eldar_, Aug 21 2022",
+          "has_formula": true,
+          "id": "A163980",
+          "keywords": [
+            "nonn",
+            "easy"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(n) = 2*n + (-1)^n.",
+          "offset": 0,
+          "score": 1.1058744225712054,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            9,
+            9,
+            13,
+            13,
+            17,
+            17,
+            21,
+            21,
+            25,
+            25,
+            29,
+            29,
+            33,
+            33,
+            37,
+            37,
+            41
+          ],
+          "symbolic": "A163980(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A163980}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "a(1) = 1, a(2) = 5, a(n) = Product_{i=1..n-1} a(i), n >= 3.\na(1) = 1, a(2) = 5, a(n) = A000351(2^(n-3)) = 5^(2^(n-3)), n >= 3.\na(1) = 1, a(2) = 5, a(3) = 5, a(n) = (a(n-1))^2, n >= 4.\nFrom _Amiram Eldar_, Nov 30 2025: (Start)\na(n) = A176594(n-3) for n >= 3.\nSum_{n>=1} 1/a(n) = 6/5 + A078886.\nProduct_{n>=1} (1 + 1/a(n)) = 3. (End)",
+          "has_formula": true,
+          "id": "A165423",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(1) = 1, a(2) = 5, a(n) = product of the previous terms for n >= 3.",
+          "offset": 0,
+          "score": 1.1058744225712054,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            25,
+            625,
+            390625,
+            152587890625,
+            23283064365386962890625,
+            542101086242752217003726400434970855712890625
+          ],
+          "symbolic": "A165423(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A165423}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "a(n) = A000351(A001222(n)) = 5^bigomega(n) = 5^A001222(n).\nDirichlet g.f.: Product_{p prime} 1 / (1 - 5 * p^(-s)). - _Ilya Gutkovskiy_, Oct 30 2019",
+          "has_formula": true,
+          "id": "A165826",
+          "keywords": [
+            "nonn",
+            "mult"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Totally multiplicative sequence with a(p) = 5.",
+          "offset": 0,
+          "score": 1.1058744225712054,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            25,
+            5,
+            25,
+            5,
+            125,
+            25,
+            25,
+            5,
+            125,
+            5,
+            25,
+            25,
+            625,
+            5,
+            125,
+            5,
+            125
+          ],
+          "symbolic": "A165826(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A165826}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "T(n,k) = (n+k+2)*C(n+2,3)*C(k+2,3)/4, k>=1, n>=1.",
+          "has_formula": true,
+          "id": "A185785",
+          "keywords": [
+            "nonn",
+            "tabl"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Second accumulation array of A107985, by antidiagonals.",
+          "offset": 0,
+          "score": 1.1058744225712054,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            15,
+            24,
+            15,
+            35,
+            70,
+            70,
+            35,
+            70,
+            160,
+            200,
+            160,
+            70,
+            126,
+            315,
+            450,
+            450,
+            315
+          ],
+          "symbolic": "A185785(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A185785}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "T(n,k) = binomial(k+3,4)*binomial(n+3,4), k >= 1, n >= 1.",
+          "has_formula": true,
+          "id": "A185905",
+          "keywords": [
+            "nonn",
+            "tabl"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Rectangular array binomial(k+3,4)*binomial(n+3,4), by antidiagonals.",
+          "offset": 0,
+          "score": 1.1058744225712054,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            15,
+            25,
+            15,
+            35,
+            75,
+            75,
+            35,
+            70,
+            175,
+            225,
+            175,
+            70,
+            126,
+            350,
+            525,
+            525,
+            350
+          ],
+          "symbolic": "A185905(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A185905}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "a(n) = [y^0] [x^n] Product_{j=-4..4} 1/(1-x*y^(j^3)). - _Robert Israel_, Feb 06 2019",
+          "has_formula": true,
+          "id": "A188272",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Number of nondecreasing strings of numbers x(i=1..n) in -4..4 with sum x(i)^3 equal to 0.",
+          "offset": 0,
+          "score": 1.1058744225712054,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            15,
+            15,
+            37,
+            41,
+            84,
+            106,
+            186,
+            256,
+            400,
+            570,
+            834,
+            1184,
+            1663,
+            2305,
+            3149,
+            4241,
+            5669
+          ],
+          "symbolic": "A188272(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A188272}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "For the general case\na(n) = m*A002024(n) + (m-1)*max{-A002260(n),-A004736(n)}.\na(n) = m*(t+1) + (m-1)*max{t*(t+1)/2-n,n-(t*t+3*t+4)/2}\nwhere t=floor((-1+sqrt(8*n-7))/2).\nFor m=4\na(n) = 4*(t+1) + 3*max{t*(t+1)/2-n,n-(t*t+3*t+4)/2}\nwhere t=floor((-1+sqrt(8*n-7))/2).",
+          "has_formula": true,
+          "id": "A206772",
+          "keywords": [
+            "nonn",
+            "tabl"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Table T(n,k)=max{4*n+k-4,n+4*k-4} n, k > 0, read by antidiagonals.",
+          "offset": 0,
+          "score": 1.1058744225712054,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            9,
+            6,
+            9,
+            13,
+            10,
+            10,
+            13,
+            17,
+            14,
+            11,
+            14,
+            17,
+            21,
+            18,
+            15,
+            15,
+            18
+          ],
+          "symbolic": "A206772(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A206772}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "Equals Product_{k=1..15, gcd(k,15)==1} Gamma(k/15). - _Amiram Eldar_, Jun 12 2021",
+          "has_formula": true,
+          "id": "A212004",
+          "keywords": [
+            "nonn",
+            "cons"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Decimal expansion of (2*Pi)^4.",
+          "offset": 0,
+          "score": 1.1058744225712054,
+          "seq_offset": [
+            4,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            8,
+            5,
+            4,
+            5,
+            4,
+            5,
+            6,
+            5,
+            4,
+            4,
+            0,
+            3,
+            8,
+            9,
+            9,
+            5,
+            7
+          ],
+          "symbolic": "A212004(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A212004}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "For n>=3, if interval (prime(n)/c(n-1), prime(n+1)/c(n-1)) is free from primes, then c(n)=c(n-1); otherwise, c(n)=prime(n+1)/prime(k), where k<=n is the maximal, such that a) prime(n+1)/prime(k)>c(n-1) and b) the open interval (prime(n)*prime(k)/prime(n+1), prime(k)) does not contain any prime.\nNote that such k exists, since, for k=1, the interval (2*prime(n)/prime(n+1),2) is free from primes.",
+          "has_formula": true,
+          "id": "A218121",
+          "keywords": [
+            "nonn",
+            "frac"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Numerator of c(n) defined by c(1)=1, c(2)=5/2 and for n>=3, c(n) is the minimal rational number >= c(n-1) such that there are no primes in the interval (prime(n)/c(n), prime(n+1)/c(n)).",
+          "offset": 0,
+          "score": 1.1058744225712054,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            11,
+            11,
+            17,
+            17,
+            17,
+            29,
+            29,
+            29,
+            41,
+            41,
+            41,
+            41,
+            41,
+            41,
+            67,
+            67,
+            67
+          ],
+          "symbolic": "A218121(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A218121}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A003861",
+          "keywords": [
+            "nonn",
+            "fini",
+            "full"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Degrees of irreducible representations of alternating group A_6.",
+          "offset": 0,
+          "score": 1.0841906103639267,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            8,
+            8,
+            9,
+            10
+          ],
+          "symbolic": "A003861(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A003861}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A003882",
+          "keywords": [
+            "nonn",
+            "fini",
+            "full"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Degrees of irreducible representations of group L2(11).",
+          "offset": 0,
+          "score": 1.0841906103639267,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            10,
+            10,
+            11,
+            12,
+            12
+          ],
+          "symbolic": "A003882(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A003882}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A008945",
+          "keywords": [
+            "nonn",
+            "fini",
+            "full"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Degrees of irreducible representations of group U4(2).",
+          "offset": 0,
+          "score": 1.0841906103639267,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            6,
+            10,
+            10,
+            15,
+            15,
+            20,
+            24,
+            30,
+            30,
+            30,
+            40,
+            40,
+            45,
+            45,
+            60,
+            64,
+            81
+          ],
+          "symbolic": "A008945(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A008945}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A011335",
+          "keywords": [
+            "nonn",
+            "cons",
+            "easy"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Decimal expansion of 6th root of 14.",
+          "offset": 0,
+          "score": 1.0841906103639267,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            2,
+            4,
+            6,
+            3,
+            2,
+            8,
+            9,
+            1,
+            5,
+            5,
+            4,
+            0,
+            8,
+            6,
+            5,
+            5,
+            5
+          ],
+          "symbolic": "A011335(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A011335}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A011986",
+          "keywords": [
+            "nonn",
+            "hard",
+            "more"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Covering numbers C(n,8,4).",
+          "offset": 0,
+          "score": 1.0841906103639267,
+          "seq_offset": [
+            8,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            9,
+            12
+          ],
+          "symbolic": "A011986(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A011986}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A019602",
+          "keywords": [
+            "nonn",
+            "cons"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Decimal expansion of 2*Pi*e/11.",
+          "offset": 0,
+          "score": 1.0841906103639267,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            2,
+            6,
+            7,
+            8,
+            9,
+            4,
+            9,
+            5,
+            7,
+            7,
+            0,
+            1,
+            2,
+            1,
+            9,
+            3,
+            7
+          ],
+          "symbolic": "A019602(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A019602}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A075684",
+          "keywords": [
+            "easy",
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "For odd numbers 2n-1, the maximum number produced by iterating the reduced Collatz function R defined as R(k) = (3k+1)/2^r, with r as large as possible.",
+          "offset": 0,
+          "score": 1.0841906103639267,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            17,
+            17,
+            17,
+            13,
+            53,
+            17,
+            29,
+            21,
+            53,
+            29,
+            3077,
+            29,
+            3077,
+            33,
+            53,
+            37,
+            101
+          ],
+          "symbolic": "A075684(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A075684}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A078097",
+          "keywords": [
+            "hard",
+            "more",
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Least m such that P - m is prime, where P is the n-th perfect number.",
+          "offset": 0,
+          "score": 1.0841906103639267,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            5,
+            5,
+            17,
+            9,
+            65,
+            93,
+            129,
+            627,
+            111,
+            407,
+            795,
+            377,
+            1509,
+            257,
+            5207,
+            1233,
+            8537
+          ],
+          "symbolic": "A078097(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A078097}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A081847",
+          "keywords": [
+            "base",
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(1) = 1, a(n) = smallest positive number such that the concatenation of a(n-1) and a(n) is a triangular number not obtained earlier.",
+          "offset": 0,
+          "score": 1.0841906103639267,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            28,
+            50,
+            50,
+            403,
+            651,
+            511,
+            566,
+            16,
+            53,
+            56,
+            1,
+            20,
+            16,
+            110,
+            26,
+            28,
+            203
+          ],
+          "symbolic": "A081847(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A081847}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A087033",
+          "keywords": [
+            "easy",
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Number of terms in each group of consecutive zeros in A087032.",
+          "offset": 0,
+          "score": 1.0841906103639267,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            11,
+            3,
+            1,
+            5,
+            7,
+            9,
+            3,
+            1,
+            5,
+            5,
+            15,
+            1,
+            5,
+            5,
+            9,
+            1,
+            5
+          ],
+          "symbolic": "A087033(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A087033}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A091260",
+          "keywords": [
+            "easy",
+            "nonn",
+            "frac"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Denominator of sigma_3(n)/sigma_2(n).",
+          "offset": 0,
+          "score": 1.0841906103639267,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            21,
+            13,
+            25,
+            25,
+            17,
+            91,
+            65,
+            61,
+            15,
+            85,
+            125,
+            65,
+            11,
+            145,
+            455,
+            181,
+            13
+          ],
+          "symbolic": "A091260(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A091260}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A093643",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Integer quotients arising in A015759.",
+          "offset": 0,
+          "score": 1.0841906103639267,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            25,
+            61,
+            61,
+            305,
+            4069,
+            91058273,
+            91058273,
+            86169701,
+            455291365,
+            430848505,
+            1129161898,
+            430848505,
+            2154242525,
+            5554554653,
+            3952066643,
+            19760333215,
+            5173153429
+          ],
+          "symbolic": "A093643(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A093643}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A112110",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Unique sequence of numbers {1,2,3,4,5} where g.f. A(x) satisfies A(x) = B(B(B(B(B(x))))) (5th self-COMPOSE) such that B(x) is an integer series, with A(0) = 0.",
+          "offset": 0,
+          "score": 1.0841906103639267,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            5,
+            5,
+            5,
+            4,
+            4,
+            4,
+            4,
+            3,
+            1,
+            1,
+            1,
+            5,
+            3,
+            1,
+            1,
+            5,
+            3
+          ],
+          "symbolic": "A112110(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A112110}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A117191",
+          "keywords": [
+            "cons",
+            "easy",
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Decimal expansion of 4^(1/Pi).",
+          "offset": 0,
+          "score": 1.0841906103639267,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            4,
+            6,
+            8,
+            2,
+            2,
+            7,
+            5,
+            4,
+            8,
+            2,
+            1,
+            0,
+            0,
+            0,
+            8,
+            9,
+            8
+          ],
+          "symbolic": "A117191(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A117191}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A119991",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(n) = n-th positive integer which is coprime to the n-th composite positive integer.",
+          "offset": 0,
+          "score": 1.0841906103639267,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            5,
+            11,
+            17,
+            15,
+            14,
+            17,
+            29,
+            27,
+            20,
+            27,
+            41,
+            18,
+            33,
+            25,
+            41,
+            71,
+            39
+          ],
+          "symbolic": "A119991(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A119991}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A122213",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(n) = (sum of the divisors of n)th integer from among those positive integers which are coprime to n.",
+          "offset": 0,
+          "score": 1.0841906103639267,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            13,
+            7,
+            35,
+            9,
+            29,
+            19,
+            43,
+            13,
+            83,
+            15,
+            55,
+            44,
+            61,
+            19,
+            115,
+            21,
+            103
+          ],
+          "symbolic": "A122213(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A122213}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A128006",
+          "keywords": [
+            "frac",
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Numerators of rational-valued radii of circles given by 3 distinct integer points in the euclidean plane.",
+          "offset": 0,
+          "score": 1.0841906103639267,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            2,
+            17,
+            13,
+            5,
+            13,
+            29,
+            3,
+            37,
+            25,
+            13,
+            10,
+            17,
+            25,
+            15,
+            53,
+            65,
+            4
+          ],
+          "symbolic": "A128006(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A128006}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A131286",
+          "keywords": [
+            "nonn",
+            "word",
+            "more"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "First Russian version of A131744.",
+          "offset": 0,
+          "score": 1.0841906103639267,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            5,
+            14,
+            23,
+            16,
+            16,
+            13,
+            10
+          ],
+          "symbolic": "A131286(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A131286}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A139386",
+          "keywords": [
+            "nonn",
+            "more"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "First gap of length at least n in A007950, lower end.",
+          "offset": 0,
+          "score": 1.0841906103639267,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            37,
+            37,
+            187,
+            187,
+            821,
+            821,
+            821,
+            821,
+            13301,
+            13301,
+            109941,
+            109941,
+            522717,
+            522717,
+            522717,
+            522717,
+            1247282901
+          ],
+          "symbolic": "A139386(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A139386}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A141392",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(n) = RMS( A141391(1) through A141391(n) ).",
+          "offset": 0,
+          "score": 1.0841906103639267,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            5,
+            5,
+            7,
+            14,
+            14,
+            70,
+            70,
+            66,
+            66,
+            462,
+            462,
+            616,
+            616,
+            600,
+            600,
+            750,
+            750,
+            730,
+            730
+          ],
+          "symbolic": "A141392(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A141392}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            1,
+            5,
+            5
+          ]
+        }
+      ]
+    },
+    "triple": {
+      "matches": []
+    }
+  },
+  "updated_utc": "2026-10-28T05:15:07Z"
+}

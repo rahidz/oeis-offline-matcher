@@ -1,0 +1,1078 @@
+{
+  "context": {
+    "args": {
+      "allow_constant_transforms": false,
+      "beta_values": "-3,-2,-1,1,2,3",
+      "cmd": "analyze",
+      "combo_candidates": 250,
+      "combo_coeffs": "-5,-4,-3,-2,-1,1,2,3,4,5",
+      "combo_component_transforms": "id,diff,partial_sum",
+      "combo_discovery": true,
+      "combo_discovery_limit": 16,
+      "combo_discovery_tools": "sympy",
+      "combo_expanded": true,
+      "combo_expanded_anchors": 800,
+      "combo_expanded_pointwise": null,
+      "combo_max_checks": 2000000,
+      "combo_max_combinations": null,
+      "combo_max_complexity": null,
+      "combo_max_shift": 5,
+      "combo_max_shift_back": 1,
+      "combo_min_score": null,
+      "combo_rational": false,
+      "combo_unfiltered": true,
+      "combo_wide_prefilter": true,
+      "combos": 20,
+      "convolution_limit": 5,
+      "convolution_ops": "cauchy,dirichlet",
+      "db": "data/processed/oeis.db",
+      "decimate": "2,3:1,4:1",
+      "deep": false,
+      "exclude_ids": [],
+      "extra_transforms": "diff2,cumprod,altsign,reverse,evenodd,movsum2,movsum3,movsum4,binomial,invbinomial,euler,eulerogf,inveulerogf,stirling1,stirling2,invstirling1,invstirling2,ogfinv,seriesrev,mobius,digitsum10,popcount,mod2,xorindex,rle,rledec,concat,log2,loge,exp2,omega,bigomega,tau,sigma,phi,v2,vp3,vp5,lpf,gpf,rad,squarefree,liouville,ratioint,indexsquare,primeindex,indexpow2,indexfactorial,indextri,indexfib,indexpowk3,indexpowk4",
+      "fast": false,
+      "growth_band": null,
+      "limit": 25,
+      "max": false,
+      "max_depth": 2,
+      "max_mse": null,
+      "min_corr": null,
+      "min_match_length": 3,
+      "modclass": 10,
+      "modclass_moduli": "2,3",
+      "no_abs": false,
+      "no_diff": false,
+      "no_gcd_norm": false,
+      "no_partial_sum": false,
+      "no_subsequence_fallback": false,
+      "pointwise_limit": 10,
+      "pointwise_ops": "mul,gcd,lcm",
+      "preset": "max",
+      "rerank": null,
+      "rerank_default_quota": 1,
+      "rerank_limit": 0,
+      "rerank_quotas": "",
+      "scale_values": "-5,-4,-3,-2,-1,2,3,4,5",
+      "sequence": "1,2,3,4,6,7,8,9,9,10,11,13,14,14,18,19,19,19,19,20",
+      "shift_values": "-1,1,2,3,4",
+      "show_formula": false,
+      "show_terms": null,
+      "similar": 20,
+      "subsequence": false,
+      "time_cap": 3600.0,
+      "tlimit": 80,
+      "transform_max_complexity": 7.0,
+      "transform_min_score": 0.8,
+      "triple_candidates": 200,
+      "triple_max_checks": 2000000,
+      "triple_max_combinations": null,
+      "triple_max_complexity": null,
+      "triple_min_score": null,
+      "triple_rational": false,
+      "triples": 10,
+      "variance_band": null
+    },
+    "cmd": "analyze",
+    "db": {
+      "bytes": 406351872,
+      "exists": true,
+      "mtime_ns": 1792945309412380286,
+      "path": "data/processed/oeis.db"
+    },
+    "query_terms": [
+      1,
+      2,
+      3,
+      4,
+      6,
+      7,
+      8,
+      9,
+      9,
+      10,
+      11,
+      13,
+      14,
+      14,
+      18,
+      19,
+      19,
+      19,
+      19,
+      20
+    ]
+  },
+  "created_utc": "2026-10-28T01:11:25Z",
+  "schema_version": 1,
+  "stages": {
+    "combo": {
+      "matches": []
+    },
+    "convolution": {
+      "matches": []
+    },
+    "exact": {
+      "fallback_used": true,
+      "matches": []
+    },
+    "modclass": {
+      "matches": []
+    },
+    "pointwise": {
+      "matches": []
+    },
+    "similarity": {
+      "matches": [
+        {
+          "corr": 0.9941203659780752,
+          "id": "A037041",
+          "mse": 0.4453919632851274,
+          "name": "Number of quadratic residues mod n for some n (A000224 sorted and duplicates removed).",
+          "offset": 0.46293825711083797,
+          "scale": 0.895191845882918
+        },
+        {
+          "corr": 0.9941203659780752,
+          "id": "A137409",
+          "mse": 0.4453919632851274,
+          "name": "Numbers that cannot be the value of 'C' in a primitive Pythagorean triple (A < B; A^2 + B^2 = C^2).",
+          "offset": 0.46293825711083797,
+          "scale": 0.895191845882918
+        },
+        {
+          "corr": 0.9936226920927872,
+          "id": "A342179",
+          "mse": 0.4829710144927536,
+          "name": "a(n) = number of nodes of degree 3 or 4 that are at distance n from the origin in the graph of the variant of the Rick Kenyon tiling where we tile a half-quadrant with L-tiles and backward-L tiles.",
+          "offset": -0.2898550724637687,
+          "scale": 1.0990338164251208
+        },
+        {
+          "corr": 0.993373564334623,
+          "id": "A039214",
+          "mse": 0.5017754318618042,
+          "name": "Numbers whose base-12 representation has the same number of 0's and 5's.",
+          "offset": 0.43122200895713403,
+          "scale": 0.8941138835572616
+        },
+        {
+          "corr": 0.9928580488130594,
+          "id": "A387644",
+          "mse": 0.5406720952843947,
+          "name": "Complement of A045944.",
+          "offset": 0.18291200777831734,
+          "scale": 0.954059309674283
+        },
+        {
+          "corr": 0.9919333193037432,
+          "id": "A187945",
+          "mse": 0.6103941684665228,
+          "name": "Positions of 1 in A187944; complement of A101864.",
+          "offset": 0.4681425485961128,
+          "scale": 0.8984881209503239
+        },
+        {
+          "corr": 0.9918634508015415,
+          "id": "A350757",
+          "mse": 0.6156594224471574,
+          "name": "a(1)=1; for n>1, a(n) is the smallest number k > a(n-1) such that a(n-1) + k is not a square.",
+          "offset": 0.16463233105090752,
+          "scale": 0.9434355462935398
+        },
+        {
+          "corr": 0.9917710757817397,
+          "id": "A183302",
+          "mse": 0.6226201865582391,
+          "name": "Complement of A014106.",
+          "offset": 0.18942836641951716,
+          "scale": 0.9453480028701268
+        },
+        {
+          "corr": 0.9917057397808178,
+          "id": "A108408",
+          "mse": 0.6275430794886044,
+          "name": "Unique values found in A108407. Complement of A108409.",
+          "offset": 1.0183435241801007,
+          "scale": 0.7205391884380211
+        },
+        {
+          "corr": 0.9916768297559768,
+          "id": "A230313",
+          "mse": 0.6297212690385889,
+          "name": "Numbers n such that A031971(47058*n) <> n (mod 47058*n).",
+          "offset": 0.20034916621515747,
+          "scale": 0.9484678827283126
+        },
+        {
+          "corr": 0.9916370693060724,
+          "id": "A039034",
+          "mse": 0.6327168665316929,
+          "name": "Numbers whose base-7 representation has the same number of 0's and 5's.",
+          "offset": 0.8005762342314284,
+          "scale": 0.7627316617349322
+        },
+        {
+          "corr": 0.9916370693060724,
+          "id": "A047302",
+          "mse": 0.6327168665316929,
+          "name": "Numbers that are congruent to {1, 2, 3, 4, 6} mod 7.",
+          "offset": 0.8005762342314284,
+          "scale": 0.7627316617349322
+        },
+        {
+          "corr": 0.9916185108235409,
+          "id": "A050078",
+          "mse": 0.6341150425875203,
+          "name": "Numbers k such that A050076(k) < A050076(k+1).",
+          "offset": 0.8797793703800977,
+          "scale": 0.7487523920303178
+        },
+        {
+          "corr": 0.9915486436302563,
+          "id": "A209921",
+          "mse": 0.639378526878527,
+          "name": "Position of positive values in A209661 and A209662.",
+          "offset": 1.1216958716958714,
+          "scale": 0.7447282447282447
+        },
+        {
+          "corr": 0.9915486436302563,
+          "id": "A268377",
+          "mse": 0.639378526878527,
+          "name": "Numbers n such that any prime factor of the form 4k+1 has even multiplicity.",
+          "offset": 1.1216958716958714,
+          "scale": 0.7447282447282447
+        },
+        {
+          "corr": 0.9914751160282447,
+          "id": "A026514",
+          "mse": 0.6449173695988982,
+          "name": "a(n) = least positive integer > a(n-1) and not (a(i)+a(j))^2 + a(k)^2 for 1<=i<=j<=k<=n.",
+          "offset": 0.7467722499569632,
+          "scale": 0.8017731106903081
+        },
+        {
+          "corr": 0.9913121757990524,
+          "id": "A047419",
+          "mse": 0.6571902121504343,
+          "name": "Numbers that are congruent to {1, 2, 3, 4, 6} mod 8.",
+          "offset": 1.0537608486017347,
+          "scale": 0.6708052073288332
+        },
+        {
+          "corr": 0.9910435078014354,
+          "id": "A320143",
+          "mse": 0.6774221849252362,
+          "name": "A variation on Pascal's triangle: every term inside the triangle is the sum of the two integers immediately above it, with no duplicate term. See the Comments section to understand the sequence and the building process.",
+          "offset": 0.9887854745193778,
+          "scale": 0.7545010680500458
+        },
+        {
+          "corr": 0.9910154463451165,
+          "id": "A184524",
+          "mse": 0.6795350291909923,
+          "name": "Lower s-Wythoff sequence, where s=5n-1.  Complement of A184525.",
+          "offset": 0.48978315262718863,
+          "scale": 0.8819849874895747
+        },
+        {
+          "corr": 0.9910154463451165,
+          "id": "A285126",
+          "mse": 0.6795350291909923,
+          "name": "Positions of 0 in A285125; complement of A285127.",
+          "offset": 0.48978315262718863,
+          "scale": 0.8819849874895747
+        }
+      ]
+    },
+    "triple": {
+      "matches": [
+        {
+          "candidate_provenance": [
+            [
+              "exact",
+              "seed"
+            ],
+            [
+              "similarity"
+            ],
+            [
+              "similarity"
+            ]
+          ],
+          "coeffs": [
+            "-2",
+            "1",
+            "1"
+          ],
+          "combined_terms": [
+            1,
+            2,
+            3,
+            4,
+            6,
+            7,
+            8,
+            9
+          ],
+          "component_terms": [
+            [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            [
+              0,
+              1,
+              2,
+              4,
+              7,
+              8,
+              9,
+              11
+            ],
+            [
+              1,
+              3,
+              5,
+              6,
+              7,
+              9,
+              11,
+              12
+            ]
+          ],
+          "component_transforms": [
+            "id",
+            "id",
+            "id"
+          ],
+          "expression": "a(n) = -2*A001477(n) + 1*A010377(n) + 1*A079905(n)",
+          "ids": [
+            "A001477",
+            "A010377",
+            "A079905"
+          ],
+          "latex_expression": "a_{{n}} = -2\\,\\mathrm{A001477}(n) + 1\\,\\mathrm{A010377}(n) + 1\\,\\mathrm{A079905}(n)",
+          "length": 8,
+          "names": [
+            "The nonnegative integers.",
+            "Squares mod 14.",
+            "a(1)=1; then a(n) is smallest positive integer which is consistent with sequence being monotonically increasing and satisfying a(a(n)) = 2n+1 for n>1."
+          ],
+          "score": 1.730909090909091,
+          "shifts": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "candidate_provenance": [
+            [
+              "exact"
+            ],
+            [
+              "exact",
+              "seed"
+            ],
+            [
+              "similarity"
+            ]
+          ],
+          "coeffs": [
+            "1",
+            "-1",
+            "1"
+          ],
+          "combined_terms": [
+            1,
+            2,
+            3,
+            4,
+            6,
+            7
+          ],
+          "component_terms": [
+            [
+              0,
+              1,
+              1,
+              2,
+              2,
+              2
+            ],
+            [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            [
+              1,
+              2,
+              4,
+              5,
+              8,
+              10
+            ]
+          ],
+          "component_transforms": [
+            "id",
+            "id",
+            "id"
+          ],
+          "expression": "a(n) = 1*A000194(n) + -1*A001477(n) + 1*A100598(n)",
+          "ids": [
+            "A000194",
+            "A001477",
+            "A100598"
+          ],
+          "latex_expression": "a_{{n}} = 1\\,\\mathrm{A000194}(n) + -1\\,\\mathrm{A001477}(n) + 1\\,\\mathrm{A100598}(n)",
+          "length": 6,
+          "names": [
+            "n appears 2n times, for n >= 1; also nearest integer to square root of n.",
+            "The nonnegative integers.",
+            "Numbers k such that (prime(k)-1)! + prime(k)^8 is prime."
+          ],
+          "score": 1.6933333333333334,
+          "shifts": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "candidate_provenance": [
+            [
+              "exact"
+            ],
+            [
+              "exact",
+              "seed"
+            ],
+            [
+              "similarity"
+            ]
+          ],
+          "coeffs": [
+            "1",
+            "-1",
+            "1"
+          ],
+          "combined_terms": [
+            1,
+            2,
+            3,
+            4,
+            6,
+            7
+          ],
+          "component_terms": [
+            [
+              0,
+              1,
+              1,
+              2,
+              2,
+              2
+            ],
+            [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            [
+              1,
+              2,
+              4,
+              5,
+              8,
+              10
+            ]
+          ],
+          "component_transforms": [
+            "id",
+            "id",
+            "id"
+          ],
+          "expression": "a(n) = 1*A000523(n) + -1*A001477(n) + 1*A100598(n)",
+          "ids": [
+            "A000523",
+            "A001477",
+            "A100598"
+          ],
+          "latex_expression": "a_{{n}} = 1\\,\\mathrm{A000523}(n) + -1\\,\\mathrm{A001477}(n) + 1\\,\\mathrm{A100598}(n)",
+          "length": 6,
+          "names": [
+            "a(n) = floor(log_2(n)).",
+            "The nonnegative integers.",
+            "Numbers k such that (prime(k)-1)! + prime(k)^8 is prime."
+          ],
+          "score": 1.6933333333333334,
+          "shifts": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "candidate_provenance": [
+            [
+              "exact",
+              "seed"
+            ],
+            [
+              "exact"
+            ],
+            [
+              "similarity"
+            ]
+          ],
+          "coeffs": [
+            "1",
+            "-1",
+            "1"
+          ],
+          "combined_terms": [
+            1,
+            2,
+            3,
+            4,
+            6,
+            7
+          ],
+          "component_terms": [
+            [
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ],
+            [
+              1,
+              1,
+              2,
+              2,
+              3,
+              4
+            ],
+            [
+              1,
+              2,
+              4,
+              5,
+              8,
+              10
+            ]
+          ],
+          "component_transforms": [
+            "id",
+            "id",
+            "id"
+          ],
+          "expression": "a(n) = 1*A000012(n) + -1*A000115(n) + 1*A100598(n)",
+          "ids": [
+            "A000012",
+            "A000115",
+            "A100598"
+          ],
+          "latex_expression": "a_{{n}} = 1\\,\\mathrm{A000012}(n) + -1\\,\\mathrm{A000115}(n) + 1\\,\\mathrm{A100598}(n)",
+          "length": 6,
+          "names": [
+            "The simplest sequence of positive numbers: the all 1's sequence.",
+            "Denumerants: Expansion of 1/((1-x)*(1-x^2)*(1-x^5)).",
+            "Numbers k such that (prime(k)-1)! + prime(k)^8 is prime."
+          ],
+          "score": 1.6133333333333333,
+          "shifts": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "candidate_provenance": [
+            [
+              "exact",
+              "seed"
+            ],
+            [
+              "exact"
+            ],
+            [
+              "similarity"
+            ]
+          ],
+          "coeffs": [
+            "-1",
+            "1",
+            "1"
+          ],
+          "combined_terms": [
+            1,
+            2,
+            3,
+            4,
+            6,
+            7
+          ],
+          "component_terms": [
+            [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ],
+            [
+              1,
+              2,
+              2,
+              3,
+              3,
+              3
+            ],
+            [
+              1,
+              2,
+              4,
+              5,
+              8,
+              10
+            ]
+          ],
+          "component_transforms": [
+            "id",
+            "id",
+            "id"
+          ],
+          "expression": "a(n) = -1*A000027(n) + 1*A000121(n) + 1*A100598(n)",
+          "ids": [
+            "A000027",
+            "A000121",
+            "A100598"
+          ],
+          "latex_expression": "a_{{n}} = -1\\,\\mathrm{A000027}(n) + 1\\,\\mathrm{A000121}(n) + 1\\,\\mathrm{A100598}(n)",
+          "length": 6,
+          "names": [
+            "The positive integers. Also called the natural numbers, the whole numbers or the counting numbers, but these terms are ambiguous.",
+            "Number of representations of n as a sum of Fibonacci numbers (1 is allowed twice as a part).",
+            "Numbers k such that (prime(k)-1)! + prime(k)^8 is prime."
+          ],
+          "score": 1.5733333333333333,
+          "shifts": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "candidate_provenance": [
+            [
+              "exact"
+            ],
+            [
+              "exact"
+            ],
+            [
+              "exact"
+            ]
+          ],
+          "coeffs": [
+            "-1",
+            "1",
+            "1"
+          ],
+          "combined_terms": [
+            1,
+            2,
+            3,
+            4,
+            6,
+            7
+          ],
+          "component_terms": [
+            [
+              1,
+              1,
+              1,
+              1,
+              2,
+              2
+            ],
+            [
+              1,
+              2,
+              2,
+              3,
+              3,
+              3
+            ],
+            [
+              1,
+              1,
+              2,
+              2,
+              5,
+              6
+            ]
+          ],
+          "component_transforms": [
+            "id",
+            "id",
+            "id"
+          ],
+          "expression": "a(n) = -1*A000003(n) + 1*A000121(n) + 1*A000403(n)",
+          "ids": [
+            "A000003",
+            "A000121",
+            "A000403"
+          ],
+          "latex_expression": "a_{{n}} = -1\\,\\mathrm{A000003}(n) + 1\\,\\mathrm{A000121}(n) + 1\\,\\mathrm{A000403}(n)",
+          "length": 6,
+          "names": [
+            "Number of classes of primitive positive definite binary quadratic forms of discriminant D = -4n; or equivalently the class number of the quadratic order of discriminant D = -4n.",
+            "Number of representations of n as a sum of Fibonacci numbers (1 is allowed twice as a part).",
+            "Number of simple equifacetted 3-manifolds with n faces."
+          ],
+          "score": 1.52,
+          "shifts": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "candidate_provenance": [
+            [
+              "exact",
+              "seed"
+            ],
+            [
+              "similarity"
+            ],
+            [
+              "similarity"
+            ]
+          ],
+          "coeffs": [
+            "-2",
+            "1",
+            "1"
+          ],
+          "combined_terms": [
+            1,
+            2,
+            3,
+            4,
+            6,
+            7,
+            8
+          ],
+          "component_terms": [
+            [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ],
+            [
+              1,
+              3,
+              4,
+              6,
+              8,
+              10,
+              12
+            ],
+            [
+              0,
+              1,
+              3,
+              4,
+              6,
+              7,
+              8
+            ]
+          ],
+          "component_transforms": [
+            "id",
+            "id",
+            "id"
+          ],
+          "expression": "a(n) = -2*A001477(n) + 1*A027440(n) + 1*A039232(n)",
+          "ids": [
+            "A001477",
+            "A027440",
+            "A039232"
+          ],
+          "latex_expression": "a_{{n}} = -2\\,\\mathrm{A001477}(n) + 1\\,\\mathrm{A027440}(n) + 1\\,\\mathrm{A039232}(n)",
+          "length": 7,
+          "names": [
+            "The nonnegative integers.",
+            "TV channels in Tokyo.",
+            "Numbers whose base-12 representation has the same number of 2's and 5's."
+          ],
+          "score": 1.5145454545454544,
+          "shifts": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "candidate_provenance": [
+            [
+              "exact",
+              "seed"
+            ],
+            [
+              "similarity"
+            ],
+            [
+              "similarity"
+            ]
+          ],
+          "coeffs": [
+            "-2",
+            "1",
+            "1"
+          ],
+          "combined_terms": [
+            1,
+            2,
+            3,
+            4,
+            6,
+            7,
+            8
+          ],
+          "component_terms": [
+            [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ],
+            [
+              1,
+              3,
+              4,
+              6,
+              8,
+              10,
+              12
+            ],
+            [
+              0,
+              1,
+              3,
+              4,
+              6,
+              7,
+              8
+            ]
+          ],
+          "component_transforms": [
+            "id",
+            "id",
+            "id"
+          ],
+          "expression": "a(n) = -2*A001477(n) + 1*A027440(n) + 1*A066533(n)",
+          "ids": [
+            "A001477",
+            "A027440",
+            "A066533"
+          ],
+          "latex_expression": "a_{{n}} = -2\\,\\mathrm{A001477}(n) + 1\\,\\mathrm{A027440}(n) + 1\\,\\mathrm{A066533}(n)",
+          "length": 7,
+          "names": [
+            "The nonnegative integers.",
+            "TV channels in Tokyo.",
+            "Erroneous version of A058986."
+          ],
+          "score": 1.4636363636363634,
+          "shifts": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "candidate_provenance": [
+            [
+              "exact"
+            ],
+            [
+              "similarity"
+            ],
+            [
+              "similarity"
+            ]
+          ],
+          "coeffs": [
+            "1",
+            "1",
+            "-1"
+          ],
+          "combined_terms": [
+            1,
+            2,
+            3,
+            4,
+            6
+          ],
+          "component_terms": [
+            [
+              1,
+              2,
+              2,
+              3,
+              2
+            ],
+            [
+              1,
+              2,
+              5,
+              7,
+              11
+            ],
+            [
+              1,
+              2,
+              4,
+              6,
+              7
+            ]
+          ],
+          "component_transforms": [
+            "id",
+            "id",
+            "id"
+          ],
+          "expression": "a(n) = 1*A000005(n) + 1*A013660(n) + -1*A080645(n)",
+          "ids": [
+            "A000005",
+            "A013660",
+            "A080645"
+          ],
+          "latex_expression": "a_{{n}} = 1\\,\\mathrm{A000005}(n) + 1\\,\\mathrm{A013660}(n) + -1\\,\\mathrm{A080645}(n)",
+          "length": 5,
+          "names": [
+            "d(n) (also called tau(n) or sigma_0(n)), the number of divisors of n.",
+            "Number of elementary catastrophes on n-dimensional manifold (the next term is infinite).",
+            "a(1) = 1; for n>1, a(n) is taken to be the smallest integer greater than a(n-1) which is consistent with the condition \"for n>1, if n is a member of the sequence then a(n) is even\"."
+          ],
+          "score": 1.3888888888888888,
+          "shifts": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "candidate_provenance": [
+            [
+              "exact",
+              "seed"
+            ],
+            [
+              "similarity"
+            ],
+            [
+              "similarity"
+            ]
+          ],
+          "coeffs": [
+            "-3",
+            "1",
+            "1"
+          ],
+          "combined_terms": [
+            1,
+            2,
+            3,
+            4,
+            6,
+            7,
+            8
+          ],
+          "component_terms": [
+            [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            [
+              0,
+              1,
+              2,
+              3,
+              5,
+              6,
+              7
+            ],
+            [
+              4,
+              7,
+              10,
+              13,
+              16,
+              19,
+              22
+            ]
+          ],
+          "component_transforms": [
+            "id",
+            "id",
+            "id"
+          ],
+          "expression": "a(n) = -3*A000027(n) + 1*A039253(n) + 1*A070300(n)",
+          "ids": [
+            "A000027",
+            "A039253",
+            "A070300"
+          ],
+          "latex_expression": "a_{{n}} = -3\\,\\mathrm{A000027}(n) + 1\\,\\mathrm{A039253}(n) + 1\\,\\mathrm{A070300}(n)",
+          "length": 7,
+          "names": [
+            "The positive integers. Also called the natural numbers, the whole numbers or the counting numbers, but these terms are ambiguous.",
+            "Numbers whose base-12 representation has the same number of 4's and 11's.",
+            "Minimal number of 0's in a 2n X 2n (0,1) matrix that contains no n X n submatrix of 1's."
+          ],
+          "score": 1.2815384615384615,
+          "shifts": [
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    }
+  },
+  "updated_utc": "2026-10-28T01:12:24Z"
+}

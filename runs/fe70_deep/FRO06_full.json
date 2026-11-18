@@ -1,0 +1,215 @@
+{
+  "schema_version": 1,
+  "query": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    5,
+    3,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    9,
+    109,
+    65,
+    19,
+    0,
+    1,
+    1,
+    1,
+    17,
+    265,
+    691,
+    1049,
+    701,
+    81,
+    1
+  ],
+  "exact_matches": [],
+  "transform_matches": [],
+  "similarity": [
+    {
+      "id": "A319898",
+      "name": "Number of digits of 2^^n.",
+      "corr": 0.9999999807634657,
+      "mse": 4.71098791910061e-09,
+      "scale": 5.0691514824409584e-05,
+      "offset": -9.292894769217876e-05
+    },
+    {
+      "id": "A320446",
+      "name": "Covers of triangles by tetrahedra: number of labeled 4-uniform hypergraphs spanning n vertices such that every three vertices appear together in some edge.",
+      "corr": 0.9999995936162623,
+      "mse": 9.952252773526147e-08,
+      "scale": 0.000172791012653961,
+      "offset": -0.00028786891147425386
+    },
+    {
+      "id": "A147640",
+      "name": "The numbers A associated with the search for records in the ABC conjecture constrained as described in A147639.",
+      "corr": 0.9999971708483404,
+      "mse": 6.928524875482859e-07,
+      "scale": 0.000588578188172269,
+      "offset": -0.0011763480484423866
+    },
+    {
+      "id": "A296407",
+      "name": "Number of digon-free connected arrangements of n pseudo-circles on a sphere, in the sense that the union of the pseudo-circles is a connected set, reduced for mirror symmetry.",
+      "corr": 0.9999802976919538,
+      "mse": 4.825007499311059e-06,
+      "scale": 0.00022207364158243083,
+      "offset": -0.0013638249476757927
+    },
+    {
+      "id": "A296409",
+      "name": "Number of digon-free cylindrical connected arrangements of n pseudo-circles on a sphere, in the sense that the union of the pseudo-circles is a connected set and two cells of the arrangement are separated by each of the pseudo-circles, reduced for mirror symmetry.",
+      "corr": 0.9999800146524616,
+      "mse": 4.894321917879147e-06,
+      "scale": 0.00022366300757599344,
+      "offset": -0.0013735451711477545
+    },
+    {
+      "id": "A058172",
+      "name": "Number of asymmetric commutative quasigroups of order n.",
+      "corr": 0.9999698200103929,
+      "mse": 7.390906332580412e-06,
+      "scale": 0.002333581425744731,
+      "offset": -0.0034917494145624123
+    },
+    {
+      "id": "A058173",
+      "name": "Number of asymmetric self-converse quasigroups of order n.",
+      "corr": 0.9998813719611328,
+      "mse": 2.905004144360875e-05,
+      "scale": 0.00027071832060516577,
+      "offset": -0.002944009811639273
+    },
+    {
+      "id": "A106169",
+      "name": "Number of inequivalent codes attaining highest minimal Hamming distance of any Type (4_II)^H+ even Hermitian additive self-dual code over GF(4) of length 2n.",
+      "corr": 0.9998555047054114,
+      "mse": 3.5384046157599565e-05,
+      "scale": 0.0009844520239189688,
+      "offset": -0.004388752720451488
+    },
+    {
+      "id": "A058911",
+      "name": "Numbers k such that k^k + k + 1 is prime.",
+      "corr": 0.9998404848141801,
+      "mse": 3.906182774028346e-05,
+      "scale": 0.0021803293240424304,
+      "offset": -0.007585580501784849
+    },
+    {
+      "id": "A326331",
+      "name": "Number of simple graphs covering the vertices {1..n} whose nesting edges are connected.",
+      "corr": 0.9996940748555472,
+      "mse": 7.490898351571946e-05,
+      "scale": 0.0018639507180005378,
+      "offset": -0.005193799886899862
+    }
+  ],
+  "combinations": [],
+  "triple_combinations": [],
+  "modclass_combinations": [],
+  "pointwise_combinations": [],
+  "convolution_combinations": [],
+  "combined_combinations": [],
+  "ranked_explanations": [],
+  "diagnostics": {
+    "query_length": 30,
+    "exact_limit": 15,
+    "transform_limit": 60,
+    "similarity_limit": 10,
+    "combination_limit": 10,
+    "combo_candidate_cap": 60,
+    "combo_max_checks": 400000,
+    "triple_limit": 4,
+    "triple_candidate_cap": 30,
+    "triple_max_checks": 350000,
+    "pointwise_limit": 0,
+    "convolution_limit": 0,
+    "variance_band": null,
+    "growth_band": null,
+    "excluded_ids": [],
+    "query_var": 61957.743333333325,
+    "query_diff_var": 30959.0677764566,
+    "query_growth": 0.14422672751161314,
+    "combined_combinations_count": 0,
+    "combined_explanations": [],
+    "ranking": {
+      "enabled": true,
+      "mode": "auto_preset_deepmax",
+      "configured_limit": 0,
+      "default_quota": 1,
+      "quota_overrides": {},
+      "input_counts": {},
+      "post_dedupe_counts": {},
+      "quotas": {},
+      "dedupe_dropped": 0,
+      "selected_count": 0,
+      "selected_counts": {},
+      "limit": 0
+    },
+    "scheduling": {
+      "mode": "latency_first",
+      "combo_stage_requested": true,
+      "transform_probe_used": true,
+      "transform_refined": true,
+      "transform_probe_cap_s": 5.0
+    },
+    "candidate_bucket": {
+      "size": 60,
+      "exact": 22,
+      "similar": 36,
+      "discovery": 0,
+      "provenance_counts": {
+        "index_join": 22,
+        "seed": 6,
+        "similarity": 36
+      },
+      "provider_diagnostics": {
+        "requested": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "enabled": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "unknown": [],
+        "widen_prefilter": false
+      }
+    }
+  },
+  "fe70_input": {
+    "id": "FRO06",
+    "variant": "full",
+    "start_index": 1,
+    "also_covers": [],
+    "command": [
+      "/home/rahidz/coding/oeis/.venv/bin/oeis",
+      "analyze",
+      "0,0,0,0,0,0,1,5,3,0,0,0,0,1,1,9,109,65,19,0,1,1,1,17,265,691,1049,701,81,1",
+      "--deep",
+      "--time-cap",
+      "120",
+      "--subsequence",
+      "--json",
+      "--show-terms",
+      "60",
+      "--show-formula"
+    ]
+  }
+}

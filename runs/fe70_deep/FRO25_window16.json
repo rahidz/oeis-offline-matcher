@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "query": [
+    4,
+    8,
+    4,
+    8,
+    16,
+    50,
+    66,
+    120,
+    106,
+    126,
+    300,
+    1280,
+    1272,
+    678,
+    1926,
+    7834
+  ],
+  "exact_matches": [],
+  "transform_matches": [],
+  "similarity": [
+    {
+      "id": "A002393",
+      "name": "Weight distribution of [8,4,4] Hamming code omitting 0 terms.",
+      "corr": 1.0,
+      "mse": 0.0,
+      "scale": 0.3076923076923077,
+      "offset": 3.692307692307692
+    },
+    {
+      "id": "A110825",
+      "name": "Weight enumerator of [64,7,32] Reed-Muller code RM(1,6).",
+      "corr": 1.0,
+      "mse": 0.0,
+      "scale": 0.032,
+      "offset": 3.968
+    },
+    {
+      "id": "A110827",
+      "name": "Weight enumerator of [128,8,64] Reed-Muller code RM(1,7).",
+      "corr": 1.0,
+      "mse": 0.0,
+      "scale": 0.015810276679841896,
+      "offset": 3.984189723320158
+    },
+    {
+      "id": "A135826",
+      "name": "Moves to permute (ufl,ubr)(ufr,ubl) corners in a 3 X 3 X 3 Rubik's cube.",
+      "corr": 1.0,
+      "mse": 0.0,
+      "scale": 0.023809523809523808,
+      "offset": 3.3333333333333335
+    },
+    {
+      "id": "A110823",
+      "name": "Weight enumerator of [32,6,16] Reed-Muller code RM(1,5).",
+      "corr": 1.0,
+      "mse": 1.314768175368353e-31,
+      "scale": 0.06557377049180328,
+      "offset": 3.934426229508196
+    },
+    {
+      "id": "A275509",
+      "name": "First occurrence of a run of exactly n consecutive integers with an odd number of prime factors.",
+      "corr": 0.9979479850286614,
+      "mse": 14615.044051060191,
+      "scale": 0.045535145041383944,
+      "offset": 37.37777997990099
+    },
+    {
+      "id": "A005466",
+      "name": "5 X 5 stochastic matrices of integers.",
+      "corr": 0.9979376793966116,
+      "mse": 2.234091213472602,
+      "scale": 1.2988508779408145e-05,
+      "offset": 5.600061736771441
+    },
+    {
+      "id": "A174179",
+      "name": "Numbers k such that 10^k - 2^k - 1 is prime.",
+      "corr": 0.9977189684063905,
+      "mse": 2.470748135936988,
+      "scale": 0.057517340588548016,
+      "offset": 5.687853144447573
+    },
+    {
+      "id": "A335732",
+      "name": "Emirps whose concatenation of adjacent digit differences either form an emirp that also has this characteristic or form a single-digit prime, and whose emirp also has this characteristic.",
+      "corr": 0.9974737388405555,
+      "mse": 594.5497092823207,
+      "scale": 0.17373099636821004,
+      "offset": -28.541386599271544
+    },
+    {
+      "id": "A187774",
+      "name": "Positive values of n for which the quadratic field Q(n^(1/4)) is norm-Euclidean.",
+      "corr": 0.9973371094102177,
+      "mse": 626.6622617450611,
+      "scale": 2.9278384238995443,
+      "offset": -10.209834170346312
+    }
+  ],
+  "combinations": [],
+  "triple_combinations": [],
+  "modclass_combinations": [],
+  "pointwise_combinations": [],
+  "convolution_combinations": [],
+  "combined_combinations": [],
+  "ranked_explanations": [],
+  "diagnostics": {
+    "query_length": 16,
+    "exact_limit": 15,
+    "transform_limit": 60,
+    "similarity_limit": 10,
+    "combination_limit": 10,
+    "combo_candidate_cap": 60,
+    "combo_max_checks": 400000,
+    "triple_limit": 4,
+    "triple_candidate_cap": 30,
+    "triple_max_checks": 350000,
+    "pointwise_limit": 0,
+    "convolution_limit": 0,
+    "variance_band": null,
+    "growth_band": null,
+    "excluded_ids": [],
+    "query_var": 3564802.109375,
+    "query_diff_var": 2248221.3333333335,
+    "query_growth": 0.6509373134910436,
+    "combined_combinations_count": 0,
+    "combined_explanations": [],
+    "ranking": {
+      "enabled": true,
+      "mode": "auto_preset_deepmax",
+      "configured_limit": 0,
+      "default_quota": 1,
+      "quota_overrides": {},
+      "input_counts": {},
+      "post_dedupe_counts": {},
+      "quotas": {},
+      "dedupe_dropped": 0,
+      "selected_count": 0,
+      "selected_counts": {},
+      "limit": 0
+    },
+    "scheduling": {
+      "mode": "latency_first",
+      "combo_stage_requested": true,
+      "transform_probe_used": true,
+      "transform_refined": true,
+      "transform_probe_cap_s": 5.0
+    },
+    "candidate_bucket": {
+      "size": 60,
+      "exact": 22,
+      "similar": 36,
+      "discovery": 0,
+      "provenance_counts": {
+        "index_join": 22,
+        "seed": 6,
+        "similarity": 36
+      },
+      "provider_diagnostics": {
+        "requested": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "enabled": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "unknown": [],
+        "widen_prefilter": false
+      }
+    }
+  },
+  "fe70_input": {
+    "id": "FRO25",
+    "variant": "window16",
+    "start_index": 1,
+    "also_covers": [],
+    "command": [
+      "/home/rahidz/coding/oeis/.venv/bin/oeis",
+      "analyze",
+      "4,8,4,8,16,50,66,120,106,126,300,1280,1272,678,1926,7834",
+      "--deep",
+      "--time-cap",
+      "120",
+      "--subsequence",
+      "--json",
+      "--show-terms",
+      "60",
+      "--show-formula"
+    ]
+  }
+}

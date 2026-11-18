@@ -1,0 +1,5207 @@
+{
+  "context": {
+    "args": {
+      "allow_constant_transforms": false,
+      "beta_values": "-3,-2,-1,1,2,3",
+      "cmd": "analyze",
+      "combo_candidates": 250,
+      "combo_coeffs": "-5,-4,-3,-2,-1,1,2,3,4,5",
+      "combo_component_transforms": "id,diff,partial_sum",
+      "combo_discovery": true,
+      "combo_discovery_limit": 16,
+      "combo_discovery_tools": "sympy",
+      "combo_expanded": true,
+      "combo_expanded_anchors": 800,
+      "combo_expanded_pointwise": null,
+      "combo_max_checks": 2000000,
+      "combo_max_combinations": null,
+      "combo_max_complexity": null,
+      "combo_max_shift": 5,
+      "combo_max_shift_back": 1,
+      "combo_min_score": null,
+      "combo_rational": false,
+      "combo_unfiltered": true,
+      "combo_wide_prefilter": true,
+      "combos": 20,
+      "convolution_limit": 5,
+      "convolution_ops": "cauchy,dirichlet",
+      "db": "data/processed/oeis.db",
+      "decimate": "2,3:1,4:1",
+      "deep": false,
+      "exclude_ids": [],
+      "extra_transforms": "diff2,cumprod,altsign,reverse,evenodd,movsum2,movsum3,movsum4,binomial,invbinomial,euler,eulerogf,inveulerogf,stirling1,stirling2,invstirling1,invstirling2,ogfinv,seriesrev,mobius,digitsum10,popcount,mod2,xorindex,rle,rledec,concat,log2,loge,exp2,omega,bigomega,tau,sigma,phi,v2,vp3,vp5,lpf,gpf,rad,squarefree,liouville,ratioint,indexsquare,primeindex,indexpow2,indexfactorial,indextri,indexfib,indexpowk3,indexpowk4",
+      "fast": false,
+      "growth_band": null,
+      "limit": 25,
+      "max": false,
+      "max_depth": 2,
+      "max_mse": null,
+      "min_corr": null,
+      "min_match_length": 3,
+      "modclass": 10,
+      "modclass_moduli": "2,3",
+      "no_abs": false,
+      "no_diff": false,
+      "no_gcd_norm": false,
+      "no_partial_sum": false,
+      "no_subsequence_fallback": false,
+      "pointwise_limit": 10,
+      "pointwise_ops": "mul,gcd,lcm",
+      "preset": "max",
+      "rerank": null,
+      "rerank_default_quota": 1,
+      "rerank_limit": 0,
+      "rerank_quotas": "",
+      "scale_values": "-5,-4,-3,-2,-1,2,3,4,5",
+      "sequence": "2,3,5,5,9,10,9,8,7,8,14,7,15,14,13,30,29,28,27,53",
+      "shift_values": "-1,1,2,3,4",
+      "show_formula": false,
+      "show_terms": null,
+      "similar": 20,
+      "subsequence": false,
+      "time_cap": 3600.0,
+      "tlimit": 80,
+      "transform_max_complexity": 7.0,
+      "transform_min_score": 0.8,
+      "triple_candidates": 200,
+      "triple_max_checks": 2000000,
+      "triple_max_combinations": null,
+      "triple_max_complexity": null,
+      "triple_min_score": null,
+      "triple_rational": false,
+      "triples": 10,
+      "variance_band": null
+    },
+    "cmd": "analyze",
+    "db": {
+      "bytes": 406351872,
+      "exists": true,
+      "mtime_ns": 1792945309412380286,
+      "path": "data/processed/oeis.db"
+    },
+    "query_terms": [
+      2,
+      3,
+      5,
+      5,
+      9,
+      10,
+      9,
+      8,
+      7,
+      8,
+      14,
+      7,
+      15,
+      14,
+      13,
+      30,
+      29,
+      28,
+      27,
+      53
+    ]
+  },
+  "created_utc": "2026-10-28T00:41:57Z",
+  "schema_version": 1,
+  "stages": {
+    "combo": {
+      "matches": []
+    },
+    "convolution": {
+      "matches": []
+    },
+    "exact": {
+      "fallback_used": true,
+      "matches": []
+    },
+    "modclass": {
+      "matches": []
+    },
+    "pointwise": {
+      "matches": []
+    },
+    "similarity": {
+      "matches": [
+        {
+          "corr": 0.7120675307986193,
+          "id": "A385989",
+          "mse": 74.41721617567266,
+          "name": "a(n) is the least m > n such that 2^n and 2^m are congruent modulo n.",
+          "offset": -0.1764067536944225,
+          "scale": 0.9885416999138233
+        },
+        {
+          "corr": 0.7073193587985979,
+          "id": "A096736",
+          "mse": 75.43461005199308,
+          "name": "a(1) = 2; for n>1: a(n) = integer part of x-value when y=0 in (y-tau(n))/(x-1)=(1-tau(n))/(n-1), tau=A000005.",
+          "offset": 0.3207972270363939,
+          "scale": 0.9341421143847487
+        },
+        {
+          "corr": 0.6000647837774493,
+          "id": "A033885",
+          "mse": 96.60266365557774,
+          "name": "a(n) = 3*n - sum of divisors of n.",
+          "offset": 3.2557109354642577,
+          "scale": 0.7934219288340716
+        },
+        {
+          "corr": 0.42376314431524076,
+          "id": "A388283",
+          "mse": 123.85132743362833,
+          "name": "Numerator of (3*n - sigma(n)) / n.",
+          "offset": 8.743362831858407,
+          "scale": 0.5221238938053098
+        }
+      ]
+    },
+    "transform": {
+      "matches": [
+        {
+          "explanation": "Moving sum 3, then p-adic valuation 5",
+          "formula": "Multiplicative with a(p^e) = 0. - _David W. Wilson_, Sep 01 2001\na(n) = floor(1/(n + 1)). - _Franz Vrabec_, Aug 24 2005\nAs a function of Bernoulli numbers (cf. A027641: (1, -1/2, 1/6, 0, -1/30, ...)), triangle A074909 (the beheaded Pascal's triangle) * B_n as a vector = [1, 0, 0, 0, 0, ...]. - _Gary W. Adamson_, Mar 05 2012\na(n) = Sum_{k = 0..n} exp(2*Pi*i*k/(n+1)) is the sum of the (n+1)th roots of unity. - _Franz Vrabec_, Nov 09 2012\na(n) = (1-(-1)^(2^n))/2. - _Luce ETIENNE_, May 05 2015\na(n) = 1 - A057427(n). - _Alois P. Heinz_, Jan 20 2016\nFrom _Ilya Gutkovskiy_, Sep 02 2016: (Start)\nBinomial transform of A033999.\nInverse binomial transform of A000012. (End)\nG.f. and E.g.f.: 1. - _M. F. Hasler_, Apr 09 2026",
+          "has_formula": true,
+          "id": "A000007",
+          "keywords": [
+            "core",
+            "nonn",
+            "mult",
+            "cons",
+            "easy"
+          ],
+          "latex": "\\mathrm{movsum} \\mathrm{v_p}\\,a_n",
+          "length": 18,
+          "match_type": "prefix",
+          "name": "The characteristic function of {0}: a(n) = 0^n.",
+          "offset": 0,
+          "score": 6.3982374847238095,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "symbolic": "A000007(n) = vp(5)(movsum(a(n)))",
+          "symbolic_latex": "\\mathrm{A000007}(n) = \\mathrm{vp(5)}(\\mathrm{movsum}(3,a_n))",
+          "transform_desc": "movsum(3) \u2218 vp(5)",
+          "transformed_terms": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "explanation": "Moving sum 3, then p-adic valuation 5",
+          "formula": "a(n) = floor(n^n / 20^n) mod 20.",
+          "has_formula": true,
+          "id": "A088156",
+          "keywords": [
+            "nonn",
+            "base"
+          ],
+          "latex": "\\mathrm{movsum} \\mathrm{v_p}\\,a_n",
+          "length": 18,
+          "match_type": "prefix",
+          "name": "Value of n-th digit in vigesimal representation of n^n.",
+          "offset": 0,
+          "score": 6.3982374847238095,
+          "seq_offset": [
+            0,
+            22
+          ],
+          "snippet": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "symbolic": "A088156(n) = vp(5)(movsum(a(n)))",
+          "symbolic_latex": "\\mathrm{A088156}(n) = \\mathrm{vp(5)}(\\mathrm{movsum}(3,a_n))",
+          "transform_desc": "movsum(3) \u2218 vp(5)",
+          "transformed_terms": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "explanation": "Moving sum 3, then p-adic valuation 5",
+          "formula": "a(n) = floor(n^n / 60^n) mod 60.",
+          "has_formula": true,
+          "id": "A088157",
+          "keywords": [
+            "nonn",
+            "base",
+            "look"
+          ],
+          "latex": "\\mathrm{movsum} \\mathrm{v_p}\\,a_n",
+          "length": 18,
+          "match_type": "prefix",
+          "name": "Value of (n+1)-th digit in sexagesimal representation of n^n.",
+          "offset": 0,
+          "score": 6.3982374847238095,
+          "seq_offset": [
+            0,
+            62
+          ],
+          "snippet": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "symbolic": "A088157(n) = vp(5)(movsum(a(n)))",
+          "symbolic_latex": "\\mathrm{A088157}(n) = \\mathrm{vp(5)}(\\mathrm{movsum}(3,a_n))",
+          "transform_desc": "movsum(3) \u2218 vp(5)",
+          "transformed_terms": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "explanation": "Moving sum 3, then p-adic valuation 5",
+          "formula": "a(n) ~ sqrt(Pi^2 + 6*c) * exp(sqrt((2*Pi^2/3 + 4*c)*n)) / (4*sqrt(3)*Pi*n), where c = Integral_{0..infinity} log(1 - exp(-x) + exp(-20*x)) dx = -1.354168532835449099374593344112387373408094711414623392193... . - _Vaclav Kotesovec_, Jan 05 2016",
+          "has_formula": true,
+          "id": "A160990",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{movsum} \\mathrm{v_p}\\,a_n",
+          "length": 18,
+          "match_type": "prefix",
+          "name": "Number of partitions of n where every part appears at least 20 times.",
+          "offset": 0,
+          "score": 6.3982374847238095,
+          "seq_offset": [
+            0,
+            41
+          ],
+          "snippet": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "symbolic": "A160990(n) = vp(5)(movsum(a(n)))",
+          "symbolic_latex": "\\mathrm{A160990}(n) = \\mathrm{vp(5)}(\\mathrm{movsum}(3,a_n))",
+          "transform_desc": "movsum(3) \u2218 vp(5)",
+          "transformed_terms": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "explanation": "Moving sum 3, then p-adic valuation 5",
+          "formula": "a(29) = a(A000066(9)/2) = A052453(9) = 18 is the number of (3,9) cages.",
+          "has_formula": true,
+          "id": "A210709",
+          "keywords": [
+            "nonn",
+            "more",
+            "hard",
+            "bref"
+          ],
+          "latex": "\\mathrm{movsum} \\mathrm{v_p}\\,a_n",
+          "length": 18,
+          "match_type": "prefix",
+          "name": "Number of trivalent connected simple graphs with 2n nodes and girth at least 9.",
+          "offset": 0,
+          "score": 6.3982374847238095,
+          "seq_offset": [
+            0,
+            30
+          ],
+          "snippet": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "symbolic": "A210709(n) = vp(5)(movsum(a(n)))",
+          "symbolic_latex": "\\mathrm{A210709}(n) = \\mathrm{vp(5)}(\\mathrm{movsum}(3,a_n))",
+          "transform_desc": "movsum(3) \u2218 vp(5)",
+          "transformed_terms": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "explanation": "Moving sum 3, then p-adic valuation 5",
+          "formula": "Additive with a(2^e) = 0 for e <= 4, a(2^5) = -1, a(2^e) = 1 for e >= 6, and a(p^e) = 0 for an odd prime p. - _Amiram Eldar_, Oct 20 2026",
+          "has_formula": true,
+          "id": "A240351",
+          "keywords": [
+            "sign",
+            "easy",
+            "changed"
+          ],
+          "latex": "\\mathrm{movsum} \\mathrm{v_p}\\,a_n",
+          "length": 18,
+          "match_type": "prefix",
+          "name": "Inverse of 64th cyclotomic polynomial.",
+          "offset": 0,
+          "score": 6.3982374847238095,
+          "seq_offset": [
+            0,
+            0
+          ],
+          "snippet": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "symbolic": "A240351(n) = vp(5)(movsum(a(n)))",
+          "symbolic_latex": "\\mathrm{A240351}(n) = \\mathrm{vp(5)}(\\mathrm{movsum}(3,a_n))",
+          "transform_desc": "movsum(3) \u2218 vp(5)",
+          "transformed_terms": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "explanation": "Moving sum 3, then p-adic valuation 5",
+          "formula": "a(n) = A000007(A093017(n) mod 10).",
+          "has_formula": true,
+          "id": "A249832",
+          "keywords": [
+            "nonn",
+            "base"
+          ],
+          "latex": "\\mathrm{movsum} \\mathrm{v_p}\\,a_n",
+          "length": 18,
+          "match_type": "prefix",
+          "name": "Characteristic function of numbers having a valid Luhn mod 10 check digit.",
+          "offset": 0,
+          "score": 6.3982374847238095,
+          "seq_offset": [
+            0,
+            0
+          ],
+          "snippet": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0
+          ],
+          "symbolic": "A249832(n) = vp(5)(movsum(a(n)))",
+          "symbolic_latex": "\\mathrm{A249832}(n) = \\mathrm{vp(5)}(\\mathrm{movsum}(3,a_n))",
+          "transform_desc": "movsum(3) \u2218 vp(5)",
+          "transformed_terms": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "explanation": "Moving sum 3, then p-adic valuation 5",
+          "formula": "G.f.: Sum_{k>=0} (2^n - 2*n) * x^(n*(2*n+1)) / (x; x)_{2*n}, where (a; q)_n = Product_{k=0..n-1} (1 - a*q^n) is the q-Pochhammer symbol.\nG.f.: ((sqrt(2)-1)*(-sqrt(2); x)_inf - (sqrt(2)+1)*(sqrt(2); x)_inf)/2 + (2*(x; x)_inf * (log(1-x) + psi_x(1)) + (-1; x)_inf * (log(1-x) + psi_x(1 - log(-1)/log(x))))/(4*log(x)), where psi_q(z) is the q-digamma function, and (a; q)_inf = Product_{k>=0} (1 - a*q^n) is the q-Pochhammer symbol (the Euler function), log(-1) = i*Pi.",
+          "has_formula": true,
+          "id": "A278297",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{movsum} \\mathrm{v_p}\\,a_n",
+          "length": 18,
+          "match_type": "prefix",
+          "name": "a(n) = A278296(n) - A238132(n).",
+          "offset": 0,
+          "score": 6.3982374847238095,
+          "seq_offset": [
+            0,
+            22
+          ],
+          "snippet": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "symbolic": "A278297(n) = vp(5)(movsum(a(n)))",
+          "symbolic_latex": "\\mathrm{A278297}(n) = \\mathrm{vp(5)}(\\mathrm{movsum}(3,a_n))",
+          "transform_desc": "movsum(3) \u2218 vp(5)",
+          "transformed_terms": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "explanation": "Moving sum 3, then p-adic valuation 5",
+          "formula": "a(n) = [A351083(n) == 0 (mod 3)], where [ ] is the Iverson bracket.\na(n) = A079978(n) * A369653(n).\na(n) = A373143(A276086(n)).\nIf a(x) = a(y) = A329041(x,y) = 1, then a(x+y) = 1 also. See explanation in the comments of A373599.",
+          "has_formula": true,
+          "id": "A373598",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{movsum} \\mathrm{v_p}\\,a_n",
+          "length": 18,
+          "match_type": "prefix",
+          "name": "a(n) = 1 if n and A327860(n) are both multiples of 3, where A327860 is the arithmetic derivative of the primorial base exp-function.",
+          "offset": 0,
+          "score": 6.3982374847238095,
+          "seq_offset": [
+            0,
+            0
+          ],
+          "snippet": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0
+          ],
+          "symbolic": "A373598(n) = vp(5)(movsum(a(n)))",
+          "symbolic_latex": "\\mathrm{A373598}(n) = \\mathrm{vp(5)}(\\mathrm{movsum}(3,a_n))",
+          "transform_desc": "movsum(3) \u2218 vp(5)",
+          "transformed_terms": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "explanation": "Moving sum 3, then p-adic valuation 5",
+          "formula": "a(n) = 1/6 * [(x*y*z)^n] Product_{p prime} (1 + x^p + y^p + z^p) for n > 0.",
+          "has_formula": true,
+          "id": "A382954",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{movsum} \\mathrm{v_p}\\,a_n",
+          "length": 18,
+          "match_type": "prefix",
+          "name": "Number of ways to partition distinct prime numbers into three disjoint sets such that the sum of each set equals n.",
+          "offset": 0,
+          "score": 6.3982374847238095,
+          "seq_offset": [
+            0,
+            25
+          ],
+          "snippet": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          "symbolic": "A382954(n) = vp(5)(movsum(a(n)))",
+          "symbolic_latex": "\\mathrm{A382954}(n) = \\mathrm{vp(5)}(\\mathrm{movsum}(3,a_n))",
+          "transform_desc": "movsum(3) \u2218 vp(5)",
+          "transformed_terms": [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "explanation": "Inverse binomial transform, then p-adic valuation 5",
+          "formula": "a(n) = A180260(n) - A014378(n), i.e., Euler_transformation(A014378) - A014378.\na(n) = D(n, 8) in the triangle A068933.",
+          "has_formula": true,
+          "id": "A165878",
+          "keywords": [
+            "nonn",
+            "hard"
+          ],
+          "latex": "\\mathrm{InvBinomial} \\mathrm{v_p}\\,a_n",
+          "length": 20,
+          "match_type": "prefix",
+          "name": "Number of disconnected 8-regular simple graphs on n vertices.",
+          "offset": 0,
+          "score": 5.608457114166105,
+          "seq_offset": [
+            0,
+            21
+          ],
+          "snippet": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1
+          ],
+          "symbolic": "A165878(n) = vp(5)(inv_binomial(a(n)))",
+          "symbolic_latex": "\\mathrm{A165878}(n) = \\mathrm{vp(5)}(\\mathrm{inv_binomial}(a_n))",
+          "transform_desc": "inv_binomial \u2218 vp(5)",
+          "transformed_terms": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1
+          ]
+        },
+        {
+          "explanation": "Inverse binomial transform, then p-adic valuation 5",
+          "formula": "a(n) = A185329() - A185119(n). - _Andrew Howroyd_, Apr 18 2021",
+          "has_formula": true,
+          "id": "A185229",
+          "keywords": [
+            "nonn",
+            "easy"
+          ],
+          "latex": "\\mathrm{InvBinomial} \\mathrm{v_p}\\,a_n",
+          "length": 20,
+          "match_type": "prefix",
+          "name": "Number of disconnected 2-regular simple graphs on n vertices with girth at least 9.",
+          "offset": 0,
+          "score": 5.608457114166105,
+          "seq_offset": [
+            0,
+            21
+          ],
+          "snippet": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1
+          ],
+          "symbolic": "A185229(n) = vp(5)(inv_binomial(a(n)))",
+          "symbolic_latex": "\\mathrm{A185229}(n) = \\mathrm{vp(5)}(\\mathrm{inv_binomial}(a_n))",
+          "transform_desc": "inv_binomial \u2218 vp(5)",
+          "transformed_terms": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1
+          ]
+        },
+        {
+          "explanation": "Inverse binomial transform, then p-adic valuation 5",
+          "formula": null,
+          "has_formula": null,
+          "id": "A011732",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{InvBinomial} \\mathrm{v_p}\\,a_n",
+          "length": 20,
+          "match_type": "prefix",
+          "name": "A binary m-sequence: expansion of reciprocal of x^19 + x^6 + x^5 + x + 1 (mod 2, shifted by 18 initial 0's).",
+          "offset": 0,
+          "score": 5.498487366829514,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1
+          ],
+          "symbolic": "A011732(n) = vp(5)(inv_binomial(a(n)))",
+          "symbolic_latex": "\\mathrm{A011732}(n) = \\mathrm{vp(5)}(\\mathrm{inv_binomial}(a_n))",
+          "transform_desc": "inv_binomial \u2218 vp(5)",
+          "transformed_terms": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1
+          ]
+        },
+        {
+          "explanation": "Inverse binomial transform, then p-adic valuation 5",
+          "formula": null,
+          "has_formula": null,
+          "id": "A185294",
+          "keywords": [
+            "nonn",
+            "more",
+            "hard"
+          ],
+          "latex": "\\mathrm{InvBinomial} \\mathrm{v_p}\\,a_n",
+          "length": 20,
+          "match_type": "prefix",
+          "name": "Number of disconnected 9-regular simple graphs on 2n vertices with girth at least 4.",
+          "offset": 0,
+          "score": 5.498487366829514,
+          "seq_offset": [
+            0,
+            21
+          ],
+          "snippet": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1
+          ],
+          "symbolic": "A185294(n) = vp(5)(inv_binomial(a(n)))",
+          "symbolic_latex": "\\mathrm{A185294}(n) = \\mathrm{vp(5)}(\\mathrm{inv_binomial}(a_n))",
+          "transform_desc": "inv_binomial \u2218 vp(5)",
+          "transformed_terms": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1
+          ]
+        },
+        {
+          "explanation": "Inverse binomial transform, then p-adic valuation 5",
+          "formula": "a(n) ~ sqrt(Pi^2 + 6*c) * exp(sqrt((2*Pi^2/3 + 4*c)*n)) / (4*sqrt(3)*Pi*n), where c = Integral_{0..infinity} log(1 - exp(-x) + exp(-19*x)) dx = -1.344968702391930099087979420509926453320910037193266189844... . - _Vaclav Kotesovec_, Jan 05 2016",
+          "has_formula": true,
+          "id": "A160989",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{InvBinomial} \\mathrm{v_p}\\,a_n",
+          "length": 20,
+          "match_type": "prefix",
+          "name": "Number of partitions of n where every part appears at least 19 times.",
+          "offset": 0,
+          "score": 5.341387727777242,
+          "seq_offset": [
+            1,
+            38
+          ],
+          "snippet": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1
+          ],
+          "symbolic": "A160989(n) = vp(5)(inv_binomial(a(n)))",
+          "symbolic_latex": "\\mathrm{A160989}(n) = \\mathrm{vp(5)}(\\mathrm{inv_binomial}(a_n))",
+          "transform_desc": "inv_binomial \u2218 vp(5)",
+          "transformed_terms": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1
+          ]
+        },
+        {
+          "explanation": "Inverse binomial transform, then p-adic valuation 5",
+          "formula": null,
+          "has_formula": null,
+          "id": "A034434",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{InvBinomial} \\mathrm{v_p}\\,a_n",
+          "length": 20,
+          "match_type": "prefix",
+          "name": "Multiplicity of highest weight (or singular) vectors associated with character chi_46 of Monster module.",
+          "offset": 0,
+          "score": 5.236654635075728,
+          "seq_offset": [
+            1,
+            21
+          ],
+          "snippet": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1
+          ],
+          "symbolic": "A034434(n) = vp(5)(inv_binomial(a(n)))",
+          "symbolic_latex": "\\mathrm{A034434}(n) = \\mathrm{vp(5)}(\\mathrm{inv_binomial}(a_n))",
+          "transform_desc": "inv_binomial \u2218 vp(5)",
+          "transformed_terms": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1
+          ]
+        },
+        {
+          "explanation": "Inverse binomial transform, then p-adic valuation 5",
+          "formula": null,
+          "has_formula": null,
+          "id": "A111895",
+          "keywords": [
+            "nonn",
+            "base"
+          ],
+          "latex": "\\mathrm{InvBinomial} \\mathrm{v_p}\\,a_n",
+          "length": 20,
+          "match_type": "prefix",
+          "name": "Number of numbers m <= n such that 5 equals the second digit after decimal point of square root of n in decimal representation.",
+          "offset": 0,
+          "score": 5.236654635075728,
+          "seq_offset": [
+            1,
+            32
+          ],
+          "snippet": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1
+          ],
+          "symbolic": "A111895(n) = vp(5)(inv_binomial(a(n)))",
+          "symbolic_latex": "\\mathrm{A111895}(n) = \\mathrm{vp(5)}(\\mathrm{inv_binomial}(a_n))",
+          "transform_desc": "inv_binomial \u2218 vp(5)",
+          "transformed_terms": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1
+          ]
+        },
+        {
+          "explanation": "Inverse binomial transform, then p-adic valuation 5",
+          "formula": null,
+          "has_formula": null,
+          "id": "A185715",
+          "keywords": [
+            "base",
+            "nonn"
+          ],
+          "latex": "\\mathrm{InvBinomial} \\mathrm{v_p}\\,a_n",
+          "length": 20,
+          "match_type": "prefix",
+          "name": "a(n) = number of primes <= n that end in 9.",
+          "offset": 0,
+          "score": 5.236654635075728,
+          "seq_offset": [
+            1,
+            29
+          ],
+          "snippet": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1
+          ],
+          "symbolic": "A185715(n) = vp(5)(inv_binomial(a(n)))",
+          "symbolic_latex": "\\mathrm{A185715}(n) = \\mathrm{vp(5)}(\\mathrm{inv_binomial}(a_n))",
+          "transform_desc": "inv_binomial \u2218 vp(5)",
+          "transformed_terms": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1
+          ]
+        },
+        {
+          "explanation": "Inverse binomial transform, then p-adic valuation 5",
+          "formula": null,
+          "has_formula": null,
+          "id": "A342676",
+          "keywords": [
+            "nonn",
+            "base"
+          ],
+          "latex": "\\mathrm{InvBinomial} \\mathrm{v_p}\\,a_n",
+          "length": 20,
+          "match_type": "prefix",
+          "name": "a(n) is the number of lunar primes less than or equal to n.",
+          "offset": 0,
+          "score": 5.236654635075728,
+          "seq_offset": [
+            1,
+            29
+          ],
+          "snippet": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1
+          ],
+          "symbolic": "A342676(n) = vp(5)(inv_binomial(a(n)))",
+          "symbolic_latex": "\\mathrm{A342676}(n) = \\mathrm{vp(5)}(\\mathrm{inv_binomial}(a_n))",
+          "transform_desc": "inv_binomial \u2218 vp(5)",
+          "transformed_terms": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1
+          ]
+        },
+        {
+          "explanation": "Inverse binomial transform, then p-adic valuation 5",
+          "formula": null,
+          "has_formula": null,
+          "id": "A345206",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{InvBinomial} \\mathrm{v_p}\\,a_n",
+          "length": 20,
+          "match_type": "prefix",
+          "name": "Maximum number of unit cubes that can be fully enclosed in n unit cubes.",
+          "offset": 0,
+          "score": 5.236654635075728,
+          "seq_offset": [
+            8,
+            27
+          ],
+          "snippet": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1
+          ],
+          "symbolic": "A345206(n) = vp(5)(inv_binomial(a(n)))",
+          "symbolic_latex": "\\mathrm{A345206}(n) = \\mathrm{vp(5)}(\\mathrm{inv_binomial}(a_n))",
+          "transform_desc": "inv_binomial \u2218 vp(5)",
+          "transformed_terms": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1
+          ]
+        },
+        {
+          "explanation": "Inverse Stirling transform (1st kind), then p-adic valuation 5",
+          "formula": "From _David Radcliffe_, Aug 25 2026: (Start)\na(n) = A216513(n) - A010052(n) - A010052(6*n) + A000007(n) = (A046113(n) - 2*A010052(n) - 2*A010052(6*n) + A000007(n)) / 4.\nG.f.: ((theta_3(0,x) - 1)*(theta_3(0,x^6) - 1))/4, where theta_3 is the third Jacobi theta function. (End)",
+          "has_formula": true,
+          "id": "A216510",
+          "keywords": [
+            "nonn",
+            "easy"
+          ],
+          "latex": "\\mathrm{InvStirling1} \\mathrm{v_p}\\,a_n",
+          "length": 20,
+          "match_type": "prefix",
+          "name": "Number of positive integer solutions to the equation a^2 + 6*b^2 = n.",
+          "offset": 0,
+          "score": 5.121712364077934,
+          "seq_offset": [
+            0,
+            56
+          ],
+          "snippet": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0
+          ],
+          "symbolic": "A216510(n) = vp(5)(InvStirling1(a(n)))",
+          "symbolic_latex": "\\mathrm{A216510}(n) = \\mathrm{vp(5)}(\\mathbf{S}_1^{-1}\\,a_n)",
+          "transform_desc": "inv_stirling1 \u2218 vp(5)",
+          "transformed_terms": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "explanation": "Run-length encode (lengths), then OGF inverse transform (1/A(x))",
+          "formula": "G.f.: (1-x)/(1 + x^2 - x^3).\na(n) = -a(n-2) + a(n-3); a(0)=1, a(1)=-1, a(2)=-1. - _Harvey P. Dale_, Apr 08 2012",
+          "has_formula": true,
+          "id": "A078031",
+          "keywords": [
+            "sign",
+            "easy"
+          ],
+          "latex": "\\mathrm{rle} \\mathrm{OGFInv}\\,a_n",
+          "length": 19,
+          "match_type": "prefix",
+          "name": "Expansion of (1-x)/(1 + x^2 - x^3).",
+          "offset": 0,
+          "score": 4.505484285011704,
+          "seq_offset": [
+            0,
+            4
+          ],
+          "snippet": [
+            1,
+            -1,
+            -1,
+            2,
+            0,
+            -3,
+            2,
+            3,
+            -5,
+            -1,
+            8,
+            -4,
+            -9,
+            12,
+            5,
+            -21,
+            7,
+            26,
+            -28,
+            -19
+          ],
+          "symbolic": "A078031(n) = OGFInv(rle_len(a(n)))",
+          "symbolic_latex": "\\mathrm{A078031}(n) = \\mathrm{OGFInv}\\,\\mathrm{rle_len}(a_n)",
+          "transform_desc": "rle_len \u2218 ogf_inv",
+          "transformed_terms": [
+            1,
+            -1,
+            -1,
+            2,
+            0,
+            -3,
+            2,
+            3,
+            -5,
+            -1,
+            8,
+            -4,
+            -9,
+            12,
+            5,
+            -21,
+            7,
+            26,
+            -28
+          ]
+        },
+        {
+          "explanation": "Multiply by 2 then add 1, then index_triangular",
+          "formula": null,
+          "has_formula": null,
+          "id": "A118918",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "2\\,x + 1 \\mathrm{index_triangular}\\,a_n",
+          "length": 6,
+          "match_type": "prefix",
+          "name": "Primes p such that (p^2+11)/12 is prime.",
+          "offset": 0,
+          "score": 1.6084530150636014,
+          "seq_offset": [
+            1,
+            1
+          ],
+          "snippet": [
+            5,
+            7,
+            11,
+            19,
+            29,
+            61,
+            71,
+            79,
+            89,
+            109,
+            151,
+            179,
+            181,
+            191,
+            199,
+            271,
+            281,
+            349,
+            379,
+            389
+          ],
+          "symbolic": "A118918(n) = index_triangular(2*(a(n)) + 1)",
+          "symbolic_latex": "\\mathrm{A118918}(n) = \\mathrm{index_triangular}(2\\,\\left(a_n\\right) + 1)",
+          "transform_desc": "affine(2,1) \u2218 index_triangular",
+          "transformed_terms": [
+            5,
+            7,
+            11,
+            19,
+            29,
+            61
+          ]
+        },
+        {
+          "explanation": "index_triangular, then Drop first -1 terms",
+          "formula": "a(n) = Sum_{j=1..n} A000040(j) * A023533(n-j+1).\na(n) = Sum_{j=1..n} A000040(k + binomial(n+3, 3) - binomial(j+2, 3)), for 1 <= k <= binomial(n+2, 2), n >= 1 (as an irregular triangle). - _G. C. Greubel_, Jul 18 2022",
+          "has_formula": true,
+          "id": "A023672",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{index_triangular} \\mathrm{shift}(-1)\\,a_n",
+          "length": 5,
+          "match_type": "prefix",
+          "name": "Convolution of A023533 and primes.",
+          "offset": 0,
+          "score": 1.3956897165391484,
+          "seq_offset": [
+            1,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            5,
+            9,
+            14,
+            18,
+            24,
+            30,
+            36,
+            48,
+            53,
+            65,
+            77,
+            85,
+            97,
+            111,
+            121,
+            131,
+            149,
+            163
+          ],
+          "symbolic": "A023672(n) = index_triangular(a(n))[n-1]",
+          "symbolic_latex": "\\mathrm{A023672}(n) = \\mathrm{index_triangular}(a_n)\\big|_{n\\to n-1}",
+          "transform_desc": "index_triangular \u2218 shift(-1)",
+          "transformed_terms": [
+            2,
+            3,
+            5,
+            9,
+            14
+          ]
+        },
+        {
+          "explanation": "index_triangular, then Drop first -1 terms",
+          "formula": null,
+          "has_formula": null,
+          "id": "A005244",
+          "keywords": [
+            "nonn",
+            "nice",
+            "easy"
+          ],
+          "latex": "\\mathrm{index_triangular} \\mathrm{shift}(-1)\\,a_n",
+          "length": 5,
+          "match_type": "prefix",
+          "name": "A self-generating sequence: start with 2 and 3, take all products of any 2 previous elements, subtract 1 and adjoin them to the sequence.",
+          "offset": 0,
+          "score": 1.368323251508969,
+          "seq_offset": [
+            1,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            5,
+            9,
+            14,
+            17,
+            26,
+            27,
+            33,
+            41,
+            44,
+            50,
+            51,
+            53,
+            65,
+            69,
+            77,
+            80,
+            81,
+            84
+          ],
+          "symbolic": "A005244(n) = index_triangular(a(n))[n-1]",
+          "symbolic_latex": "\\mathrm{A005244}(n) = \\mathrm{index_triangular}(a_n)\\big|_{n\\to n-1}",
+          "transform_desc": "index_triangular \u2218 shift(-1)",
+          "transformed_terms": [
+            2,
+            3,
+            5,
+            9,
+            14
+          ]
+        },
+        {
+          "explanation": "index_triangular, then Drop first -1 terms",
+          "formula": null,
+          "has_formula": null,
+          "id": "A105044",
+          "keywords": [
+            "nonn",
+            "easy"
+          ],
+          "latex": "\\mathrm{index_triangular} \\mathrm{shift}(-1)\\,a_n",
+          "length": 5,
+          "match_type": "prefix",
+          "name": "Numbers n such that 1000*n - 1 is prime.",
+          "offset": 0,
+          "score": 1.368323251508969,
+          "seq_offset": [
+            1,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            5,
+            9,
+            14,
+            26,
+            33,
+            36,
+            42,
+            50,
+            53,
+            57,
+            60,
+            71,
+            72,
+            74,
+            78,
+            80,
+            86,
+            95
+          ],
+          "symbolic": "A105044(n) = index_triangular(a(n))[n-1]",
+          "symbolic_latex": "\\mathrm{A105044}(n) = \\mathrm{index_triangular}(a_n)\\big|_{n\\to n-1}",
+          "transform_desc": "index_triangular \u2218 shift(-1)",
+          "transformed_terms": [
+            2,
+            3,
+            5,
+            9,
+            14
+          ]
+        },
+        {
+          "explanation": "index_triangular, then First differences",
+          "formula": null,
+          "has_formula": null,
+          "id": "A250545",
+          "keywords": [
+            "nonn",
+            "less"
+          ],
+          "latex": "\\mathrm{index_triangular} \\Delta\\,a_n",
+          "length": 5,
+          "match_type": "prefix",
+          "name": "Numbers of the form 4^x + y^4 with x, y >= 0.",
+          "offset": 0,
+          "score": 1.3593248229913326,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            2,
+            4,
+            5,
+            16,
+            17,
+            20,
+            32,
+            64,
+            65,
+            80,
+            82,
+            85,
+            97,
+            145,
+            256,
+            257,
+            260,
+            272,
+            320
+          ],
+          "symbolic": "A250545(n) = \u0394 index_triangular(a(n))",
+          "symbolic_latex": "\\mathrm{A250545}(n) = \\Delta \\mathrm{index_triangular}(a_n)",
+          "transform_desc": "index_triangular \u2218 diff",
+          "transformed_terms": [
+            1,
+            2,
+            4,
+            5,
+            16
+          ]
+        },
+        {
+          "explanation": "index_triangular, then M\u00f6bius transform",
+          "formula": null,
+          "has_formula": null,
+          "id": "A024741",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{index_triangular} \\mathrm{Mobius}\\,a_n",
+          "length": 6,
+          "match_type": "prefix",
+          "name": "a(n) = Sum_{i=1..floor((n+1)/4)} a(2*i-1) * a(n-2*i+1), with a(1)=2, a(2)=1, and a(3)=3.",
+          "offset": 0,
+          "score": 1.3170195560389144,
+          "seq_offset": [
+            1,
+            1
+          ],
+          "snippet": [
+            2,
+            1,
+            3,
+            6,
+            12,
+            24,
+            66,
+            168,
+            408,
+            1014,
+            2820,
+            7656,
+            20370,
+            54096,
+            154416,
+            430710,
+            1182504,
+            3258816,
+            9377922,
+            26651328
+          ],
+          "symbolic": "A024741(n) = mobius(index_triangular(a(n)))",
+          "symbolic_latex": "\\mathrm{A024741}(n) = \\mathrm{mobius}(\\mathrm{index_triangular}(a_n))",
+          "transform_desc": "index_triangular \u2218 mobius",
+          "transformed_terms": [
+            2,
+            1,
+            3,
+            6,
+            12,
+            24
+          ]
+        },
+        {
+          "explanation": "index_triangular, then Drop first +2 terms",
+          "formula": null,
+          "has_formula": null,
+          "id": "A163161",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{index_triangular} \\mathrm{shift}(+2)\\,a_n",
+          "length": 4,
+          "match_type": "prefix",
+          "name": "Values of n at which the sequence A161865/A161867 equals 1/2.",
+          "offset": 0,
+          "score": 1.2939380330931953,
+          "seq_offset": [
+            1,
+            1
+          ],
+          "snippet": [
+            5,
+            9,
+            14,
+            30,
+            44,
+            47,
+            64,
+            67,
+            72,
+            89,
+            99,
+            124,
+            125,
+            194,
+            198,
+            200,
+            208,
+            213,
+            214,
+            249
+          ],
+          "symbolic": "A163161(n) = index_triangular(a(n))[n+2]",
+          "symbolic_latex": "\\mathrm{A163161}(n) = \\mathrm{index_triangular}(a_n)\\big|_{n\\to n+2}",
+          "transform_desc": "index_triangular \u2218 shift(+2)",
+          "transformed_terms": [
+            5,
+            9,
+            14,
+            30
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "For n > 0: a(n) = A176271(n+1,2). - _Reinhard Zumkeller_, Apr 13 2010\na(n) = 2*n + a(n-1) (with a(0)=3). - _Vincenzo Librandi_, Aug 05 2010\nFrom _Colin Barker_, Dec 29 2014: (Start)\na(n) = 3*a(n-1) - 3*a(n-2) + a(n-3).\nG.f.: (3*x^2 - 4*x + 3)/(1 - x)^3. (End)\nSum_{n>=0} 1/a(n) = Pi*tanh(Pi*sqrt(11)/2)/sqrt(11). - _Amiram Eldar_, Jan 17 2021\nE.g.f.: exp(x)*(3 + 2*x + x^2). - _Elmo R. Oliveira_, Oct 31 2024",
+          "has_formula": true,
+          "id": "A027688",
+          "keywords": [
+            "nonn",
+            "easy"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(n) = n^2 + n + 3.",
+          "offset": 0,
+          "score": 1.1490062769777623,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            3,
+            5,
+            9,
+            15,
+            23,
+            33,
+            45,
+            59,
+            75,
+            93,
+            113,
+            135,
+            159,
+            185,
+            213,
+            243,
+            275,
+            309,
+            345,
+            383
+          ],
+          "symbolic": "A027688(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A027688}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            3,
+            5,
+            9
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "a(n) = 2^(n+1)+1.\na(n) = 3*a(n-1) - 2*a(n-2).\nO.g.f.: (3-4*x)/(1-3*x+2*x^2). - _R. J. Mathar_, Nov 23 2007\nE.g.f.: exp(x)*(1 + 2*exp(x)). - _Elmo R. Oliveira_, Dec 06 2024",
+          "has_formula": true,
+          "id": "A048578",
+          "keywords": [
+            "nonn",
+            "easy"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Pisot sequence L(3,5).",
+          "offset": 0,
+          "score": 1.1490062769777623,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            3,
+            5,
+            9,
+            17,
+            33,
+            65,
+            129,
+            257,
+            513,
+            1025,
+            2049,
+            4097,
+            8193,
+            16385,
+            32769,
+            65537,
+            131073,
+            262145,
+            524289,
+            1048577
+          ],
+          "symbolic": "A048578(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A048578}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            3,
+            5,
+            9
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "a(2n+2) = a(2n+1) + a(2n) + 1. a(2n+3) = a(2n+2) + a(2n+1) - 1.\nFrom _R. J. Mathar_, Feb 07 2009, Apr 18 2009: (Start)\na(n) = 2*a(n-2) + a(n-3) = (-1)^n + 2*A000032(n+1).\nG.f.: (3+5x+3x^2)/ ((1+x)(1-x-x^2)). (End)\na(n) + a(n+1) = A022112(n+2). - _R. J. Mathar_, Feb 25 2013\na(n) = ((-2)^n + (1 - sqrt(5))^(1+n) + (1 + sqrt(5))^(1+n))/2^n. - _Stefano Spezia_, Dec 25 2021",
+          "has_formula": true,
+          "id": "A153263",
+          "keywords": [
+            "nonn",
+            "easy"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(n) = A014217(n+3) - A014217(n).",
+          "offset": 0,
+          "score": 1.1490062769777623,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            3,
+            5,
+            9,
+            13,
+            23,
+            35,
+            59,
+            93,
+            153,
+            245,
+            399,
+            643,
+            1043,
+            1685,
+            2729,
+            4413,
+            7143,
+            11555,
+            18699,
+            30253
+          ],
+          "symbolic": "A153263(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A153263}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            3,
+            5,
+            9
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "Equals A000796-A189039. - _Alois P. Heinz_, Jul 21 2022",
+          "has_formula": true,
+          "id": "A189044",
+          "keywords": [
+            "nonn",
+            "cons"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Decimal expansion of (Pi-sqrt(-4+Pi^2))/2.",
+          "offset": 0,
+          "score": 1.1490062769777623,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            3,
+            5,
+            9,
+            4,
+            3,
+            3,
+            0,
+            0,
+            3,
+            8,
+            1,
+            0,
+            2,
+            7,
+            7,
+            0,
+            8,
+            9,
+            1,
+            4
+          ],
+          "symbolic": "A189044(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A189044}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            3,
+            5,
+            9
+          ]
+        },
+        {
+          "explanation": "index_square, then Drop first -1 terms",
+          "formula": null,
+          "has_formula": null,
+          "id": "A152812",
+          "keywords": [
+            "nonn",
+            "cons"
+          ],
+          "latex": "\\mathrm{index_square} \\mathrm{shift}(-1)\\,a_n",
+          "length": 4,
+          "match_type": "prefix",
+          "name": "Decimal expansion of log_18 (2).",
+          "offset": 0,
+          "score": 1.1279802483751173,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            9,
+            8,
+            1,
+            2,
+            4,
+            6,
+            6,
+            5,
+            6,
+            8,
+            1,
+            3,
+            1,
+            4,
+            4,
+            4,
+            7,
+            3
+          ],
+          "symbolic": "A152812(n) = index_square(a(n))[n-1]",
+          "symbolic_latex": "\\mathrm{A152812}(n) = \\mathrm{index_square}(a_n)\\big|_{n\\to n-1}",
+          "transform_desc": "index_square \u2218 shift(-1)",
+          "transformed_terms": [
+            2,
+            3,
+            9,
+            8
+          ]
+        },
+        {
+          "explanation": "index_square, then Drop first -1 terms",
+          "formula": null,
+          "has_formula": null,
+          "id": "A378330",
+          "keywords": [
+            "nonn",
+            "cons"
+          ],
+          "latex": "\\mathrm{index_square} \\mathrm{shift}(-1)\\,a_n",
+          "length": 4,
+          "match_type": "prefix",
+          "name": "Decimal expansion of the base 6 Champernowne constant.",
+          "offset": 0,
+          "score": 1.1279802483751173,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            9,
+            8,
+            6,
+            2,
+            6,
+            8,
+            5,
+            8,
+            1,
+            5,
+            0,
+            6,
+            6,
+            7,
+            6,
+            7,
+            4,
+            4
+          ],
+          "symbolic": "A378330(n) = index_square(a(n))[n-1]",
+          "symbolic_latex": "\\mathrm{A378330}(n) = \\mathrm{index_square}(a_n)\\big|_{n\\to n-1}",
+          "transform_desc": "index_square \u2218 shift(-1)",
+          "transformed_terms": [
+            2,
+            3,
+            9,
+            8
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A065901",
+          "keywords": [
+            "dead"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Duplicate of A053662.",
+          "offset": 0,
+          "score": 1.126476742135061,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            3,
+            5,
+            9,
+            21,
+            23,
+            33,
+            39,
+            51,
+            63,
+            65,
+            81,
+            89,
+            95,
+            99,
+            113,
+            131,
+            173,
+            183,
+            191,
+            209
+          ],
+          "symbolic": "A065901(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A065901}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            3,
+            5,
+            9
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A101298",
+          "keywords": [
+            "nonn",
+            "easy",
+            "base"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Bisection of A098801 (decimal expansion of Pi + 1/Pi).",
+          "offset": 0,
+          "score": 1.126476742135061,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            3,
+            5,
+            9,
+            2,
+            3,
+            7,
+            3,
+            8,
+            9,
+            0,
+            0,
+            4,
+            0,
+            1,
+            0,
+            4,
+            3,
+            6,
+            8,
+            6
+          ],
+          "symbolic": "A101298(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A101298}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            3,
+            5,
+            9
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A191403",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(n) = A000201(n) + A000201(n+2).",
+          "offset": 0,
+          "score": 1.126476742135061,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            3,
+            5,
+            9,
+            12,
+            15,
+            19,
+            21,
+            25,
+            28,
+            31,
+            35,
+            38,
+            41,
+            45,
+            47,
+            51,
+            54,
+            57,
+            61,
+            63
+          ],
+          "symbolic": "A191403(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A191403}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            3,
+            5,
+            9
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A205537",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Number of distinct values of Sum_{i=0..n} x(i)*binomial(n,i), where the x(i) have values in 0..2.",
+          "offset": 0,
+          "score": 1.126476742135061,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            3,
+            5,
+            9,
+            17,
+            33,
+            65,
+            125,
+            185,
+            479,
+            935,
+            1871,
+            1865,
+            5951,
+            6255,
+            16089,
+            53785,
+            111849,
+            75845,
+            235803,
+            193885
+          ],
+          "symbolic": "A205537(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A205537}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            3,
+            5,
+            9
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A212437",
+          "keywords": [
+            "nonn",
+            "cons",
+            "easy"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Decimal expansion of the imaginary part of e^(i/e).",
+          "offset": 0,
+          "score": 1.126476742135061,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            3,
+            5,
+            9,
+            6,
+            3,
+            7,
+            5,
+            6,
+            5,
+            4,
+            1,
+            2,
+            4,
+            9,
+            5,
+            5,
+            7,
+            7,
+            0,
+            3
+          ],
+          "symbolic": "A212437(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A212437}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            3,
+            5,
+            9
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_powk(3)",
+          "formula": "a(n) = 1 + a(0)*a(1)*...*a(n-1).\na(n) = a(n-1)*(a(n-1)-1) + 1; Sum_{i>=0} 1/a(i) = 1. - _N\u00e9stor Romeral Andr\u00e9s_, Oct 29 2001\nVardi showed that a(n) = floor(c^(2^(n+1)) + 1/2) where c = A076393 = 1.2640847353053011130795995... - _Benoit Cloitre_, Nov 06 2002 (But see the Aho-Sloane paper!)\na(n) = A007018(n+1)+1 = A007018(n+1)/A007018(n) [A007018 is a(n) = a(n-1)^2 + a(n-1), a(0)=1]. - _Gerald McGarvey_, Oct 11 2004\na(n) = sqrt(A174864(n+1)/A174864(n)). - _Giovanni Teofilatto_, Apr 02 2010\na(n) = A014117(n+1)+1 for n = 0,1,2,3,4; a(n) = A054377(n)+1 for n = 1,2,3,4. - _Jonathan Sondow_, Dec 07 2013\na(n) = f(1/(1-(1/a(0) + 1/a(1) + ... + 1/a(n-1)))) where f(x) is the smallest integer > x (see greedy algorithm above). - _Robert FERREOL_, Feb 22 2019\nFrom _Amiram Eldar_, Oct 29 2020: (Start)\nSum_{n>=0} (-1)^n/(a(n)-1) = A118227.\nSum_{n>=0} (-1)^n/a(n) = 2 * A118227 - 1. (End)\nFrom _Peter Bala_, Jul 19 2026: (Start)\n(a(n+2) - a(n+1))/(a(n+1) - a(n)) = a(n)^2.\nHence, (a(n+k+2) - a(n+1+k))/(a(n+1) - a(n)) =  ( a(n)*a(n+1)*...*a(n+k) )^2, for k >= 0.\nThe following divisibility properties hold true for any sequence defined by a recurrence of the form a(n+1) = P(a(n)), n >= 0, where P(x) is a polynomial with integer coefficients:\na(n+k) - a(n) divides a(n+k+j) - a(n+j), for k >= 1, j >= 0 (proof by induction on j).\nIn particular, this shows that reducing the sequence modulo D = a(n+k) - a(n) produces a periodic sequence of period k, starting at index n. An example is given below.\nFor m >= 1, a(n) - a(k) divides a(m*n) - a(m*k) provided a(n) != a(k).\nMore generally, for r, s >= 0, a(n) - a(k) divides a(r*n + s*k) - a(s*n + r*k), and\na(n) - a(k) divides a(r*n)*a(s*k) - a(r*k)*a(s*n) = det([a(r*n), a(r*k); a(s*n), a(s*k)]). (End)",
+          "has_formula": true,
+          "id": "A000058",
+          "keywords": [
+            "nonn",
+            "nice",
+            "core",
+            "changed"
+          ],
+          "latex": "/\\gcd \\mathrm{index\\_powk}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Sylvester's sequence: a(n+1) = a(n)^2 - a(n) + 1, with a(0) = 2.",
+          "offset": 0,
+          "score": 1.1024788821257867,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            7,
+            43,
+            1807,
+            3263443,
+            10650056950807,
+            113423713055421844361000443,
+            12864938683278671740537145998360961546653259485195807
+          ],
+          "symbolic": "A000058(n) = index_powk(3)(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A000058}(n) = \\mathrm{index_powk(3)}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_powk(3)",
+          "transformed_terms": [
+            2,
+            3,
+            7
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_powk(3)",
+          "formula": "a(n) = A000040(A038664(n)). - _Lekraj Beedassy_, Sep 09 2006",
+          "has_formula": true,
+          "id": "A000230",
+          "keywords": [
+            "nonn",
+            "nice"
+          ],
+          "latex": "/\\gcd \\mathrm{index\\_powk}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(0)=2; for n>=1, a(n) = smallest prime p such that there is a gap of exactly 2n between p and next prime, or -1 if no such prime exists.",
+          "offset": 0,
+          "score": 1.1024788821257867,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            7,
+            23,
+            89,
+            139,
+            199,
+            113,
+            1831,
+            523,
+            887,
+            1129,
+            1669,
+            2477,
+            2971,
+            4297,
+            5591,
+            1327,
+            9551,
+            30593
+          ],
+          "symbolic": "A000230(n) = index_powk(3)(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A000230}(n) = \\mathrm{index_powk(3)}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_powk(3)",
+          "transformed_terms": [
+            2,
+            3,
+            7
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_powk(3)",
+          "formula": "a(n) = (2^(2^n)+(2^n-1)*2^(2^(n-1)))/2^n.",
+          "has_formula": true,
+          "id": "A000231",
+          "keywords": [
+            "easy",
+            "nonn",
+            "nice"
+          ],
+          "latex": "/\\gcd \\mathrm{index\\_powk}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Number of inequivalent Boolean functions of n variables under action of complementing group.",
+          "offset": 0,
+          "score": 1.1024788821257867,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            7,
+            46,
+            4336,
+            134281216,
+            288230380379570176,
+            2658455991569831764110243006194384896,
+            452312848583266388373324160190187140390789016525312000869601987902398529536
+          ],
+          "symbolic": "A000231(n) = index_powk(3)(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A000231}(n) = \\mathrm{index_powk(3)}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_powk(3)",
+          "transformed_terms": [
+            2,
+            3,
+            7
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_powk(3)",
+          "formula": "a(n) = A006530(A006862(n)). - _Amiram Eldar_, Feb 13 2020",
+          "has_formula": true,
+          "id": "A002585",
+          "keywords": [
+            "nonn",
+            "nice"
+          ],
+          "latex": "/\\gcd \\mathrm{index\\_powk}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Largest prime factor of 1 + (product of first n primes).",
+          "offset": 0,
+          "score": 1.1024788821257867,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            7,
+            31,
+            211,
+            2311,
+            509,
+            277,
+            27953,
+            703763,
+            34231,
+            200560490131,
+            676421,
+            11072701,
+            78339888213593,
+            13808181181,
+            18564761860301,
+            19026377261,
+            525956867082542470777,
+            143581524529603
+          ],
+          "symbolic": "A002585(n) = index_powk(3)(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A002585}(n) = \\mathrm{index_powk(3)}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_powk(3)",
+          "transformed_terms": [
+            2,
+            3,
+            7
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_powk(3)",
+          "formula": "a(n) = Fibonacci(2*n-1) + Fibonacci(2*n+1).\nG.f.: (2-3*x)/(1-3*x+x^2). - _Simon Plouffe_ in his 1992 dissertation.\na(n) = S(n, 3) - S(n-2, 3) = 2*T(n, 3/2) with S(n-1, 3) = A001906(n) and S(-2, x) = -1. U(n, x)=S(n, 2*x) and T(n, x) are Chebyshev's U- and T-polynomials.\na(n) = a(k)*a(n - k) - a(n - 2k) for all k, i.e., a(n) = 2*a(n) - a(n) = 3*a(n - 1) - a(n - 2) = 7*a(n - 2) - a(n - 4) = 18*a(n - 3) - a(n - 6) = 47*a(n - 4) - a(n - 8) etc., a(2n) = a(n)^2 - 2. - _Henry Bottomley_, May 08 2001\na(n) = A060924(n-1, 0) = 3*A001906(n) - 2*A001906(n-1), n >= 1. - _Wolfdieter Lang_, Apr 26 2001\na(n) ~ phi^(2*n) where phi=(1+sqrt(5))/2. - Joe Keane (jgk(AT)jgk.org), May 15 2002\na(0)=2, a(1)=3, a(n) = 3*a(n-1) - a(n-2) = a(-n). - _Michael Somos_, Jun 28 2003\na(n) = phi^(2*n) + phi^(-2*n) where phi=(sqrt(5)+1)/2, the golden ratio. E.g., a(4)=47 because phi^(8) + phi^(-8) = 47. - _Dennis P. Walsh_, Jul 24 2003\nWith interpolated zeros, trace(A^n)/4, where A is the adjacency matrix of path graph P_4. Binomial transform is then A049680. - _Paul Barry_, Apr 24 2004\na(n) = (floor((3+sqrt(5))^n) + 1)/2^n. - _Lekraj Beedassy_, Oct 22 2004\na(n) = ((3-sqrt(5))^n + (3+sqrt(5))^n)/2^n (Note: substituting the number 1 for 3 in the last equation gives A000204, substituting 5 for 3 gives A020876). - _Creighton Dement_, Apr 19 2005\na(n) = (1/(n+1/2))*Sum_{k=0..n} B(2k)*L(2n+1-2k)*binomial(2n+1, 2k) where B(2k) is the (2k)-th Bernoulli number. - _Benoit Cloitre_, Nov 02 2005\na(n) = term (1,1) in the 1 X 2 matrix [2,3] . [3,1; -1,0]^n. - _Alois P. Heinz_, Jul 31 2008\na(n) = 2*cosh(2*n*psi), where psi=log((1+sqrt(5))/2). - Al Hakanson, Mar 21 2009\nFrom _Sarah-Marie Belcastro_, Jul 04 2009: (Start)\na(n) - (a(n) - F(2n))/2 - F(2n+1) = 0. (Tesler)\nProduct_{r=1..n} (1 + 4*(sin((4r-1)*Pi/(4n)))^2). (Lu/Wu) (End)\na(n) = Fibonacci(2n+6) mod Fibonacci(2n+2), n > 1. - _Gary Detlefs_, Nov 22 2010\na(n) = 5*Fibonacci(n)^2 + 2*(-1)^n. - _Gary Detlefs_, Nov 22 2010\na(n) = A033888(n)/A001906(n), n > 0. - _Gary Detlefs_, Dec 26 2010\na(n) = 2^(2*n) * Sum_{k=1..2} (cos(k*Pi/5))^(2*n). - _L. Edson Jeffery_, Jan 21 2012\nFrom _Peter Bala_, Jan 04 2013: (Start)\nLet F(x) = Product_{n>=0} (1 + x^(4*n+1))/(1 + x^(4*n+3)). Let alpha = 1/2*(3 - sqrt(5)). This sequence gives the simple continued fraction expansion of 1 + F(alpha) = 2.31829 56058 81914 31334 ... = 2 + 1/(3 + 1/(7 + 1/(18 + ...))).\nAlso F(-alpha) = 0.64985 97768 07374 32950 has the continued fraction representation 1 - 1/(3 - 1/(7 - 1/(18 - ...))) and the simple continued fraction expansion 1/(1 + 1/((3-2) + 1/(1 + 1/((7-2) + 1/(1 + 1/((18-2) + 1/(1 + ...))))))).\nF(alpha)*F(-alpha) has the simple continued fraction expansion 1/(1 + 1/((3^2-4) + 1/(1 + 1/((7^2-4) + 1/(1 + 1/((18^2-4) + 1/(1 + ...))))))).\nAdded Oct 13 2019: 1/2 + 1/2*F(alpha)/F(-alpha) = 1.5142923542... has the simple continued fraction expansion 1 + 1/((3 - 2) + 1/(1 + 1/((18 - 2) + 1/(1 + 1/(123 - 2) + 1/(1 + ...))))). (End)\nG.f.: (W(0)+6)/(5*x), where W(k) = 5*x*k + x - 6 + 6*x*(5*k-9)/W(k+1) (continued fraction). - _Sergei N. Gladkovskii_, Aug 19 2013\nSum_{n >= 1} 1/( a(n) - 5/a(n) ) = 1. Compare with A001906, A002878 and A023039. - _Peter Bala_, Nov 29 2013\n0 = a(n) * a(n+2) - a(n+1)^2 - 5 for all n in Z. - _Michael Somos_, Aug 24 2014\na(n) = (G(j+2n) + G(j-2n))/G(j), for n >= 0 and any j, positive or negative, except where G(j) = 0, and for any sequence of the form G(n+1) = G(n) + G(n-1) with any initial values for G(0), G(1), including non-integer values. G(n) includes Lucas, Fibonacci. Compare with A081067 for odd number offsets from j. - _Richard R. Forberg_, Nov 16 2014\na(n) = [x^n] ( (1 + 3*x + sqrt(1 + 6*x + 5*x^2))/2 )^n for n >= 1. - _Peter Bala_, Jun 23 2015\nFrom _J. M. Bergot_, Oct 28 2015: (Start)\nFor n>0, a(n) = F(n-1) * L(n) + F(2*n+1) - (-1)^n with F(k) = A000045(k).\nFor n>1, a(n) = F(n+1) * L(n) + F(2*n-1) - (-1)^n.\nFor n>2, a(n) = 5*F(2*n-3) + 2*L(n-3) * L(n) + 8*(-1)^n. (End)\nFor n>1, a(n) = L(n-2)*L(n+2) -7*(-1)^n. - _J. M. Bergot_, Feb 10 2016\na(n) = 6*F(n-1)*L(n-1) - F(2*n-6) with F(n)=A000045(n) and L(n)=A000032(n). - _J. M. Bergot_, Apr 21 2017\na(n) = F(2*n) + 2*F(n-1)*L(n) with F(n)=A000045(n) and L(n)=A000032(n). - _J. M. Bergot_, May 01 2017\nE.g.f.: exp(4*x/(1+sqrt(5))^2) + exp((1/4)*(1+sqrt(5))^2*x). - _Stefano Spezia_, Aug 13 2019\nFrom _Peter Bala_, Oct 14 2019: (Start)\na(n) = F(2*n+2) - F(2*n-2) = A001906(n+1) - A001906(n-1).\na(n) = trace(M^n), where M is the 2 X 2 matrix [0, 1; 1, 1]^2 = [1, 1; 1, 2].\nConsequently the Gauss congruences hold: a(n*p^k) = a(n*p^(k-1)) ( mod p^k ) for all prime p and positive integers n and k. See Zarelua and also Stanley (Ch. 5, Ex. 5.2(a) and its solution).\nSum_{n >= 1} (-1)^(n+1)/( a(n) + 1/a(n) ) = 1/5.\nSum_{n >= 1} (-1)^(n+1)/( a(n) + 3/(a(n) + 2/(a(n))) ) = 1/6.\nSum_{n >= 1} (-1)^(n+1)/( a(n) + 9/(a(n) + 4/(a(n) + 1/(a(n)))) ) = 1/9.\nx*exp(Sum_{n >= 1} a(n)*x^/n) = x + 3*x^2 + 8*x^3 + 21*x^4 + ... is the o.g.f. for A001906. (End)\na(n) = n + 2 + Sum_{k=1..n-1} k*a(n-k). - _Yu Xiao_, May 30 2020\nSum_{n>=1} 1/a(n) = A153415. - _Amiram Eldar_, Nov 11 2020\nSum_{n>=0} 1/(a(n) + 3) = (2*sqrt(5) + 1)/10 (Andr\u00e9-Jeannin, 1991). - _Amiram Eldar_, Jan 23 2022\na(n) = 2*cosh(2*n*arccsch(2)) = 2*cosh(2*n*asinh(1/2)). - _Peter Luschny_, May 25 2022\na(n) = (5/2)*(Sum_{k=-n..n} binomial(2*n, n+5*k)) - (1/2)*4^n. - _Greg Dresden_, Jan 05 2023\na(n) = Sum_{k>=0} Lucas(2*n*k)/(Lucas(2*n)^(k+1)). - _Diego Rattaggi_, Jan 12 2025\na(n) = Sum_{k=0..n} binomial(n,k)*L(k) (see Grimaldi). - _Stefano Spezia_, Nov 20 2025\na(n) = L(n-1) * L(n+1) + 3*(-1)^n. - _Jules Beauchamp_, Aug 05 2026",
+          "has_formula": true,
+          "id": "A005248",
+          "keywords": [
+            "nonn",
+            "easy",
+            "changed"
+          ],
+          "latex": "/\\gcd \\mathrm{index\\_powk}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Bisection of Lucas numbers: a(n) = L(2*n) = A000032(2*n).",
+          "offset": 0,
+          "score": 1.1024788821257867,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            7,
+            18,
+            47,
+            123,
+            322,
+            843,
+            2207,
+            5778,
+            15127,
+            39603,
+            103682,
+            271443,
+            710647,
+            1860498,
+            4870847,
+            12752043,
+            33385282,
+            87403803
+          ],
+          "symbolic": "A005248(n) = index_powk(3)(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A005248}(n) = \\mathrm{index_powk(3)}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_powk(3)",
+          "transformed_terms": [
+            2,
+            3,
+            7
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_powk(3)",
+          "formula": "a(n) = C(n)+C(n+1) = ((5*n+4)*(2*n)!)/(n!*(n+2)!).\nG.f. A(x) satisfies x^2*A(x)^2 + (x-1)*A(x) + (x+2) = 0. - _Michael Somos_, Sep 11 2003\nG.f.: (1-x - (1+x)*sqrt(1-4*x)) / (2*x^2) = (4+2*x) / (1-x + (1+x)*sqrt(1-4*x)). a(n)*(n+2)*(5*n-1) = a(n-1)*2*(2*n-1)*(5*n+4), n>0. - _Michael Somos_, Sep 11 2003\na(n) ~ 5*Pi^(-1/2)*n^(-3/2)*2^(2*n)*{1 - 93/40*n^-1 + 625/128*n^-2 - 10227/1024*n^-3 + 661899/32768*n^-4 ...}. - Joe Keane (jgk(AT)jgk.org), Sep 13 2002\nG.f.: c(x)*(1+c(x))= (-1 +(1+x)*c(x))/x with the g.f. c(x) of A000108 (Catalan).\na(n) = binomial(2*n,n)/(n+1)*hypergeom([-1,n+1/2],[n+2],-4). - _Peter Luschny_, Aug 15 2012\nD-finite with recurrence (n+2)*a(n) + (-3*n-2)*a(n-1) + 2*(-2*n+3)*a(n-2)=0. - _R. J. Mathar_, Dec 02 2012\n0 = a(n)*(+16*a(n+1) + 38*a(n+2) - 18*a(n+3)) + a(n+1)*(-14*a(n+1) + 19*a(n+2) - 7*a(n+3)) + a(n+2)*(+a(n+2) + a(n+3)) for all n>=0. - _Michael Somos_, Jan 17 2015\n0 = a(n)^2*(+368*a(n+1) - 182*a(n+2)) + a(n)*a(n+1)*(-306*a(n+1) + 317*a(n+2)) + a(n)*a(n+2)*(-77*a(n+2)) + a(n+1)^2*(-14*a(n+1) - 6*a(n+2)) + a(n+1)*a(n+2)*(+8*a(n+2)) for all n>=0. - _Michael Somos_, Jan 17 2015\nE.g.f.: (BesselI(0,2*x) - (x - 1)*BesselI(1,2*x)/x)*exp(2*x). - _Ilya Gutkovskiy_, Jun 08 2016\nG.f. with 1 prepended: Let E(x) = exp( Sum_{n >= 1} binomial(5*n,2*n)*x^n/n ). Then A(x) = ( x/series reversion of x*E(x) )^(1/5) = ( x/series reversion of x*D(x)^5 )^(1/5), where D(x) = 1 + 2*x + 23*x^2 + 371*x^3 + ... is the o.g.f. for A060941 .... Cf. A274052 and A274244. - _Peter Bala_, Jan 01 2020",
+          "has_formula": true,
+          "id": "A005807",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index\\_powk}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Sum of adjacent Catalan numbers.",
+          "offset": 0,
+          "score": 1.1024788821257867,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            7,
+            19,
+            56,
+            174,
+            561,
+            1859,
+            6292,
+            21658,
+            75582,
+            266798,
+            950912,
+            3417340,
+            12369285,
+            45052515,
+            165002460,
+            607283490,
+            2244901890,
+            8331383610
+          ],
+          "symbolic": "A005807(n) = index_powk(3)(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A005807}(n) = \\mathrm{index_powk(3)}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_powk(3)",
+          "transformed_terms": [
+            2,
+            3,
+            7
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_powk(3)",
+          "formula": "a(2n) = A001075(2^n).",
+          "has_formula": true,
+          "id": "A006695",
+          "keywords": [
+            "nonn",
+            "easy",
+            "nice"
+          ],
+          "latex": "/\\gcd \\mathrm{index\\_powk}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(2n)=2*a(2n-2)^2-1, a(2n+1)=2*a(2n)-1, a(0)=2.",
+          "offset": 0,
+          "score": 1.1024788821257867,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            7,
+            13,
+            97,
+            193,
+            18817,
+            37633,
+            708158977,
+            1416317953,
+            1002978273411373057,
+            2005956546822746113,
+            2011930833870518011412817828051050497,
+            4023861667741036022825635656102100993
+          ],
+          "symbolic": "A006695(n) = index_powk(3)(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A006695}(n) = \\mathrm{index_powk(3)}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_powk(3)",
+          "transformed_terms": [
+            2,
+            3,
+            7
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_powk(3)",
+          "formula": "a(n) = A002110(n) + 1.\nFor n >= 1, a(n) = A057588(n) + 2. - _Antti Karttunen_, Nov 17 2024",
+          "has_formula": true,
+          "id": "A006862",
+          "keywords": [
+            "nonn",
+            "nice",
+            "easy"
+          ],
+          "latex": "/\\gcd \\mathrm{index\\_powk}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Euclid numbers: 1 + product of the first n primes.",
+          "offset": 0,
+          "score": 1.1024788821257867,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            7,
+            31,
+            211,
+            2311,
+            30031,
+            510511,
+            9699691,
+            223092871,
+            6469693231,
+            200560490131,
+            7420738134811,
+            304250263527211,
+            13082761331670031,
+            614889782588491411,
+            32589158477190044731,
+            1922760350154212639071,
+            117288381359406970983271,
+            7858321551080267055879091
+          ],
+          "symbolic": "A006862(n) = index_powk(3)(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A006862}(n) = \\mathrm{index_powk(3)}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_powk(3)",
+          "transformed_terms": [
+            2,
+            3,
+            7
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_powk(3)",
+          "formula": "a(n) = M(a(n-1)) = M^n(2) with M: n-> 2^n-1. - _M. F. Hasler_, Nov 15 2006\nA180094(a(n)) = n + 1.",
+          "has_formula": true,
+          "id": "A007013",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "/\\gcd \\mathrm{index\\_powk}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Catalan-Mersenne numbers: a(0) = 2; for n >= 0, a(n+1) = 2^a(n) - 1.",
+          "offset": 0,
+          "score": 1.1024788821257867,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            7,
+            127,
+            170141183460469231731687303715884105727
+          ],
+          "symbolic": "A007013(n) = index_powk(3)(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A007013}(n) = \\mathrm{index_powk(3)}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_powk(3)",
+          "transformed_terms": [
+            2,
+            3,
+            7
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_powk(3)",
+          "formula": "a(n) == 0 or 3 (mod 4) for n >= 1 - _David W. Wilson_, Oct 20 2005",
+          "has_formula": true,
+          "id": "A019568",
+          "keywords": [
+            "nonn",
+            "more"
+          ],
+          "latex": "/\\gcd \\mathrm{index\\_powk}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(n) = smallest k >= 1 such that {1^n, 2^n, 3^n, ..., k^n} can be partitioned into two sets with equal sum.",
+          "offset": 0,
+          "score": 1.1024788821257867,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            7,
+            12,
+            16,
+            24,
+            31,
+            39,
+            47,
+            44,
+            60,
+            71,
+            79,
+            79,
+            87
+          ],
+          "symbolic": "A019568(n) = index_powk(3)(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A019568}(n) = \\mathrm{index_powk(3)}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_powk(3)",
+          "transformed_terms": [
+            2,
+            3,
+            7
+          ]
+        },
+        {
+          "explanation": "Divide by gcd, then index_factorial",
+          "formula": "a(n) = 2*A027861(n) + 1.",
+          "has_formula": true,
+          "id": "A002731",
+          "keywords": [
+            "nonn",
+            "easy",
+            "nice"
+          ],
+          "latex": "/\\gcd \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Numbers k such that (k^2 + 1)/2 is prime.",
+          "offset": 0,
+          "score": 1.0942916923597736,
+          "seq_offset": [
+            1,
+            1
+          ],
+          "snippet": [
+            3,
+            5,
+            9,
+            11,
+            15,
+            19,
+            25,
+            29,
+            35,
+            39,
+            45,
+            49,
+            51,
+            59,
+            61,
+            65,
+            69,
+            71,
+            79,
+            85
+          ],
+          "symbolic": "A002731(n) = index_factorial(a(n)/gcd)",
+          "symbolic_latex": "\\mathrm{A002731}(n) = \\mathrm{index_factorial}(a_n/\\gcd)",
+          "transform_desc": "gcd_norm \u2218 index_factorial",
+          "transformed_terms": [
+            3,
+            5,
+            9
+          ]
+        },
+        {
+          "explanation": "index_square, then Drop first -1 terms",
+          "formula": null,
+          "has_formula": null,
+          "id": "A246825",
+          "keywords": [
+            "nonn",
+            "cons",
+            "easy"
+          ],
+          "latex": "\\mathrm{index_square} \\mathrm{shift}(-1)\\,a_n",
+          "length": 4,
+          "match_type": "prefix",
+          "name": "Decimal expansion of the Narcissus constant, the second real solution of the equation x^(x-1) = x+1.",
+          "offset": 0,
+          "score": 1.0742669032143974,
+          "seq_offset": [
+            1,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            9,
+            8,
+            3,
+            8,
+            4,
+            3,
+            8,
+            2,
+            7,
+            8,
+            1,
+            6,
+            1,
+            1,
+            4,
+            2,
+            9,
+            3
+          ],
+          "symbolic": "A246825(n) = index_square(a(n))[n-1]",
+          "symbolic_latex": "\\mathrm{A246825}(n) = \\mathrm{index_square}(a_n)\\big|_{n\\to n-1}",
+          "transform_desc": "index_square \u2218 shift(-1)",
+          "transformed_terms": [
+            2,
+            3,
+            9,
+            8
+          ]
+        },
+        {
+          "explanation": "index_square, then Drop first -1 terms",
+          "formula": null,
+          "has_formula": null,
+          "id": "A261525",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{index_square} \\mathrm{shift}(-1)\\,a_n",
+          "length": 4,
+          "match_type": "prefix",
+          "name": "a(n) = smallest m such that A031131(m) = 2*n.",
+          "offset": 0,
+          "score": 1.0742669032143974,
+          "seq_offset": [
+            2,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            9,
+            8,
+            15,
+            23,
+            47,
+            29,
+            66,
+            114,
+            46,
+            220,
+            188,
+            258,
+            640,
+            375,
+            480,
+            589,
+            216,
+            326
+          ],
+          "symbolic": "A261525(n) = index_square(a(n))[n-1]",
+          "symbolic_latex": "\\mathrm{A261525}(n) = \\mathrm{index_square}(a_n)\\big|_{n\\to n-1}",
+          "transform_desc": "index_square \u2218 shift(-1)",
+          "transformed_terms": [
+            2,
+            3,
+            9,
+            8
+          ]
+        },
+        {
+          "explanation": "index_powk(4)",
+          "formula": "a(n) = A006530(A224384(n)).",
+          "has_formula": true,
+          "id": "A324941",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{index\\_powk}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Largest prime factor of 17^n + 1.",
+          "offset": 0,
+          "score": 1.0490567112525198,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            29,
+            13,
+            41761,
+            101,
+            83233,
+            22796593,
+            184417,
+            5653,
+            63541,
+            87415373,
+            72337,
+            2001793,
+            100688449,
+            238212511,
+            52548582913,
+            45957792327018709121,
+            382069,
+            20352763
+          ],
+          "symbolic": "A324941(n) = index_powk(4)(a(n))",
+          "symbolic_latex": "\\mathrm{A324941}(n) = \\mathrm{index_powk(4)}(a_n)",
+          "transform_desc": "index_powk(4)",
+          "transformed_terms": [
+            2,
+            3,
+            29
+          ]
+        },
+        {
+          "explanation": "index_powk(4)",
+          "formula": null,
+          "has_formula": null,
+          "id": "A053998",
+          "keywords": [
+            "easy",
+            "nonn"
+          ],
+          "latex": "\\mathrm{index\\_powk}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Smallest prime in n-th shell of prime spiral.",
+          "offset": 0,
+          "score": 1.0284869718161957,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            29,
+            101,
+            229,
+            421,
+            673,
+            1013,
+            1429,
+            1889,
+            2441,
+            3089,
+            3821,
+            4639,
+            5521,
+            6491,
+            7577,
+            8741,
+            9941,
+            11329
+          ],
+          "symbolic": "A053998(n) = index_powk(4)(a(n))",
+          "symbolic_latex": "\\mathrm{A053998}(n) = \\mathrm{index_powk(4)}(a_n)",
+          "transform_desc": "index_powk(4)",
+          "transformed_terms": [
+            2,
+            3,
+            29
+          ]
+        },
+        {
+          "explanation": "index_powk(4)",
+          "formula": null,
+          "has_formula": null,
+          "id": "A350868",
+          "keywords": [
+            "nonn",
+            "more"
+          ],
+          "latex": "\\mathrm{index\\_powk}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(n) is the first prime p such that the next n primes are p+2*k^2 for k=1..n.",
+          "offset": 0,
+          "score": 1.0284869718161957,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            29,
+            569,
+            6701,
+            64919,
+            1720289,
+            256828391,
+            33090566651,
+            248804328761,
+            55130906480861,
+            119321483551349
+          ],
+          "symbolic": "A350868(n) = index_powk(4)(a(n))",
+          "symbolic_latex": "\\mathrm{A350868}(n) = \\mathrm{index_powk(4)}(a_n)",
+          "transform_desc": "index_powk(4)",
+          "transformed_terms": [
+            2,
+            3,
+            29
+          ]
+        },
+        {
+          "explanation": "index_powk(4)",
+          "formula": null,
+          "has_formula": null,
+          "id": "A351693",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{index\\_powk}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(n) is the least prime prime(k) for which A351692(k) = n, or 0 if there is no such prime.",
+          "offset": 0,
+          "score": 1.0284869718161957,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            29,
+            13,
+            47,
+            19,
+            31,
+            647,
+            101,
+            107,
+            181,
+            569,
+            109,
+            839,
+            199,
+            811,
+            283,
+            373,
+            97,
+            73
+          ],
+          "symbolic": "A351693(n) = index_powk(4)(a(n))",
+          "symbolic_latex": "\\mathrm{A351693}(n) = \\mathrm{index_powk(4)}(a_n)",
+          "transform_desc": "index_powk(4)",
+          "transformed_terms": [
+            2,
+            3,
+            29
+          ]
+        },
+        {
+          "explanation": "index_triangular, then diff^2",
+          "formula": "a(n)/A107050(n) = Sum_{k=0..n} T(n, k)*3^k where T(n, k) = A107045(n, k)/A107046(n, k) = [A079901^-1](n, k) (matrix inverse of A079901).",
+          "has_formula": true,
+          "id": "A107049",
+          "keywords": [
+            "nonn",
+            "frac"
+          ],
+          "latex": "\\mathrm{index_triangular} diff^2\\,a_n",
+          "length": 4,
+          "match_type": "prefix",
+          "name": "Numerators of coefficients that satisfy: 3^n = Sum_{k=0..n} c(k)*x^k for n>=0, where c(k) = a(k)/A107050(k).",
+          "offset": 0,
+          "score": 1.012412555200681,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            2,
+            1,
+            11,
+            101,
+            71723,
+            1462111,
+            194269981673,
+            224103520039487,
+            14876670160046176873,
+            20871062802926443547323,
+            606768727432357137728440774281877,
+            97827345788163051844748893917483101
+          ],
+          "symbolic": "A107049(n) = \u0394^2 index_triangular(a(n))",
+          "symbolic_latex": "\\mathrm{A107049}(n) = \\Delta^{2} \\mathrm{index_triangular}(a_n)",
+          "transform_desc": "index_triangular \u2218 diff^2",
+          "transformed_terms": [
+            1,
+            2,
+            1,
+            11
+          ]
+        },
+        {
+          "explanation": "index_powk(4)",
+          "formula": "A156660(a(n))*(1-A156659(a(n))) = 1. - _Reinhard Zumkeller_, Feb 18 2009",
+          "has_formula": true,
+          "id": "A059453",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{index\\_powk}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Sophie Germain primes (A005384) that are not safe primes (A005385).",
+          "offset": 0,
+          "score": 0.9991016297643044,
+          "seq_offset": [
+            1,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            29,
+            41,
+            53,
+            89,
+            113,
+            131,
+            173,
+            191,
+            233,
+            239,
+            251,
+            281,
+            293,
+            419,
+            431,
+            443,
+            491,
+            509
+          ],
+          "symbolic": "A059453(n) = index_powk(4)(a(n))",
+          "symbolic_latex": "\\mathrm{A059453}(n) = \\mathrm{index_powk(4)}(a_n)",
+          "transform_desc": "index_powk(4)",
+          "transformed_terms": [
+            2,
+            3,
+            29
+          ]
+        },
+        {
+          "explanation": "index_powk(4)",
+          "formula": "A081326(a(n)) = 1.",
+          "has_formula": true,
+          "id": "A081332",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{index\\_powk}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Numbers having a unique partition into two 3-smooth numbers.",
+          "offset": 0,
+          "score": 0.9991016297643044,
+          "seq_offset": [
+            1,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            29,
+            31,
+            37,
+            41,
+            43,
+            49,
+            55,
+            58,
+            59,
+            62,
+            65,
+            67,
+            74,
+            83,
+            85,
+            86,
+            87,
+            89
+          ],
+          "symbolic": "A081332(n) = index_powk(4)(a(n))",
+          "symbolic_latex": "\\mathrm{A081332}(n) = \\mathrm{index_powk(4)}(a_n)",
+          "transform_desc": "index_powk(4)",
+          "transformed_terms": [
+            2,
+            3,
+            29
+          ]
+        },
+        {
+          "explanation": "index_powk(4)",
+          "formula": "a(n) = A132281(n)^3 + 2. {p in A000040 such that for some q = 0, 1, or q in A000040, we have p = A067200(q) = A084380(q) = q^3 + 2 is in A000040}.\na(n) = A048636(n-2) for n >= 3. - _Georg Fischer_, Nov 03 2018",
+          "has_formula": true,
+          "id": "A132282",
+          "keywords": [
+            "easy",
+            "nonn"
+          ],
+          "latex": "\\mathrm{index\\_powk}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Near-cube primes: primes of the form p^3 + 2, where p is noncomposite.",
+          "offset": 0,
+          "score": 0.9991016297643044,
+          "seq_offset": [
+            1,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            29,
+            127,
+            24391,
+            357913,
+            571789,
+            1442899,
+            5177719,
+            18191449,
+            30080233,
+            73560061,
+            80062993,
+            118370773,
+            127263529,
+            131872231,
+            318611989,
+            344472103,
+            440711083,
+            461889919
+          ],
+          "symbolic": "A132282(n) = index_powk(4)(a(n))",
+          "symbolic_latex": "\\mathrm{A132282}(n) = \\mathrm{index_powk(4)}(a_n)",
+          "transform_desc": "index_powk(4)",
+          "transformed_terms": [
+            2,
+            3,
+            29
+          ]
+        },
+        {
+          "explanation": "index_powk(4)",
+          "formula": "a(n) = A067200(n)^3 + 2. - _Zak Seidov_, Sep 16 2013",
+          "has_formula": true,
+          "id": "A144953",
+          "keywords": [
+            "nonn",
+            "easy"
+          ],
+          "latex": "\\mathrm{index\\_powk}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Primes of form n^3 + 2.",
+          "offset": 0,
+          "score": 0.9991016297643044,
+          "seq_offset": [
+            1,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            29,
+            127,
+            24391,
+            91127,
+            250049,
+            274627,
+            328511,
+            357913,
+            571789,
+            1157627,
+            1442899,
+            1860869,
+            2146691,
+            2924209,
+            3581579,
+            5000213,
+            5177719,
+            6751271
+          ],
+          "symbolic": "A144953(n) = index_powk(4)(a(n))",
+          "symbolic_latex": "\\mathrm{A144953}(n) = \\mathrm{index_powk(4)}(a_n)",
+          "transform_desc": "index_powk(4)",
+          "transformed_terms": [
+            2,
+            3,
+            29
+          ]
+        },
+        {
+          "explanation": "index_triangular, then diff^2",
+          "formula": null,
+          "has_formula": null,
+          "id": "A141482",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{index_triangular} diff^2\\,a_n",
+          "length": 4,
+          "match_type": "prefix",
+          "name": "Number of n X n binary matrices, symmetric under horizontal reflection, with no more than 1 one in any 2 X 2 subblock.",
+          "offset": 0,
+          "score": 0.9925613286281186,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            2,
+            1,
+            11,
+            8,
+            269,
+            85,
+            16334,
+            5933,
+            4005785,
+            817280,
+            2758179839,
+            505375405,
+            6795928721858,
+            826573277157,
+            51247532773412135,
+            4982395765808506,
+            1302848440978689378895,
+            90454037365096154821
+          ],
+          "symbolic": "A141482(n) = \u0394^2 index_triangular(a(n))",
+          "symbolic_latex": "\\mathrm{A141482}(n) = \\Delta^{2} \\mathrm{index_triangular}(a_n)",
+          "transform_desc": "index_triangular \u2218 diff^2",
+          "transformed_terms": [
+            1,
+            2,
+            1,
+            11
+          ]
+        },
+        {
+          "explanation": "index_triangular, then diff^2",
+          "formula": null,
+          "has_formula": null,
+          "id": "A141504",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{index_triangular} diff^2\\,a_n",
+          "length": 4,
+          "match_type": "prefix",
+          "name": "Number of n X n binary matrices, symmetric under horizontal and vertical reflection, with no more than 2 ones in any 2 X 2 subblock.",
+          "offset": 0,
+          "score": 0.9925613286281186,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            2,
+            1,
+            11,
+            7,
+            195,
+            85,
+            8969,
+            3573,
+            1232795,
+            391285,
+            471487297,
+            125714303,
+            516844071813,
+            113185189874,
+            1603508113421239,
+            290842806833709,
+            14148460147460008963,
+            2118392163856080466,
+            354360105981877906958557
+          ],
+          "symbolic": "A141504(n) = \u0394^2 index_triangular(a(n))",
+          "symbolic_latex": "\\mathrm{A141504}(n) = \\Delta^{2} \\mathrm{index_triangular}(a_n)",
+          "transform_desc": "index_triangular \u2218 diff^2",
+          "transformed_terms": [
+            1,
+            2,
+            1,
+            11
+          ]
+        },
+        {
+          "explanation": "index_triangular, then diff^2",
+          "formula": null,
+          "has_formula": null,
+          "id": "A143888",
+          "keywords": [
+            "nonn",
+            "more",
+            "hard"
+          ],
+          "latex": "\\mathrm{index_triangular} diff^2\\,a_n",
+          "length": 4,
+          "match_type": "prefix",
+          "name": "Number of ways of placing kings with no more than 4 mutual attacks on an n X n chessboard symmetric under horizontal and vertical reflection.",
+          "offset": 0,
+          "score": 0.9925613286281186,
+          "seq_offset": [
+            0,
+            2
+          ],
+          "snippet": [
+            1,
+            2,
+            1,
+            11,
+            4,
+            101,
+            29,
+            1592,
+            263,
+            43578,
+            4424,
+            1972239,
+            117557,
+            159790891,
+            5394252,
+            22035879309,
+            430235439
+          ],
+          "symbolic": "A143888(n) = \u0394^2 index_triangular(a(n))",
+          "symbolic_latex": "\\mathrm{A143888}(n) = \\Delta^{2} \\mathrm{index_triangular}(a_n)",
+          "transform_desc": "index_triangular \u2218 diff^2",
+          "transformed_terms": [
+            1,
+            2,
+            1,
+            11
+          ]
+        },
+        {
+          "explanation": "Odd-index terms, then index_triangular",
+          "formula": "a(n) = ~4.5*A057755. - _Robert G. Wilson v_, Jul 02 2005",
+          "has_formula": true,
+          "id": "A108301",
+          "keywords": [
+            "base",
+            "nonn"
+          ],
+          "latex": "\\mathrm{odd} \\mathrm{index_triangular}\\,a_n",
+          "length": 4,
+          "match_type": "prefix",
+          "name": "Digital sum of the Fermat number 2^(2^n) + 1.",
+          "offset": 0,
+          "score": 0.9916226592579331,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            3,
+            5,
+            8,
+            14,
+            26,
+            59,
+            89,
+            167,
+            377,
+            734,
+            1376,
+            2741,
+            5624,
+            11120,
+            22166,
+            44222,
+            88262,
+            176180,
+            353042,
+            707648
+          ],
+          "symbolic": "A108301(n) = index_triangular(odd_terms(a(n)))",
+          "symbolic_latex": "\\mathrm{A108301}(n) = \\mathrm{index_triangular}(\\mathrm{odd_terms}(a_n))",
+          "transform_desc": "odd_terms \u2218 index_triangular",
+          "transformed_terms": [
+            3,
+            5,
+            8,
+            14
+          ]
+        },
+        {
+          "explanation": "index_powk(4)",
+          "formula": null,
+          "has_formula": null,
+          "id": "A028868",
+          "keywords": [
+            "nonn",
+            "base",
+            "hard",
+            "more"
+          ],
+          "latex": "\\mathrm{index\\_powk}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Primes that when squared give numbers with digits in nonascending order.",
+          "offset": 0,
+          "score": 0.9795114017297102,
+          "seq_offset": [
+            1,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            29,
+            31
+          ],
+          "symbolic": "A028868(n) = index_powk(4)(a(n))",
+          "symbolic_latex": "\\mathrm{A028868}(n) = \\mathrm{index_powk(4)}(a_n)",
+          "transform_desc": "index_powk(4)",
+          "transformed_terms": [
+            2,
+            3,
+            29
+          ]
+        },
+        {
+          "explanation": "index_powk(4)",
+          "formula": null,
+          "has_formula": null,
+          "id": "A078727",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{index\\_powk}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Smallest prime a(n) > a(n-1) such that a(1) + ... + a(n) is a Fibonacci number.",
+          "offset": 0,
+          "score": 0.9795114017297102,
+          "seq_offset": [
+            1,
+            1
+          ],
+          "snippet": [
+            2,
+            3,
+            29,
+            199,
+            2351,
+            24155233,
+            79757008057644623350300078764807923712509139103039448418553259155159833055572871,
+            36684474316080978061473613646275630451020829893137585191919942789652960137481051718801295569460987256072983944701335181
+          ],
+          "symbolic": "A078727(n) = index_powk(4)(a(n))",
+          "symbolic_latex": "\\mathrm{A078727}(n) = \\mathrm{index_powk(4)}(a_n)",
+          "transform_desc": "index_powk(4)",
+          "transformed_terms": [
+            2,
+            3,
+            29
+          ]
+        },
+        {
+          "explanation": "index_triangular, then diff^2",
+          "formula": "a(n) = A292355(n) for n prime or twice prime. - _Andrew Howroyd_, Sep 14 2017\na(n) = -(1+(-1)^n)/2 + (1/(2*n))*(A321415(n) - binomial(3*n-1, n) + Sum_{d|n} phi(n/d) * binomial(3*d-1, d)). - _Andrew Howroyd_, Nov 09 2018",
+          "has_formula": true,
+          "id": "A262181",
+          "keywords": [
+            "nonn",
+            "hard",
+            "more"
+          ],
+          "latex": "\\mathrm{index_triangular} diff^2\\,a_n",
+          "length": 4,
+          "match_type": "prefix",
+          "name": "a(n) = total number of convex equilateral n-gons with corner angles of m*Pi/n (0 < m <= n).",
+          "offset": 0,
+          "score": 0.964202433524458,
+          "seq_offset": [
+            3,
+            2
+          ],
+          "snippet": [
+            1,
+            2,
+            1,
+            11,
+            1,
+            42,
+            64,
+            202,
+            1,
+            1557,
+            1,
+            5539,
+            32298,
+            30666,
+            1,
+            405200,
+            1,
+            1035642
+          ],
+          "symbolic": "A262181(n) = \u0394^2 index_triangular(a(n))",
+          "symbolic_latex": "\\mathrm{A262181}(n) = \\Delta^{2} \\mathrm{index_triangular}(a_n)",
+          "transform_desc": "index_triangular \u2218 diff^2",
+          "transformed_terms": [
+            1,
+            2,
+            1,
+            11
+          ]
+        },
+        {
+          "explanation": "index_triangular, then diff^2",
+          "formula": "a(n) = -(1+(-1)^n)/2 + (1/n)*Sum_{d | n} (phi(n/d)-moebius(n/d)) * binomial(3*d-1, d-1).\na(n) = A262181(n) for n prime or twice prime.\nConjecture: a(2^n) = A262181(2^n).",
+          "has_formula": true,
+          "id": "A292355",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{index_triangular} diff^2\\,a_n",
+          "length": 4,
+          "match_type": "prefix",
+          "name": "Number of distinct convex equilateral n-gons having rotational symmetry and with corner angles of m*Pi/n (0 < m <= n).",
+          "offset": 0,
+          "score": 0.964202433524458,
+          "seq_offset": [
+            3,
+            2
+          ],
+          "snippet": [
+            1,
+            2,
+            1,
+            11,
+            1,
+            42,
+            10,
+            202,
+            1,
+            1077,
+            1,
+            5539,
+            210,
+            30666,
+            1,
+            174620,
+            1,
+            1001642,
+            5547,
+            5864751
+          ],
+          "symbolic": "A292355(n) = \u0394^2 index_triangular(a(n))",
+          "symbolic_latex": "\\mathrm{A292355}(n) = \\Delta^{2} \\mathrm{index_triangular}(a_n)",
+          "transform_desc": "index_triangular \u2218 diff^2",
+          "transformed_terms": [
+            1,
+            2,
+            1,
+            11
+          ]
+        },
+        {
+          "explanation": "First differences, then index_factorial",
+          "formula": "T(n,n) = (n+2)!, T(n,n+2) = -n!, all other values are 0. - _Sean A. Irvine_, Sep 23 2026",
+          "has_formula": true,
+          "id": "A137525",
+          "keywords": [
+            "less",
+            "tabf",
+            "sign"
+          ],
+          "latex": "\\Delta \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Triangle read by rows: T(n, k) = n! * [t^n*x^k] (1-1/t^2) * exp(t*x), 0 <= k <= n + 2.",
+          "offset": 0,
+          "score": 0.961045398701385,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            2,
+            0,
+            -1,
+            0,
+            6,
+            0,
+            -1,
+            0,
+            0,
+            24,
+            0,
+            -2,
+            0,
+            0,
+            0,
+            120,
+            0,
+            -6,
+            0,
+            0
+          ],
+          "symbolic": "A137525(n) = index_factorial(\u0394 a(n))",
+          "symbolic_latex": "\\mathrm{A137525}(n) = \\mathrm{index_factorial}(\\Delta a_n)",
+          "transform_desc": "diff \u2218 index_factorial",
+          "transformed_terms": [
+            2,
+            0,
+            -1
+          ]
+        },
+        {
+          "explanation": "First differences, then index_factorial",
+          "formula": "a(n) = Sum_{i=0..n} A127672(n,i) * A000166(i).\na(n) = A300481(1,n) = A300480(-1,n).",
+          "has_formula": true,
+          "id": "A300485",
+          "keywords": [
+            "sign"
+          ],
+          "latex": "\\Delta \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "a(n) = 2 * Integral_{t>=0} T_n((t-1)/2) * exp(-t) * dt, n>=0, where T_n(x) is n-th Chebyshev polynomial of first kind.",
+          "offset": 0,
+          "score": 0.961045398701385,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            2,
+            0,
+            -1,
+            2,
+            7,
+            34,
+            218,
+            1574,
+            12879,
+            117938,
+            1195479,
+            13294412,
+            160967522,
+            2108289364,
+            29703846535,
+            447990339602,
+            7201792686815,
+            122938198060734,
+            2220989581865882,
+            42336203570931402
+          ],
+          "symbolic": "A300485(n) = index_factorial(\u0394 a(n))",
+          "symbolic_latex": "\\mathrm{A300485}(n) = \\mathrm{index_factorial}(\\Delta a_n)",
+          "transform_desc": "diff \u2218 index_factorial",
+          "transformed_terms": [
+            2,
+            0,
+            -1
+          ]
+        },
+        {
+          "explanation": "index_triangular, then diff^2",
+          "formula": null,
+          "has_formula": null,
+          "id": "A140316",
+          "keywords": [
+            "base",
+            "easy",
+            "nonn"
+          ],
+          "latex": "\\mathrm{index_triangular} diff^2\\,a_n",
+          "length": 4,
+          "match_type": "prefix",
+          "name": "Write n in base 3, delete 0's.",
+          "offset": 0,
+          "score": 0.945296503455351,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            2,
+            1,
+            11,
+            12,
+            2,
+            21,
+            22,
+            1,
+            11,
+            12,
+            11,
+            111,
+            112,
+            12,
+            121,
+            122,
+            2,
+            21,
+            22
+          ],
+          "symbolic": "A140316(n) = \u0394^2 index_triangular(a(n))",
+          "symbolic_latex": "\\mathrm{A140316}(n) = \\Delta^{2} \\mathrm{index_triangular}(a_n)",
+          "transform_desc": "index_triangular \u2218 diff^2",
+          "transformed_terms": [
+            1,
+            2,
+            1,
+            11
+          ]
+        },
+        {
+          "explanation": "index_triangular, then diff^2",
+          "formula": null,
+          "has_formula": null,
+          "id": "A252158",
+          "keywords": [
+            "nonn",
+            "tabl",
+            "hard",
+            "more"
+          ],
+          "latex": "\\mathrm{index_triangular} diff^2\\,a_n",
+          "length": 4,
+          "match_type": "prefix",
+          "name": "Triangle read by rows, 1 <= k <= n, T(n,k) = number of arrangements of n circles in the affine plane having k solid regions in which the union of solid circles is connected.",
+          "offset": 0,
+          "score": 0.945296503455351,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            2,
+            1,
+            11,
+            2,
+            1,
+            155,
+            15,
+            2,
+            1
+          ],
+          "symbolic": "A252158(n) = \u0394^2 index_triangular(a(n))",
+          "symbolic_latex": "\\mathrm{A252158}(n) = \\Delta^{2} \\mathrm{index_triangular}(a_n)",
+          "transform_desc": "index_triangular \u2218 diff^2",
+          "transformed_terms": [
+            1,
+            2,
+            1,
+            11
+          ]
+        },
+        {
+          "explanation": "index_triangular, then diff^2",
+          "formula": null,
+          "has_formula": null,
+          "id": "A281350",
+          "keywords": [
+            "nonn",
+            "tabl"
+          ],
+          "latex": "\\mathrm{index_triangular} diff^2\\,a_n",
+          "length": 4,
+          "match_type": "prefix",
+          "name": "Triangle read by rows: number of topologies of n nested circles intersecting at most as triples, according to number of factors.",
+          "offset": 0,
+          "score": 0.945296503455351,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            2,
+            1,
+            11,
+            2,
+            1,
+            44,
+            14,
+            2,
+            1,
+            169,
+            66,
+            14,
+            2,
+            1,
+            609,
+            323,
+            70,
+            14,
+            2
+          ],
+          "symbolic": "A281350(n) = \u0394^2 index_triangular(a(n))",
+          "symbolic_latex": "\\mathrm{A281350}(n) = \\Delta^{2} \\mathrm{index_triangular}(a_n)",
+          "transform_desc": "index_triangular \u2218 diff^2",
+          "transformed_terms": [
+            1,
+            2,
+            1,
+            11
+          ]
+        },
+        {
+          "explanation": "index_triangular, then diff^2",
+          "formula": null,
+          "has_formula": null,
+          "id": "A285996",
+          "keywords": [
+            "nonn",
+            "tabl",
+            "hard",
+            "more"
+          ],
+          "latex": "\\mathrm{index_triangular} diff^2\\,a_n",
+          "length": 4,
+          "match_type": "prefix",
+          "name": "Triangle read by rows, 1<=k<=n, T(n,k) = number of arrangements of n circles in the affine plane having k separated islands.",
+          "offset": 0,
+          "score": 0.945296503455351,
+          "seq_offset": [
+            1,
+            2
+          ],
+          "snippet": [
+            1,
+            2,
+            1,
+            11,
+            2,
+            1,
+            156,
+            14,
+            2,
+            1
+          ],
+          "symbolic": "A285996(n) = \u0394^2 index_triangular(a(n))",
+          "symbolic_latex": "\\mathrm{A285996}(n) = \\Delta^{2} \\mathrm{index_triangular}(a_n)",
+          "transform_desc": "index_triangular \u2218 diff^2",
+          "transformed_terms": [
+            1,
+            2,
+            1,
+            11
+          ]
+        },
+        {
+          "explanation": "Odd-index terms, then index_triangular",
+          "formula": "a(n) = (2*A208723(n) + A090991(n))/4. - _Andrew Howroyd_, Mar 19 2017",
+          "has_formula": true,
+          "id": "A208667",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{odd} \\mathrm{index_triangular}\\,a_n",
+          "length": 4,
+          "match_type": "prefix",
+          "name": "Number of 2n-bead necklaces labeled with numbers 1..4 allowing reversal, with neighbors differing by exactly 1.",
+          "offset": 0,
+          "score": 0.944402532626603,
+          "seq_offset": [
+            1,
+            1
+          ],
+          "snippet": [
+            3,
+            5,
+            8,
+            14,
+            24,
+            47,
+            89,
+            187,
+            396,
+            881,
+            1990,
+            4645,
+            10935,
+            26211,
+            63320,
+            154378,
+            378444,
+            933023,
+            2308957,
+            5735372
+          ],
+          "symbolic": "A208667(n) = index_triangular(odd_terms(a(n)))",
+          "symbolic_latex": "\\mathrm{A208667}(n) = \\mathrm{index_triangular}(\\mathrm{odd_terms}(a_n))",
+          "transform_desc": "odd_terms \u2218 index_triangular",
+          "transformed_terms": [
+            3,
+            5,
+            8,
+            14
+          ]
+        },
+        {
+          "explanation": "Odd-index terms, then index_triangular",
+          "formula": "a(1) = 3, a(n) = 2*a(n-1) - k for n > 1, where k = A393076(n-2) + 1 is the width of the central step in the \"staircase\", which is 1 or 2.",
+          "has_formula": true,
+          "id": "A282390",
+          "keywords": [
+            "nonn"
+          ],
+          "latex": "\\mathrm{odd} \\mathrm{index_triangular}\\,a_n",
+          "length": 4,
+          "match_type": "prefix",
+          "name": "Width of polyominoes in A282389.",
+          "offset": 0,
+          "score": 0.944402532626603,
+          "seq_offset": [
+            1,
+            1
+          ],
+          "snippet": [
+            3,
+            5,
+            8,
+            14,
+            27,
+            53,
+            104,
+            206,
+            410,
+            818,
+            1635,
+            3269,
+            6536,
+            13070,
+            26139,
+            52277,
+            104552,
+            209102,
+            418202,
+            836402
+          ],
+          "symbolic": "A282390(n) = index_triangular(odd_terms(a(n)))",
+          "symbolic_latex": "\\mathrm{A282390}(n) = \\mathrm{index_triangular}(\\mathrm{odd_terms}(a_n))",
+          "transform_desc": "odd_terms \u2218 index_triangular",
+          "transformed_terms": [
+            3,
+            5,
+            8,
+            14
+          ]
+        },
+        {
+          "explanation": "Odd-index terms, then index_triangular",
+          "formula": "a(n) = a(n-1) + 2*a(n-2) - 2*a(n-3) - a(n-4) + a(n-5).\nG.f.: -x*(2*x^3-3*x^2+2*x+3)/((x+1)^2*(x-1)^3).\na(n) = A128918(n+1) - (-1)^n.\nE.g.f.: (2 + x)*(exp(x)*x + 2*sinh(x))/2. - _Stefano Spezia_, Jun 29 2024",
+          "has_formula": true,
+          "id": "A374084",
+          "keywords": [
+            "nonn",
+            "easy"
+          ],
+          "latex": "\\mathrm{odd} \\mathrm{index_triangular}\\,a_n",
+          "length": 4,
+          "match_type": "prefix",
+          "name": "a(n) = (1 + (n+1)^2 + (n-2)*(-1)^n)/2.",
+          "offset": 0,
+          "score": 0.944402532626603,
+          "seq_offset": [
+            1,
+            1
+          ],
+          "snippet": [
+            3,
+            5,
+            8,
+            14,
+            17,
+            27,
+            30,
+            44,
+            47,
+            65,
+            68,
+            90,
+            93,
+            119,
+            122,
+            152,
+            155,
+            189,
+            192,
+            230
+          ],
+          "symbolic": "A374084(n) = index_triangular(odd_terms(a(n)))",
+          "symbolic_latex": "\\mathrm{A374084}(n) = \\mathrm{index_triangular}(\\mathrm{odd_terms}(a_n))",
+          "transform_desc": "odd_terms \u2218 index_triangular",
+          "transformed_terms": [
+            3,
+            5,
+            8,
+            14
+          ]
+        },
+        {
+          "explanation": "First differences, then index_factorial",
+          "formula": null,
+          "has_formula": null,
+          "id": "A374429",
+          "keywords": [
+            "sign",
+            "tabl"
+          ],
+          "latex": "\\Delta \\mathrm{index_factorial}\\,a_n",
+          "length": 3,
+          "match_type": "prefix",
+          "name": "Triangle read by rows: T(n, k) = ((3*(-1)^k + 1)/2)*abs(qStirling2(n, k, -1)). Polynomials related to the Lucas and Fibonacci numbers.",
+          "offset": 0,
+          "score": 0.9422013712758676,
+          "seq_offset": [
+            0,
+            1
+          ],
+          "snippet": [
+            2,
+            0,
+            -1,
+            0,
+            -1,
+            2,
+            0,
+            -1,
+            2,
+            -1,
+            0,
+            -1,
+            2,
+            -2,
+            2,
+            0,
+            -1,
+            2,
+            -3,
+            4
+          ],
+          "symbolic": "A374429(n) = index_factorial(\u0394 a(n))",
+          "symbolic_latex": "\\mathrm{A374429}(n) = \\mathrm{index_factorial}(\\Delta a_n)",
+          "transform_desc": "diff \u2218 index_factorial",
+          "transformed_terms": [
+            2,
+            0,
+            -1
+          ]
+        }
+      ]
+    },
+    "triple": {
+      "matches": [
+        {
+          "candidate_provenance": [
+            [
+              "exact",
+              "seed"
+            ],
+            [
+              "exact"
+            ],
+            [
+              "exact",
+              "similarity"
+            ]
+          ],
+          "coeffs": [
+            "-1",
+            "1",
+            "1"
+          ],
+          "combined_terms": [
+            2,
+            3,
+            5,
+            5,
+            9,
+            10
+          ],
+          "component_terms": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              1,
+              2,
+              3,
+              3,
+              4,
+              4
+            ],
+            [
+              1,
+              1,
+              2,
+              2,
+              5,
+              6
+            ]
+          ],
+          "component_transforms": [
+            "id",
+            "id",
+            "id"
+          ],
+          "expression": "a(n) = -1*A000004(n) + 1*A000267(n) + 1*A000403(n)",
+          "ids": [
+            "A000004",
+            "A000267",
+            "A000403"
+          ],
+          "latex_expression": "a_{{n}} = -1\\,\\mathrm{A000004}(n) + 1\\,\\mathrm{A000267}(n) + 1\\,\\mathrm{A000403}(n)",
+          "length": 6,
+          "names": [
+            "The zero sequence.",
+            "Integer part of square root of 4n+1.",
+            "Number of simple equifacetted 3-manifolds with n faces."
+          ],
+          "score": 1.6933333333333334,
+          "shifts": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "candidate_provenance": [
+            [
+              "exact",
+              "seed"
+            ],
+            [
+              "exact"
+            ],
+            [
+              "exact",
+              "similarity"
+            ]
+          ],
+          "coeffs": [
+            "1",
+            "1",
+            "1"
+          ],
+          "combined_terms": [
+            2,
+            3,
+            5,
+            5,
+            9,
+            10
+          ],
+          "component_terms": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              1,
+              2,
+              3,
+              3,
+              4,
+              4
+            ],
+            [
+              1,
+              1,
+              2,
+              2,
+              5,
+              6
+            ]
+          ],
+          "component_transforms": [
+            "id",
+            "id",
+            "id"
+          ],
+          "expression": "a(n) = 1*A000004(n) + 1*A000267(n) + 1*A000403(n)",
+          "ids": [
+            "A000004",
+            "A000267",
+            "A000403"
+          ],
+          "latex_expression": "a_{{n}} = 1\\,\\mathrm{A000004}(n) + 1\\,\\mathrm{A000267}(n) + 1\\,\\mathrm{A000403}(n)",
+          "length": 6,
+          "names": [
+            "The zero sequence.",
+            "Integer part of square root of 4n+1.",
+            "Number of simple equifacetted 3-manifolds with n faces."
+          ],
+          "score": 1.6933333333333334,
+          "shifts": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "candidate_provenance": [
+            [
+              "exact"
+            ],
+            [
+              "exact"
+            ],
+            [
+              "similarity"
+            ]
+          ],
+          "coeffs": [
+            "1",
+            "-2",
+            "1"
+          ],
+          "combined_terms": [
+            2,
+            3,
+            5,
+            5,
+            9,
+            10
+          ],
+          "component_terms": [
+            [
+              1,
+              2,
+              2,
+              1,
+              1,
+              2
+            ],
+            [
+              0,
+              1,
+              1,
+              2,
+              1,
+              2
+            ],
+            [
+              1,
+              3,
+              5,
+              8,
+              10,
+              12
+            ]
+          ],
+          "component_transforms": [
+            "id",
+            "id",
+            "id"
+          ],
+          "expression": "a(n) = 1*A000002(n) + -2*A000120(n) + 1*A073608(n)",
+          "ids": [
+            "A000002",
+            "A000120",
+            "A073608"
+          ],
+          "latex_expression": "a_{{n}} = 1\\,\\mathrm{A000002}(n) + -2\\,\\mathrm{A000120}(n) + 1\\,\\mathrm{A073608}(n)",
+          "length": 6,
+          "names": [
+            "Kolakoski sequence: a(n) is length of n-th run; a(1) = 1; sequence consists just of 1's and 2's.",
+            "Ones-counting sequence: number of 1's in binary expansion of n (or the binary weight of n).",
+            "a(1) = 1, a(n) = smallest number such that a(n) - a(n-k) is a prime power > 1 for all k."
+          ],
+          "score": 1.5381818181818179,
+          "shifts": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "candidate_provenance": [
+            [
+              "exact",
+              "seed"
+            ],
+            [
+              "exact"
+            ],
+            [
+              "exact",
+              "similarity"
+            ]
+          ],
+          "coeffs": [
+            "-2",
+            "1",
+            "1"
+          ],
+          "combined_terms": [
+            2,
+            3,
+            5,
+            5,
+            9,
+            10
+          ],
+          "component_terms": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              1,
+              2,
+              3,
+              3,
+              4,
+              4
+            ],
+            [
+              1,
+              1,
+              2,
+              2,
+              5,
+              6
+            ]
+          ],
+          "component_transforms": [
+            "id",
+            "id",
+            "id"
+          ],
+          "expression": "a(n) = -2*A000004(n) + 1*A000267(n) + 1*A000403(n)",
+          "ids": [
+            "A000004",
+            "A000267",
+            "A000403"
+          ],
+          "latex_expression": "a_{{n}} = -2\\,\\mathrm{A000004}(n) + 1\\,\\mathrm{A000267}(n) + 1\\,\\mathrm{A000403}(n)",
+          "length": 6,
+          "names": [
+            "The zero sequence.",
+            "Integer part of square root of 4n+1.",
+            "Number of simple equifacetted 3-manifolds with n faces."
+          ],
+          "score": 1.3854545454545453,
+          "shifts": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "candidate_provenance": [
+            [
+              "exact",
+              "seed"
+            ],
+            [
+              "exact"
+            ],
+            [
+              "exact",
+              "similarity"
+            ]
+          ],
+          "coeffs": [
+            "2",
+            "1",
+            "1"
+          ],
+          "combined_terms": [
+            2,
+            3,
+            5,
+            5,
+            9,
+            10
+          ],
+          "component_terms": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              1,
+              2,
+              3,
+              3,
+              4,
+              4
+            ],
+            [
+              1,
+              1,
+              2,
+              2,
+              5,
+              6
+            ]
+          ],
+          "component_transforms": [
+            "id",
+            "id",
+            "id"
+          ],
+          "expression": "a(n) = 2*A000004(n) + 1*A000267(n) + 1*A000403(n)",
+          "ids": [
+            "A000004",
+            "A000267",
+            "A000403"
+          ],
+          "latex_expression": "a_{{n}} = 2\\,\\mathrm{A000004}(n) + 1\\,\\mathrm{A000267}(n) + 1\\,\\mathrm{A000403}(n)",
+          "length": 6,
+          "names": [
+            "The zero sequence.",
+            "Integer part of square root of 4n+1.",
+            "Number of simple equifacetted 3-manifolds with n faces."
+          ],
+          "score": 1.3854545454545453,
+          "shifts": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "candidate_provenance": [
+            [
+              "exact",
+              "seed"
+            ],
+            [
+              "exact",
+              "similarity"
+            ],
+            [
+              "similarity"
+            ]
+          ],
+          "coeffs": [
+            "2",
+            "1",
+            "-1"
+          ],
+          "combined_terms": [
+            2,
+            3,
+            5,
+            5,
+            9,
+            10
+          ],
+          "component_terms": [
+            [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6
+            ],
+            [
+              1,
+              1,
+              2,
+              2,
+              5,
+              6
+            ],
+            [
+              1,
+              2,
+              3,
+              5,
+              6,
+              8
+            ]
+          ],
+          "component_transforms": [
+            "id",
+            "id",
+            "id"
+          ],
+          "expression": "a(n) = 2*A000027(n) + 1*A000403(n) + -1*A053873(n)",
+          "ids": [
+            "A000027",
+            "A000403",
+            "A053873"
+          ],
+          "latex_expression": "a_{{n}} = 2\\,\\mathrm{A000027}(n) + 1\\,\\mathrm{A000403}(n) + -1\\,\\mathrm{A053873}(n)",
+          "length": 6,
+          "names": [
+            "The positive integers. Also called the natural numbers, the whole numbers or the counting numbers, but these terms are ambiguous.",
+            "Number of simple equifacetted 3-manifolds with n faces.",
+            "Numbers n such that OEIS sequence A_n contains n."
+          ],
+          "score": 1.2872727272727271,
+          "shifts": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "candidate_provenance": [
+            [
+              "exact",
+              "seed"
+            ],
+            [
+              "exact"
+            ],
+            [
+              "exact",
+              "similarity"
+            ]
+          ],
+          "coeffs": [
+            "-3",
+            "1",
+            "1"
+          ],
+          "combined_terms": [
+            2,
+            3,
+            5,
+            5,
+            9,
+            10
+          ],
+          "component_terms": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              1,
+              2,
+              3,
+              3,
+              4,
+              4
+            ],
+            [
+              1,
+              1,
+              2,
+              2,
+              5,
+              6
+            ]
+          ],
+          "component_transforms": [
+            "id",
+            "id",
+            "id"
+          ],
+          "expression": "a(n) = -3*A000004(n) + 1*A000267(n) + 1*A000403(n)",
+          "ids": [
+            "A000004",
+            "A000267",
+            "A000403"
+          ],
+          "latex_expression": "a_{{n}} = -3\\,\\mathrm{A000004}(n) + 1\\,\\mathrm{A000267}(n) + 1\\,\\mathrm{A000403}(n)",
+          "length": 6,
+          "names": [
+            "The zero sequence.",
+            "Integer part of square root of 4n+1.",
+            "Number of simple equifacetted 3-manifolds with n faces."
+          ],
+          "score": 1.1723076923076925,
+          "shifts": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "candidate_provenance": [
+            [
+              "exact",
+              "seed"
+            ],
+            [
+              "exact"
+            ],
+            [
+              "exact",
+              "similarity"
+            ]
+          ],
+          "coeffs": [
+            "3",
+            "1",
+            "1"
+          ],
+          "combined_terms": [
+            2,
+            3,
+            5,
+            5,
+            9,
+            10
+          ],
+          "component_terms": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              1,
+              2,
+              3,
+              3,
+              4,
+              4
+            ],
+            [
+              1,
+              1,
+              2,
+              2,
+              5,
+              6
+            ]
+          ],
+          "component_transforms": [
+            "id",
+            "id",
+            "id"
+          ],
+          "expression": "a(n) = 3*A000004(n) + 1*A000267(n) + 1*A000403(n)",
+          "ids": [
+            "A000004",
+            "A000267",
+            "A000403"
+          ],
+          "latex_expression": "a_{{n}} = 3\\,\\mathrm{A000004}(n) + 1\\,\\mathrm{A000267}(n) + 1\\,\\mathrm{A000403}(n)",
+          "length": 6,
+          "names": [
+            "The zero sequence.",
+            "Integer part of square root of 4n+1.",
+            "Number of simple equifacetted 3-manifolds with n faces."
+          ],
+          "score": 1.1723076923076925,
+          "shifts": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "candidate_provenance": [
+            [
+              "exact",
+              "seed"
+            ],
+            [
+              "exact"
+            ],
+            [
+              "similarity"
+            ]
+          ],
+          "coeffs": [
+            "2",
+            "-1",
+            "1"
+          ],
+          "combined_terms": [
+            2,
+            3,
+            5,
+            5,
+            9
+          ],
+          "component_terms": [
+            [
+              1,
+              1,
+              1,
+              1,
+              1
+            ],
+            [
+              1,
+              1,
+              2,
+              4,
+              4
+            ],
+            [
+              1,
+              2,
+              5,
+              7,
+              11
+            ]
+          ],
+          "component_transforms": [
+            "id",
+            "id",
+            "id"
+          ],
+          "expression": "a(n) = 2*A000012(n) + -1*A000061(n) + 1*A013660(n)",
+          "ids": [
+            "A000012",
+            "A000061",
+            "A013660"
+          ],
+          "latex_expression": "a_{{n}} = 2\\,\\mathrm{A000012}(n) + -1\\,\\mathrm{A000061}(n) + 1\\,\\mathrm{A013660}(n)",
+          "length": 5,
+          "names": [
+            "The simplest sequence of positive numbers: the all 1's sequence.",
+            "Generalized tangent numbers d(n,1).",
+            "Number of elementary catastrophes on n-dimensional manifold (the next term is infinite)."
+          ],
+          "score": 1.0545454545454547,
+          "shifts": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "candidate_provenance": [
+            [
+              "exact"
+            ],
+            [
+              "exact",
+              "seed"
+            ],
+            [
+              "similarity"
+            ]
+          ],
+          "coeffs": [
+            "3",
+            "2",
+            "-1"
+          ],
+          "combined_terms": [
+            2,
+            3,
+            5,
+            5,
+            9
+          ],
+          "component_terms": [
+            [
+              1,
+              1,
+              2,
+              2,
+              4
+            ],
+            [
+              0,
+              1,
+              2,
+              3,
+              4
+            ],
+            [
+              1,
+              2,
+              5,
+              7,
+              11
+            ]
+          ],
+          "component_transforms": [
+            "id",
+            "id",
+            "id"
+          ],
+          "expression": "a(n) = 3*A000010(n) + 2*A001477(n) + -1*A013660(n)",
+          "ids": [
+            "A000010",
+            "A001477",
+            "A013660"
+          ],
+          "latex_expression": "a_{{n}} = 3\\,\\mathrm{A000010}(n) + 2\\,\\mathrm{A001477}(n) + -1\\,\\mathrm{A013660}(n)",
+          "length": 5,
+          "names": [
+            "Euler totient function phi(n): count numbers <= n and prime to n.",
+            "The nonnegative integers.",
+            "Number of elementary catastrophes on n-dimensional manifold (the next term is infinite)."
+          ],
+          "score": 0.9,
+          "shifts": [
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    }
+  },
+  "updated_utc": "2026-10-28T01:11:24Z"
+}

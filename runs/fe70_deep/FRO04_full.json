@@ -1,0 +1,215 @@
+{
+  "schema_version": 1,
+  "query": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    2,
+    16,
+    10,
+    1,
+    1,
+    1,
+    1,
+    4,
+    32,
+    168,
+    460,
+    392,
+    114,
+    1,
+    8,
+    96,
+    480,
+    1856,
+    4488,
+    6198,
+    9698,
+    7864,
+    2360,
+    1792
+  ],
+  "exact_matches": [],
+  "transform_matches": [],
+  "similarity": [
+    {
+      "id": "A361669",
+      "name": "a(n) = floor of sinh(sinh(sinh(...(1)...))) with n iterations.",
+      "corr": 0.9999999999999999,
+      "mse": 4.4406581559974685e-18,
+      "scale": 2.980153777377307e-10,
+      "offset": 0.9999999985099232
+    },
+    {
+      "id": "A379977",
+      "name": "a(n) is the maximum coefficient of (1 + x)^a(1) * (1 + x^2)^a(2) * (1 + x^3)^a(3) * ... * (1 + x^(n-1))^a(n-1).",
+      "corr": 0.9999999999999998,
+      "mse": 3.489415692164636e-21,
+      "scale": 5.296122031062021e-12,
+      "offset": 0.9999999999620445
+    },
+    {
+      "id": "A051391",
+      "name": "Number of nonisomorphic Steiner triple systems (STS's) S(2,3,v) on v = 6n+1 or 6n+3 points.",
+      "corr": 0.9999999999999998,
+      "mse": 6.016981695803778e-18,
+      "scale": 9.02130169911234e-11,
+      "offset": 0.9999999987069467
+    },
+    {
+      "id": "A263048",
+      "name": "a(0)=0, a(1)=1; for n>1, a(n) = a(n-2)^a(n-1) + a(n-1)^a(n-2).",
+      "corr": 0.9999999999999926,
+      "mse": 1.781597595997329e-15,
+      "scale": 7.743230032037037e-09,
+      "offset": 0.9999999690270819
+    },
+    {
+      "id": "A260161",
+      "name": "a(n) is the a(n-1)-th a(n-2)-dimensional simplex number, starting with the terms 1, 2.",
+      "corr": 0.9999999999995509,
+      "mse": 1.0997093759032473e-13,
+      "scale": 1.800978857220987e-08,
+      "offset": 0.9999997898859283
+    },
+    {
+      "id": "A294720",
+      "name": "Palindromes in tribonacci sequence with initial values 0,1,0 (A001590).",
+      "corr": 0.9999999999990823,
+      "mse": 2.2472424300961312e-13,
+      "scale": 1.3780704299157108e-07,
+      "offset": 0.9999994717399306
+    },
+    {
+      "id": "A129732",
+      "name": "Number of main classes of Graeco-Latin squares of order n. That is, species of pairs of orthogonal Latin squares.",
+      "corr": 0.9999999997303926,
+      "mse": 6.602626251708304e-11,
+      "scale": 1.088778906268331e-08,
+      "offset": 0.9999960532534954
+    },
+    {
+      "id": "A364853",
+      "name": "Number of Hamiltonian paths in the n-Lucas cube graph.",
+      "corr": 0.9999999995740201,
+      "mse": 1.0432158227793726e-10,
+      "scale": 1.012143528512546e-06,
+      "offset": 0.9999940959511255
+    },
+    {
+      "id": "A308309",
+      "name": "Number of maximal matchings in the n X n fiveleaper graph.",
+      "corr": 0.9999999986322021,
+      "mse": 3.3497088288135294e-10,
+      "scale": 2.229149153481285e-09,
+      "offset": 0.9999911506686601
+    },
+    {
+      "id": "A055391",
+      "name": "Palindromic Lucas numbers (in the order of appearance).",
+      "corr": 0.9999999985628534,
+      "mse": 3.519542295993611e-10,
+      "scale": 5.961026789603813e-06,
+      "offset": 0.9999721822855951
+    }
+  ],
+  "combinations": [],
+  "triple_combinations": [],
+  "modclass_combinations": [],
+  "pointwise_combinations": [],
+  "convolution_combinations": [],
+  "combined_combinations": [],
+  "ranked_explanations": [],
+  "diagnostics": {
+    "query_length": 30,
+    "exact_limit": 15,
+    "transform_limit": 60,
+    "similarity_limit": 10,
+    "combination_limit": 10,
+    "combo_candidate_cap": 60,
+    "combo_max_checks": 400000,
+    "triple_limit": 4,
+    "triple_candidate_cap": 30,
+    "triple_max_checks": 350000,
+    "pointwise_limit": 0,
+    "convolution_limit": 0,
+    "variance_band": null,
+    "growth_band": null,
+    "excluded_ids": [],
+    "query_var": 6133551.432222222,
+    "query_diff_var": 2007561.3555291318,
+    "query_growth": 0.23699038147427184,
+    "combined_combinations_count": 0,
+    "combined_explanations": [],
+    "ranking": {
+      "enabled": true,
+      "mode": "auto_preset_deepmax",
+      "configured_limit": 0,
+      "default_quota": 1,
+      "quota_overrides": {},
+      "input_counts": {},
+      "post_dedupe_counts": {},
+      "quotas": {},
+      "dedupe_dropped": 0,
+      "selected_count": 0,
+      "selected_counts": {},
+      "limit": 0
+    },
+    "scheduling": {
+      "mode": "latency_first",
+      "combo_stage_requested": true,
+      "transform_probe_used": true,
+      "transform_refined": true,
+      "transform_probe_cap_s": 5.0
+    },
+    "candidate_bucket": {
+      "size": 60,
+      "exact": 22,
+      "similar": 36,
+      "discovery": 0,
+      "provenance_counts": {
+        "index_join": 22,
+        "seed": 6,
+        "similarity": 36
+      },
+      "provider_diagnostics": {
+        "requested": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "enabled": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "unknown": [],
+        "widen_prefilter": false
+      }
+    }
+  },
+  "fe70_input": {
+    "id": "FRO04",
+    "variant": "full",
+    "start_index": 1,
+    "also_covers": [],
+    "command": [
+      "/home/rahidz/coding/oeis/.venv/bin/oeis",
+      "analyze",
+      "1,1,1,1,1,1,2,16,10,1,1,1,1,4,32,168,460,392,114,1,8,96,480,1856,4488,6198,9698,7864,2360,1792",
+      "--deep",
+      "--time-cap",
+      "120",
+      "--subsequence",
+      "--json",
+      "--show-terms",
+      "60",
+      "--show-formula"
+    ]
+  }
+}

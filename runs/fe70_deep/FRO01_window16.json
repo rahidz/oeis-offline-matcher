@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "query": [
+    3,
+    37,
+    17,
+    1,
+    1,
+    1,
+    1,
+    5,
+    33,
+    241,
+    649,
+    553,
+    135,
+    1,
+    9,
+    97
+  ],
+  "exact_matches": [],
+  "transform_matches": [],
+  "similarity": [
+    {
+      "id": "A067376",
+      "name": "Smallest integer expressible as the sum of (at least two) consecutive primes in n ways.",
+      "corr": 0.9983727139902502,
+      "mse": 116.22580485195034,
+      "scale": 4.950423254951675e-08,
+      "offset": 9.636525407369184
+    },
+    {
+      "id": "A364549",
+      "name": "Odd numbers k that divide A005941(k).",
+      "corr": 0.9978774666463442,
+      "mse": 151.5603336288246,
+      "scale": 7.170529993473592e-05,
+      "offset": 5.325290952849349
+    },
+    {
+      "id": "A280468",
+      "name": "Length of shortest prefix of the M\u00f6bius sequence (A008683) containing all possible length-n blocks that appear.",
+      "corr": 0.9977090122756823,
+      "mse": 163.5750913238975,
+      "scale": 9.112088035779939e-07,
+      "offset": 6.698921966967171
+    },
+    {
+      "id": "A385673",
+      "name": "The smallest number k such that k! contains the string concatenation of 0 to n as a substring.",
+      "corr": 0.9976912124452675,
+      "mse": 164.84451929029166,
+      "scale": 0.0023368485897218684,
+      "offset": 3.7490585244838504
+    },
+    {
+      "id": "A353987",
+      "name": "Numbers k such that F(k), F(k+1) and F(k+2) have the same binary weight (A000120), where F(k) is the k-th Fibonacci number (A000045).",
+      "corr": 0.9976816927907863,
+      "mse": 165.52342183571457,
+      "scale": 4.488101060781929e-06,
+      "offset": 10.209031183594623
+    },
+    {
+      "id": "A056266",
+      "name": "Indices of primes in sequence defined by A(0) = 99, A(n) = 10*A(n-1) - 1 for n > 0.",
+      "corr": 0.9975438338219196,
+      "mse": 175.35422948492058,
+      "scale": 0.0015744659134590989,
+      "offset": 7.840055170035384
+    },
+    {
+      "id": "A259139",
+      "name": "Numbers k such that 8*R_k + 9*10^k + 1 is prime, where R_k = 11...11 is the repunit (A002275) of length k.",
+      "corr": 0.9975438338219196,
+      "mse": 175.35422948492058,
+      "scale": 0.0015744659134590989,
+      "offset": 7.838480704121924
+    },
+    {
+      "id": "A082719",
+      "name": "Numbers k such that (89*10^(k-1) + 1)/9 is a depression prime.",
+      "corr": 0.9975438338219196,
+      "mse": 175.35422948492072,
+      "scale": 0.0015744659134590989,
+      "offset": 7.836906238208464
+    },
+    {
+      "id": "A104114",
+      "name": "The order of the smallest solvable group with derived length n.",
+      "corr": 0.9975121196354773,
+      "mse": 177.61559536881572,
+      "scale": 1.9658359635153024e-07,
+      "offset": 12.101029810917886
+    },
+    {
+      "id": "A007176",
+      "name": "Stopping times (see Borwein-Loring article for precise definition).",
+      "corr": 0.9974335091828008,
+      "mse": 183.2205685811099,
+      "scale": 0.0014055859078932415,
+      "offset": 5.708617121580005
+    }
+  ],
+  "combinations": [],
+  "triple_combinations": [],
+  "modclass_combinations": [],
+  "pointwise_combinations": [],
+  "convolution_combinations": [],
+  "combined_combinations": [],
+  "ranked_explanations": [],
+  "diagnostics": {
+    "query_length": 16,
+    "exact_limit": 15,
+    "transform_limit": 60,
+    "similarity_limit": 10,
+    "combination_limit": 10,
+    "combo_candidate_cap": 60,
+    "combo_max_checks": 400000,
+    "triple_limit": 4,
+    "triple_candidate_cap": 30,
+    "triple_max_checks": 350000,
+    "pointwise_limit": 0,
+    "convolution_limit": 0,
+    "variance_band": null,
+    "growth_band": null,
+    "excluded_ids": [],
+    "query_var": 38542.25,
+    "query_diff_var": 28096.995555555553,
+    "query_growth": 0.4901504541162849,
+    "combined_combinations_count": 0,
+    "combined_explanations": [],
+    "ranking": {
+      "enabled": true,
+      "mode": "auto_preset_deepmax",
+      "configured_limit": 0,
+      "default_quota": 1,
+      "quota_overrides": {},
+      "input_counts": {},
+      "post_dedupe_counts": {},
+      "quotas": {},
+      "dedupe_dropped": 0,
+      "selected_count": 0,
+      "selected_counts": {},
+      "limit": 0
+    },
+    "scheduling": {
+      "mode": "latency_first",
+      "combo_stage_requested": true,
+      "transform_probe_used": true,
+      "transform_refined": true,
+      "transform_probe_cap_s": 5.0
+    },
+    "candidate_bucket": {
+      "size": 60,
+      "exact": 22,
+      "similar": 36,
+      "discovery": 0,
+      "provenance_counts": {
+        "index_join": 22,
+        "seed": 6,
+        "similarity": 36
+      },
+      "provider_diagnostics": {
+        "requested": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "enabled": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "unknown": [],
+        "widen_prefilter": false
+      }
+    }
+  },
+  "fe70_input": {
+    "id": "FRO01",
+    "variant": "window16",
+    "start_index": 7,
+    "also_covers": [],
+    "command": [
+      "/home/rahidz/coding/oeis/.venv/bin/oeis",
+      "analyze",
+      "3,37,17,1,1,1,1,5,33,241,649,553,135,1,9,97",
+      "--deep",
+      "--time-cap",
+      "120",
+      "--subsequence",
+      "--json",
+      "--show-terms",
+      "60",
+      "--show-formula"
+    ]
+  }
+}

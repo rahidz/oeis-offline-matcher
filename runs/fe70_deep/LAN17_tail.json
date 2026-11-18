@@ -1,0 +1,208 @@
+{
+  "schema_version": 1,
+  "query": [
+    4,
+    2,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    16,
+    96,
+    164,
+    52,
+    0,
+    0,
+    0,
+    0,
+    64,
+    736,
+    1648,
+    3208,
+    3552,
+    1640,
+    0
+  ],
+  "exact_matches": [],
+  "transform_matches": [],
+  "similarity": [
+    {
+      "id": "A192367",
+      "name": "Numbers k such that k! + 2*k + 1 is prime.",
+      "corr": 0.9989023305444713,
+      "mse": 1.7771608012259563,
+      "scale": 0.005640221588220006,
+      "offset": 0.6774830280301487
+    },
+    {
+      "id": "A392909",
+      "name": "Numbers k such that sigma(k) = psi(k) + pi(k) + omega(k)^6.",
+      "corr": 0.9987603599560103,
+      "mse": 6.567944816925555,
+      "scale": 2.4494620177891674e-07,
+      "offset": 1.2985765214229756
+    },
+    {
+      "id": "A284285",
+      "name": "Numbers k such that (2^k + 3)/5 is prime.",
+      "corr": 0.998743706201553,
+      "mse": 2.0338171110835686,
+      "scale": 0.002261659705144773,
+      "offset": 0.3998780902472575
+    },
+    {
+      "id": "A280102",
+      "name": "Engel expansion of e to the base Pi.",
+      "corr": 0.9987302003384534,
+      "mse": 2.0556678953720318,
+      "scale": 7.44547295880401e-07,
+      "offset": 0.6244515590984918
+    },
+    {
+      "id": "A014358",
+      "name": "Chance of getting no pair, a pair, 2 pair, 3 of a kind, other straight, other flush, full house, 4 of a kind, other straight flush, a royal flush, or 5 of a kind in poker when joker is wild is 1 in a(n) (rounded to nearest integer).",
+      "corr": 0.9986609876075738,
+      "mse": 7.094093407395349,
+      "scale": 0.0007498966019738147,
+      "offset": 1.4000463226617512
+    },
+    {
+      "id": "A230054",
+      "name": "The smallest integer a(n) = A producing primes for the first n values greater than 1 of floor((k^k)/A), k drawn from the positive integers.",
+      "corr": 0.9986044997391252,
+      "mse": 2.2590214495004823,
+      "scale": 8.510964670182011e-10,
+      "offset": 0.47939236340889124
+    },
+    {
+      "id": "A121952",
+      "name": "Number of isomeric aza-benzenoids with four nitrogen atoms and n hexagons.",
+      "corr": 0.9985006276460767,
+      "mse": 2.4270423783528585,
+      "scale": 4.122488397546072e-07,
+      "offset": 0.5722360121778237
+    },
+    {
+      "id": "A247147",
+      "name": "Numbers k such that 3*k-4 and 2^k-1 are prime.",
+      "corr": 0.9984980470529935,
+      "mse": 1770.6804073757237,
+      "scale": 5.466814190690881e-05,
+      "offset": 20.59050105625902
+    },
+    {
+      "id": "A364992",
+      "name": "Number of chordless cycles (of length >=4) in the complement of the n-halved cube graph.",
+      "corr": 0.9984939024453873,
+      "mse": 2.437920294227875,
+      "scale": 1.7803976694321787e-06,
+      "offset": 0.7218728867180857
+    },
+    {
+      "id": "A244507",
+      "name": "Square roots of A244506.",
+      "corr": 0.9984772029963019,
+      "mse": 2.4649310973083116,
+      "scale": 1.9465389062128066e-05,
+      "offset": 0.49836980552266397
+    }
+  ],
+  "combinations": [],
+  "triple_combinations": [],
+  "modclass_combinations": [],
+  "pointwise_combinations": [],
+  "convolution_combinations": [],
+  "combined_combinations": [],
+  "ranked_explanations": [],
+  "diagnostics": {
+    "query_length": 23,
+    "exact_limit": 15,
+    "transform_limit": 60,
+    "similarity_limit": 10,
+    "combination_limit": 10,
+    "combo_candidate_cap": 60,
+    "combo_max_checks": 400000,
+    "triple_limit": 4,
+    "triple_candidate_cap": 30,
+    "triple_max_checks": 350000,
+    "pointwise_limit": 0,
+    "convolution_limit": 0,
+    "variance_band": null,
+    "growth_band": null,
+    "excluded_ids": [],
+    "query_var": 1020085.1871455577,
+    "query_diff_var": 464147.23966942145,
+    "query_growth": 0.48815040348736694,
+    "combined_combinations_count": 0,
+    "combined_explanations": [],
+    "ranking": {
+      "enabled": true,
+      "mode": "auto_preset_deepmax",
+      "configured_limit": 0,
+      "default_quota": 1,
+      "quota_overrides": {},
+      "input_counts": {},
+      "post_dedupe_counts": {},
+      "quotas": {},
+      "dedupe_dropped": 0,
+      "selected_count": 0,
+      "selected_counts": {},
+      "limit": 0
+    },
+    "scheduling": {
+      "mode": "latency_first",
+      "combo_stage_requested": true,
+      "transform_probe_used": true,
+      "transform_refined": true,
+      "transform_probe_cap_s": 5.0
+    },
+    "candidate_bucket": {
+      "size": 60,
+      "exact": 22,
+      "similar": 36,
+      "discovery": 0,
+      "provenance_counts": {
+        "index_join": 22,
+        "seed": 6,
+        "similarity": 36
+      },
+      "provider_diagnostics": {
+        "requested": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "enabled": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "unknown": [],
+        "widen_prefilter": false
+      }
+    }
+  },
+  "fe70_input": {
+    "id": "LAN17",
+    "variant": "tail",
+    "start_index": 8,
+    "also_covers": [],
+    "command": [
+      "/home/rahidz/coding/oeis/.venv/bin/oeis",
+      "analyze",
+      "4,2,0,0,0,0,0,0,16,96,164,52,0,0,0,0,64,736,1648,3208,3552,1640,0",
+      "--deep",
+      "--time-cap",
+      "120",
+      "--subsequence",
+      "--json",
+      "--show-terms",
+      "60",
+      "--show-formula"
+    ]
+  }
+}

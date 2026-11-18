@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "query": [
+    1,
+    5,
+    3,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    9,
+    109,
+    65,
+    19,
+    0,
+    1,
+    1
+  ],
+  "exact_matches": [],
+  "transform_matches": [],
+  "similarity": [
+    {
+      "id": "A205568",
+      "name": "Number of 9-chromatic (i.e., chromatic number equals 9) simple graphs on n nodes.",
+      "corr": 0.998338099234616,
+      "mse": 3.1659113859268397,
+      "scale": 0.48477316118903846,
+      "offset": 1.5029660549220978
+    },
+    {
+      "id": "A241602",
+      "name": "Erroneous version of A000287.",
+      "corr": 0.9976118852124692,
+      "mse": 4.547691642484297,
+      "scale": 0.505826056334889,
+      "offset": 0.277210179328422
+    },
+    {
+      "id": "A390109",
+      "name": "Number of canonical representative loops with length A389534(n) touching all cells in an n X n grid.",
+      "corr": 0.9962239560895075,
+      "mse": 7.185731699493169,
+      "scale": 6.3556810162314745,
+      "offset": -6.184191954834156
+    },
+    {
+      "id": "A217415",
+      "name": "11-adic valuation of A217413.",
+      "corr": 0.9961495892903127,
+      "mse": 7.32697717808756,
+      "scale": 0.22107813498122889,
+      "offset": -2.160453752002651
+    },
+    {
+      "id": "A371674",
+      "name": "Number of maximal distance-critical graphs on n vertices.",
+      "corr": 0.9958559779664199,
+      "mse": 7.8845326053092295,
+      "scale": 0.19359605265744484,
+      "offset": 0.09390992667536063
+    },
+    {
+      "id": "A376084",
+      "name": "Number of cryptarithmically unique primes with n decimal digits.",
+      "corr": 0.9940781711301826,
+      "mse": 11.257001675154566,
+      "scale": 1.0268445200917635,
+      "offset": -0.4081625101753859
+    },
+    {
+      "id": "A106578",
+      "name": "First differences of indices of squarefree central binomial numbers.",
+      "corr": 0.9916524281781912,
+      "mse": 15.848874006791027,
+      "scale": 2.3099538997083453,
+      "offset": -2.9724339072349255
+    },
+    {
+      "id": "A304199",
+      "name": "Number of fully-leafed free tree-like 4d-polycubes of size n.",
+      "corr": 0.9899337540022917,
+      "mse": 17.149100908619104,
+      "scale": 0.1814910150290379,
+      "offset": 0.256715033516123
+    },
+    {
+      "id": "A385629",
+      "name": "Number of equivalence classes of connected 4-regular graphs on n unlabeled nodes up to local complementation.",
+      "corr": 0.9882056399054545,
+      "mse": 22.354264381859725,
+      "scale": 0.4098617846895375,
+      "offset": -0.9411824358584304
+    },
+    {
+      "id": "A306417",
+      "name": "Number of self-conjugate set partitions of {1, ..., n}.",
+      "corr": 0.9880972743279633,
+      "mse": 22.55842386578289,
+      "scale": 0.33674235864141094,
+      "offset": -1.3138404346582784
+    }
+  ],
+  "combinations": [],
+  "triple_combinations": [],
+  "modclass_combinations": [],
+  "pointwise_combinations": [],
+  "convolution_combinations": [],
+  "combined_combinations": [],
+  "ranked_explanations": [],
+  "diagnostics": {
+    "query_length": 16,
+    "exact_limit": 15,
+    "transform_limit": 60,
+    "similarity_limit": 10,
+    "combination_limit": 10,
+    "combo_candidate_cap": 60,
+    "combo_max_checks": 400000,
+    "triple_limit": 4,
+    "triple_candidate_cap": 30,
+    "triple_max_checks": 350000,
+    "pointwise_limit": 0,
+    "convolution_limit": 0,
+    "variance_band": null,
+    "growth_band": null,
+    "excluded_ids": [],
+    "query_var": 856.12109375,
+    "query_diff_var": 967.2,
+    "query_growth": 0.3219518220739244,
+    "combined_combinations_count": 0,
+    "combined_explanations": [],
+    "ranking": {
+      "enabled": true,
+      "mode": "auto_preset_deepmax",
+      "configured_limit": 0,
+      "default_quota": 1,
+      "quota_overrides": {},
+      "input_counts": {},
+      "post_dedupe_counts": {},
+      "quotas": {},
+      "dedupe_dropped": 0,
+      "selected_count": 0,
+      "selected_counts": {},
+      "limit": 0
+    },
+    "scheduling": {
+      "mode": "latency_first",
+      "combo_stage_requested": true,
+      "transform_probe_used": true,
+      "transform_refined": true,
+      "transform_probe_cap_s": 5.0
+    },
+    "candidate_bucket": {
+      "size": 60,
+      "exact": 21,
+      "similar": 36,
+      "discovery": 0,
+      "provenance_counts": {
+        "index_join": 21,
+        "seed": 6,
+        "similarity": 36
+      },
+      "provider_diagnostics": {
+        "requested": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "enabled": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "unknown": [],
+        "widen_prefilter": false
+      }
+    }
+  },
+  "fe70_input": {
+    "id": "FRO06",
+    "variant": "window16",
+    "start_index": 7,
+    "also_covers": [],
+    "command": [
+      "/home/rahidz/coding/oeis/.venv/bin/oeis",
+      "analyze",
+      "1,5,3,0,0,0,0,1,1,9,109,65,19,0,1,1",
+      "--deep",
+      "--time-cap",
+      "120",
+      "--subsequence",
+      "--json",
+      "--show-terms",
+      "60",
+      "--show-formula"
+    ]
+  }
+}

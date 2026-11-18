@@ -1,0 +1,209 @@
+{
+  "schema_version": 1,
+  "query": [
+    1,
+    5,
+    3,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    9,
+    109,
+    65,
+    19,
+    0,
+    1,
+    1,
+    1,
+    17,
+    265,
+    691,
+    1049,
+    701,
+    81,
+    1
+  ],
+  "exact_matches": [],
+  "transform_matches": [],
+  "similarity": [
+    {
+      "id": "A198056",
+      "name": "Number of nXnXn 0..6 triangular arrays with each element x equal to the number its neighbors equal to 0,5,0,1,1,1,1 for x=0,1,2,3,4,5,6.",
+      "corr": 0.9988752292641527,
+      "mse": 2.143257701322745,
+      "scale": 1.2754023939248878e-06,
+      "offset": 1.2107912109542218
+    },
+    {
+      "id": "A143893",
+      "name": "Number of ways of placing kings with no more than 4 mutual attacks on an n X n chessboard symmetric under 180 degree rotation.",
+      "corr": 0.9988693788391382,
+      "mse": 2.154399417291565,
+      "scale": 2.438079547924042e-07,
+      "offset": 1.2082617227601107
+    },
+    {
+      "id": "A067795",
+      "name": "Numbers k such that 2*k+1 is the next prime after sigma(k).",
+      "corr": 0.9988666297554685,
+      "mse": 2.1596348279654936,
+      "scale": 1.321218388086955e-07,
+      "offset": 1.2656463522807089
+    },
+    {
+      "id": "A143874",
+      "name": "Number of ways of placing kings with no more than 1 mutual attack on an n X n chessboard symmetric under 180 degree rotation.",
+      "corr": 0.9988464865457732,
+      "mse": 2.1979955253017813,
+      "scale": 1.0367252426992988e-05,
+      "offset": 1.223684333522327
+    },
+    {
+      "id": "A383002",
+      "name": "Number of integers with a shortest addition-multiplication chain of length n.",
+      "corr": 0.998838071077366,
+      "mse": 2.214021701190767,
+      "scale": 3.404873719560625e-05,
+      "offset": 1.1543598024212323
+    },
+    {
+      "id": "A184840",
+      "name": "Number of strings of numbers x(i=1..n) in 0..n with sum i*x(i)^4 equal to n^5.",
+      "corr": 0.9988310793096097,
+      "mse": 2.227336519833305,
+      "scale": 3.4260688169675013e-05,
+      "offset": 1.257876063343359
+    },
+    {
+      "id": "A005519",
+      "name": "Let T(n,d) = number of distinct d-dimensional polyominoes (or polycubes) with n cells (A049429, A049430); sequence gives Sum_{d} T(n,d).",
+      "corr": 0.9988183453177545,
+      "mse": 2.251586341029414,
+      "scale": 3.931831666903667e-06,
+      "offset": 1.2454838251822764
+    },
+    {
+      "id": "A399393",
+      "name": "Number of one-sided ouroboros polycubes with 2*n cells.",
+      "corr": 0.9988181638617531,
+      "mse": 2.251931892305988,
+      "scale": 4.728594283803157e-06,
+      "offset": 1.0733697988326802
+    },
+    {
+      "id": "A399392",
+      "name": "Number of free ouroboros polycubes with 2*n cells.",
+      "corr": 0.9988166812750886,
+      "mse": 2.254755217429389,
+      "scale": 9.449999022518142e-06,
+      "offset": 1.0710809840652913
+    },
+    {
+      "id": "A219889",
+      "name": "Number of directed 2-regular graphs on n nodes.",
+      "corr": 0.9988136139817411,
+      "mse": 2.260596323958375,
+      "scale": 1.4988828845749087e-06,
+      "offset": 1.0663213202110002
+    }
+  ],
+  "combinations": [],
+  "triple_combinations": [],
+  "modclass_combinations": [],
+  "pointwise_combinations": [],
+  "convolution_combinations": [],
+  "combined_combinations": [],
+  "ranked_explanations": [],
+  "diagnostics": {
+    "query_length": 24,
+    "exact_limit": 15,
+    "transform_limit": 60,
+    "similarity_limit": 10,
+    "combination_limit": 10,
+    "combo_candidate_cap": 60,
+    "combo_max_checks": 400000,
+    "triple_limit": 4,
+    "triple_candidate_cap": 30,
+    "triple_max_checks": 350000,
+    "pointwise_limit": 0,
+    "convolution_limit": 0,
+    "variance_band": null,
+    "growth_band": null,
+    "excluded_ids": [],
+    "query_var": 74278.27604166667,
+    "query_diff_var": 39035.30434782609,
+    "query_growth": 0.27438499440958286,
+    "combined_combinations_count": 0,
+    "combined_explanations": [],
+    "ranking": {
+      "enabled": true,
+      "mode": "auto_preset_deepmax",
+      "configured_limit": 0,
+      "default_quota": 1,
+      "quota_overrides": {},
+      "input_counts": {},
+      "post_dedupe_counts": {},
+      "quotas": {},
+      "dedupe_dropped": 0,
+      "selected_count": 0,
+      "selected_counts": {},
+      "limit": 0
+    },
+    "scheduling": {
+      "mode": "latency_first",
+      "combo_stage_requested": true,
+      "transform_probe_used": true,
+      "transform_refined": true,
+      "transform_probe_cap_s": 5.0
+    },
+    "candidate_bucket": {
+      "size": 60,
+      "exact": 22,
+      "similar": 36,
+      "discovery": 0,
+      "provenance_counts": {
+        "index_join": 22,
+        "seed": 6,
+        "similarity": 36
+      },
+      "provider_diagnostics": {
+        "requested": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "enabled": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "unknown": [],
+        "widen_prefilter": false
+      }
+    }
+  },
+  "fe70_input": {
+    "id": "FRO06",
+    "variant": "tail",
+    "start_index": 7,
+    "also_covers": [],
+    "command": [
+      "/home/rahidz/coding/oeis/.venv/bin/oeis",
+      "analyze",
+      "1,5,3,0,0,0,0,1,1,9,109,65,19,0,1,1,1,17,265,691,1049,701,81,1",
+      "--deep",
+      "--time-cap",
+      "120",
+      "--subsequence",
+      "--json",
+      "--show-terms",
+      "60",
+      "--show-formula"
+    ]
+  }
+}

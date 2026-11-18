@@ -1,0 +1,211 @@
+{
+  "schema_version": 1,
+  "query": [
+    4,
+    8,
+    4,
+    8,
+    16,
+    50,
+    66,
+    120,
+    106,
+    126,
+    300,
+    1280,
+    1272,
+    678,
+    1926,
+    7834,
+    9648,
+    12580,
+    27710,
+    45842,
+    87860,
+    139216,
+    164852,
+    154568,
+    415020,
+    983764
+  ],
+  "exact_matches": [],
+  "transform_matches": [],
+  "similarity": [
+    {
+      "id": "A002393",
+      "name": "Weight distribution of [8,4,4] Hamming code omitting 0 terms.",
+      "corr": 1.0,
+      "mse": 0.0,
+      "scale": 0.3076923076923077,
+      "offset": 3.692307692307692
+    },
+    {
+      "id": "A110825",
+      "name": "Weight enumerator of [64,7,32] Reed-Muller code RM(1,6).",
+      "corr": 1.0,
+      "mse": 0.0,
+      "scale": 0.032,
+      "offset": 3.968
+    },
+    {
+      "id": "A110827",
+      "name": "Weight enumerator of [128,8,64] Reed-Muller code RM(1,7).",
+      "corr": 1.0,
+      "mse": 0.0,
+      "scale": 0.015810276679841896,
+      "offset": 3.984189723320158
+    },
+    {
+      "id": "A135826",
+      "name": "Moves to permute (ufl,ubr)(ufr,ubl) corners in a 3 X 3 X 3 Rubik's cube.",
+      "corr": 1.0,
+      "mse": 0.0,
+      "scale": 0.023809523809523808,
+      "offset": 3.3333333333333335
+    },
+    {
+      "id": "A110823",
+      "name": "Weight enumerator of [32,6,16] Reed-Muller code RM(1,5).",
+      "corr": 1.0,
+      "mse": 1.314768175368353e-31,
+      "scale": 0.06557377049180328,
+      "offset": 3.934426229508196
+    },
+    {
+      "id": "A184075",
+      "name": "Number of (n+1)X4 0..2 arrays with rows and columns in nondecreasing order and with no 2X2 subblock sum differing from a horizontal or vertical neighbor subblock sum by more than one.",
+      "corr": 0.9990096695342728,
+      "mse": 2262095.1398712373,
+      "scale": 9.328334307558811e-07,
+      "offset": 387.9318407181285
+    },
+    {
+      "id": "A095356",
+      "name": "Ratio A095106(n)/A095093(n) rounded to nearest integer.",
+      "corr": 0.9990017841009736,
+      "mse": 860195.5434333448,
+      "scale": 14.45831371358768,
+      "offset": -7.110248089963404
+    },
+    {
+      "id": "A095355",
+      "name": "Ratio A095106(n)/A095093(n) rounded down.",
+      "corr": 0.9990014507840622,
+      "mse": 860482.6301241992,
+      "scale": 14.459497415607196,
+      "offset": -3.0607237989856264
+    },
+    {
+      "id": "A243467",
+      "name": "Number of ways 5 domicules can be placed on an n X n square.",
+      "corr": 0.9989959346015229,
+      "mse": 2293452.4695193656,
+      "scale": 1.5467078728886979e-09,
+      "offset": 354.4465080533965
+    },
+    {
+      "id": "A035605",
+      "name": "Number of points of L1 norm 11 in cubic lattice Z^n.",
+      "corr": 0.9989955099646866,
+      "mse": 2294421.9233302698,
+      "scale": 6.521318245075637e-06,
+      "offset": 295.11434467338205
+    }
+  ],
+  "combinations": [],
+  "triple_combinations": [],
+  "modclass_combinations": [],
+  "pointwise_combinations": [],
+  "convolution_combinations": [],
+  "combined_combinations": [],
+  "ranked_explanations": [],
+  "diagnostics": {
+    "query_length": 26,
+    "exact_limit": 15,
+    "transform_limit": 60,
+    "similarity_limit": 10,
+    "combination_limit": 10,
+    "combo_candidate_cap": 60,
+    "combo_max_checks": 400000,
+    "triple_limit": 4,
+    "triple_candidate_cap": 30,
+    "triple_max_checks": 350000,
+    "pointwise_limit": 0,
+    "convolution_limit": 0,
+    "variance_band": null,
+    "growth_band": null,
+    "excluded_ids": [],
+    "query_var": 40730351839.15385,
+    "query_diff_var": 14334677306.879997,
+    "query_growth": 0.6039584932703106,
+    "combined_combinations_count": 0,
+    "combined_explanations": [],
+    "ranking": {
+      "enabled": true,
+      "mode": "auto_preset_deepmax",
+      "configured_limit": 0,
+      "default_quota": 1,
+      "quota_overrides": {},
+      "input_counts": {},
+      "post_dedupe_counts": {},
+      "quotas": {},
+      "dedupe_dropped": 0,
+      "selected_count": 0,
+      "selected_counts": {},
+      "limit": 0
+    },
+    "scheduling": {
+      "mode": "latency_first",
+      "combo_stage_requested": true,
+      "transform_probe_used": true,
+      "transform_refined": true,
+      "transform_probe_cap_s": 5.0
+    },
+    "candidate_bucket": {
+      "size": 60,
+      "exact": 22,
+      "similar": 36,
+      "discovery": 0,
+      "provenance_counts": {
+        "index_join": 22,
+        "seed": 6,
+        "similarity": 36
+      },
+      "provider_diagnostics": {
+        "requested": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "enabled": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "unknown": [],
+        "widen_prefilter": false
+      }
+    }
+  },
+  "fe70_input": {
+    "id": "FRO25",
+    "variant": "full",
+    "start_index": 1,
+    "also_covers": [],
+    "command": [
+      "/home/rahidz/coding/oeis/.venv/bin/oeis",
+      "analyze",
+      "4,8,4,8,16,50,66,120,106,126,300,1280,1272,678,1926,7834,9648,12580,27710,45842,87860,139216,164852,154568,415020,983764",
+      "--deep",
+      "--time-cap",
+      "120",
+      "--subsequence",
+      "--json",
+      "--show-terms",
+      "60",
+      "--show-formula"
+    ]
+  }
+}

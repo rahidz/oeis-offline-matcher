@@ -1,0 +1,215 @@
+{
+  "schema_version": 1,
+  "query": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    8,
+    4,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    64,
+    96,
+    56,
+    12,
+    0,
+    0,
+    0,
+    0,
+    512,
+    1280,
+    1280,
+    640,
+    168,
+    20,
+    0
+  ],
+  "exact_matches": [],
+  "transform_matches": [],
+  "similarity": [
+    {
+      "id": "A087312",
+      "name": "a(1) = 1; for n > 1, a(n) is the smallest number == -1 (mod a(n-1)), greater than n, with the same prime signature as n.",
+      "corr": 0.9999999999996371,
+      "mse": 5.080974467344133e-12,
+      "scale": 5.5922297645050485e-08,
+      "offset": -1.589790307177097e-06
+    },
+    {
+      "id": "A089751",
+      "name": "a(n) = the first prime in the orbit of n under f(n) = n^2 + 1, if it exists; = 0 otherwise.",
+      "corr": 0.9999999999982304,
+      "mse": 2.4774437911102404e-11,
+      "scale": 4.4795174305303883e-07,
+      "offset": -4.671493209817967e-06
+    },
+    {
+      "id": "A075883",
+      "name": "a(1) = a(2) = 1; a(n) = a(n-1) + a(n-2)! for n > 2.",
+      "corr": 0.9999999999950027,
+      "mse": 6.996035189535516e-11,
+      "scale": 2.0041631980873182e-07,
+      "offset": -4.4091490414288614e-06
+    },
+    {
+      "id": "A001144",
+      "name": "An exponential function on partitions (next term is 2^512).",
+      "corr": 0.9999999999930689,
+      "mse": 9.703513020420069e-11,
+      "scale": 5.960468017483955e-08,
+      "offset": -4.751330643149032e-06
+    },
+    {
+      "id": "A048885",
+      "name": "Number of nonisomorphic orthogonal arrays OA(4n,4n-1,2,2).",
+      "corr": 0.9999999997789679,
+      "mse": 3.094448532761464e-09,
+      "scale": 2.2516653702178337e-08,
+      "offset": -2.4803260321171194e-05
+    },
+    {
+      "id": "A384629",
+      "name": "Instruction-Limited Busy Beaver Sequence: BBi(n). Maximum number of steps that an n-instruction Turing machine (allowing any number of states and symbols) can take on an initially blank tape before eventually halting.",
+      "corr": 0.9999999995603931,
+      "mse": 6.154498014361549e-09,
+      "scale": 2.0341034867135997e-06,
+      "offset": -5.375757007763937e-05
+    },
+    {
+      "id": "A371718",
+      "name": "Number of balanced inequivalent nondegenerate monotone Boolean functions of n or fewer variables.",
+      "corr": 0.9999999984243879,
+      "mse": 2.2058570014654763e-08,
+      "scale": 4.866363811717415e-07,
+      "offset": -6.610987713195904e-05
+    },
+    {
+      "id": "A305855",
+      "name": "Number of unlabeled spanning intersecting antichains on n vertices.",
+      "corr": 0.9999999974144281,
+      "mse": 3.6198008455041684e-08,
+      "scale": 1.6959902949140255e-07,
+      "offset": -8.547273971948322e-05
+    },
+    {
+      "id": "A305857",
+      "name": "Number of unlabeled intersecting antichains on up to n vertices.",
+      "corr": 0.9999999972884502,
+      "mse": 3.796169618454786e-08,
+      "scale": 1.6958640409409695e-07,
+      "offset": -8.822796028784552e-05
+    },
+    {
+      "id": "A259839",
+      "name": "Number of order-preserving Hamiltonian paths in the n-cube (Gray codes); see the comments for the precise definition of order-preserving.",
+      "corr": 0.9999999967908407,
+      "mse": 4.4928231674623985e-08,
+      "scale": 5.359403992217585e-06,
+      "offset": -0.00010565040324195252
+    }
+  ],
+  "combinations": [],
+  "triple_combinations": [],
+  "modclass_combinations": [],
+  "pointwise_combinations": [],
+  "convolution_combinations": [],
+  "combined_combinations": [],
+  "ranked_explanations": [],
+  "diagnostics": {
+    "query_length": 30,
+    "exact_limit": 15,
+    "transform_limit": 60,
+    "similarity_limit": 10,
+    "combination_limit": 10,
+    "combo_candidate_cap": 60,
+    "combo_max_checks": 400000,
+    "triple_limit": 4,
+    "triple_candidate_cap": 30,
+    "triple_max_checks": 350000,
+    "pointwise_limit": 0,
+    "convolution_limit": 0,
+    "variance_band": null,
+    "growth_band": null,
+    "excluded_ids": [],
+    "query_var": 114084.0,
+    "query_diff_var": 52260.41379310345,
+    "query_growth": 0.22434093406354472,
+    "combined_combinations_count": 0,
+    "combined_explanations": [],
+    "ranking": {
+      "enabled": true,
+      "mode": "auto_preset_deepmax",
+      "configured_limit": 0,
+      "default_quota": 1,
+      "quota_overrides": {},
+      "input_counts": {},
+      "post_dedupe_counts": {},
+      "quotas": {},
+      "dedupe_dropped": 0,
+      "selected_count": 0,
+      "selected_counts": {},
+      "limit": 0
+    },
+    "scheduling": {
+      "mode": "latency_first",
+      "combo_stage_requested": true,
+      "transform_probe_used": true,
+      "transform_refined": true,
+      "transform_probe_cap_s": 5.0
+    },
+    "candidate_bucket": {
+      "size": 60,
+      "exact": 22,
+      "similar": 36,
+      "discovery": 0,
+      "provenance_counts": {
+        "index_join": 22,
+        "seed": 6,
+        "similarity": 36
+      },
+      "provider_diagnostics": {
+        "requested": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "enabled": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "unknown": [],
+        "widen_prefilter": false
+      }
+    }
+  },
+  "fe70_input": {
+    "id": "LAN16",
+    "variant": "full",
+    "start_index": 1,
+    "also_covers": [],
+    "command": [
+      "/home/rahidz/coding/oeis/.venv/bin/oeis",
+      "analyze",
+      "0,0,0,0,0,0,0,8,4,0,0,0,0,0,0,64,96,56,12,0,0,0,0,512,1280,1280,640,168,20,0",
+      "--deep",
+      "--time-cap",
+      "120",
+      "--subsequence",
+      "--json",
+      "--show-terms",
+      "60",
+      "--show-formula"
+    ]
+  }
+}

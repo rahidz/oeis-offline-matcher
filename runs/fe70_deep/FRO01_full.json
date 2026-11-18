@@ -1,0 +1,238 @@
+{
+  "schema_version": 1,
+  "query": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    3,
+    37,
+    17,
+    1,
+    1,
+    1,
+    1,
+    5,
+    33,
+    241,
+    649,
+    553,
+    135,
+    1,
+    9,
+    97,
+    481,
+    2129,
+    5105,
+    7473,
+    11523,
+    8849,
+    2443,
+    1793,
+    7217,
+    23873,
+    55889,
+    103593,
+    176583,
+    173553,
+    275121,
+    269845,
+    289359,
+    310273,
+    686937,
+    1234017,
+    2103649,
+    2992933,
+    5351039,
+    5592385,
+    12775627,
+    20413473,
+    22430435,
+    16222129,
+    26288001,
+    41911441,
+    74436879
+  ],
+  "exact_matches": [],
+  "transform_matches": [],
+  "similarity": [
+    {
+      "id": "A379977",
+      "name": "a(n) is the maximum coefficient of (1 + x)^a(1) * (1 + x^2)^a(2) * (1 + x^3)^a(3) * ... * (1 + x^(n-1))^a(n-1).",
+      "corr": 1.0,
+      "mse": 1.395767906431498e-20,
+      "scale": 1.0592244062124042e-11,
+      "offset": 0.999999999924089
+    },
+    {
+      "id": "A070283",
+      "name": "a(1) = 1; a(2) = 2; a(n) = [product of digits of a(n-1)]^[product of digits of a(n-2)] for n > 2.",
+      "corr": 1.0,
+      "mse": 3.152077479386727e-19,
+      "scale": 1.260339253941072e-12,
+      "offset": 0.9999999997225153
+    },
+    {
+      "id": "A000659",
+      "name": "a(n) = 2^a(n-1) + a(n-2).",
+      "corr": 1.0,
+      "mse": 1.7269791747447678e-18,
+      "scale": 1.1641532184048734e-10,
+      "offset": 0.9999999991850927
+    },
+    {
+      "id": "A341799",
+      "name": "a(n) is the least integer k such that 1/(Sum_{j=0..n} 1/phi(k+j)) is an integer.",
+      "corr": 1.0,
+      "mse": 1.490607418024924e-17,
+      "scale": 3.5371024142867636e-10,
+      "offset": 0.9999999946943464
+    },
+    {
+      "id": "A361669",
+      "name": "a(n) = floor of sinh(sinh(sinh(...(1)...))) with n iterations.",
+      "corr": 1.0,
+      "mse": 1.7762632983213156e-17,
+      "scale": 5.960307554754614e-10,
+      "offset": 0.9999999970198462
+    },
+    {
+      "id": "A051391",
+      "name": "Number of nonisomorphic Steiner triple systems (STS's) S(2,3,v) on v = 6n+1 or 6n+3 points.",
+      "corr": 1.0,
+      "mse": 2.4067927840105358e-17,
+      "scale": 1.804260339822468e-10,
+      "offset": 0.9999999974138936
+    },
+    {
+      "id": "A112866",
+      "name": "If a(n-1) is the i-th Fibonacci number then a(n)=Fibonacci(i+a(n-2)); with a(1)=1, a(2)=2 and where we use the following nonstandard indexing for the Fibonacci numbers: f(n)=f(n-1)+f(n-2), f(1)=1, f(2)=2 (cf. A000045).",
+      "corr": 0.9999999999999969,
+      "mse": 2.8943033775882734e-15,
+      "scale": 9.820765722433872e-11,
+      "offset": 0.9999999730747356
+    },
+    {
+      "id": "A263048",
+      "name": "a(0)=0, a(1)=1; for n>1, a(n) = a(n-2)^a(n-1) + a(n-1)^a(n-2).",
+      "corr": 0.9999999999999928,
+      "mse": 7.126390378094428e-15,
+      "scale": 1.5486460064074074e-08,
+      "offset": 0.9999999380541639
+    },
+    {
+      "id": "A260161",
+      "name": "a(n) is the a(n-1)-th a(n-2)-dimensional simplex number, starting with the terms 1, 2.",
+      "corr": 0.999999999999551,
+      "mse": 4.398837502984579e-13,
+      "scale": 3.601957714441974e-08,
+      "offset": 0.9999995797718567
+    },
+    {
+      "id": "A294720",
+      "name": "Palindromes in tribonacci sequence with initial values 0,1,0 (A001590).",
+      "corr": 0.9999999999990824,
+      "mse": 8.988969719510258e-13,
+      "scale": 2.7561408598314215e-07,
+      "offset": 0.9999989434798613
+    }
+  ],
+  "combinations": [],
+  "triple_combinations": [],
+  "modclass_combinations": [],
+  "pointwise_combinations": [],
+  "convolution_combinations": [],
+  "combined_combinations": [],
+  "ranked_explanations": [],
+  "diagnostics": {
+    "query_length": 53,
+    "exact_limit": 15,
+    "transform_limit": 60,
+    "similarity_limit": 10,
+    "combination_limit": 10,
+    "combo_candidate_cap": 60,
+    "combo_max_checks": 400000,
+    "triple_limit": 4,
+    "triple_candidate_cap": 30,
+    "triple_max_checks": 350000,
+    "pointwise_limit": 0,
+    "convolution_limit": 0,
+    "variance_band": null,
+    "growth_band": null,
+    "excluded_ids": [],
+    "query_var": 158033564710011.6,
+    "query_diff_var": 28018023157811.586,
+    "query_growth": 0.2848707048985465,
+    "combined_combinations_count": 0,
+    "combined_explanations": [],
+    "ranking": {
+      "enabled": true,
+      "mode": "auto_preset_deepmax",
+      "configured_limit": 0,
+      "default_quota": 1,
+      "quota_overrides": {},
+      "input_counts": {},
+      "post_dedupe_counts": {},
+      "quotas": {},
+      "dedupe_dropped": 0,
+      "selected_count": 0,
+      "selected_counts": {},
+      "limit": 0
+    },
+    "scheduling": {
+      "mode": "latency_first",
+      "combo_stage_requested": true,
+      "transform_probe_used": true,
+      "transform_refined": true,
+      "transform_probe_cap_s": 5.0
+    },
+    "candidate_bucket": {
+      "size": 60,
+      "exact": 22,
+      "similar": 36,
+      "discovery": 0,
+      "provenance_counts": {
+        "index_join": 22,
+        "seed": 6,
+        "similarity": 36
+      },
+      "provider_diagnostics": {
+        "requested": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "enabled": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "unknown": [],
+        "widen_prefilter": false
+      }
+    }
+  },
+  "fe70_input": {
+    "id": "FRO01",
+    "variant": "full",
+    "start_index": 1,
+    "also_covers": [],
+    "command": [
+      "/home/rahidz/coding/oeis/.venv/bin/oeis",
+      "analyze",
+      "1,1,1,1,1,1,3,37,17,1,1,1,1,5,33,241,649,553,135,1,9,97,481,2129,5105,7473,11523,8849,2443,1793,7217,23873,55889,103593,176583,173553,275121,269845,289359,310273,686937,1234017,2103649,2992933,5351039,5592385,12775627,20413473,22430435,16222129,26288001,41911441,74436879",
+      "--deep",
+      "--time-cap",
+      "120",
+      "--subsequence",
+      "--json",
+      "--show-terms",
+      "60",
+      "--show-formula"
+    ]
+  }
+}

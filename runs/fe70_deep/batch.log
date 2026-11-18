@@ -1,0 +1,41 @@
+START FRO01_full: index 1, 53 termsSTART FRO01_tail: index 7, 47 terms
+
+DONE FRO01_full: 49.3s {'exact_matches': 0, 'transform_matches': 0, 'similarity': 10, 'ranked_explanations': 0}
+START FRO01_window16: index 7, 16 terms
+DONE FRO01_tail: 50.0s {'exact_matches': 0, 'transform_matches': 0, 'similarity': 10, 'ranked_explanations': 0}
+START FRO04_full: index 1, 30 terms
+DONE FRO01_window16: 47.2s {'exact_matches': 0, 'transform_matches': 0, 'similarity': 10, 'ranked_explanations': 0}
+START FRO04_tail: index 7, 24 terms
+DONE FRO04_full: 46.9s {'exact_matches': 0, 'transform_matches': 0, 'similarity': 10, 'ranked_explanations': 0}
+START FRO04_window16: index 7, 16 terms
+DONE FRO04_window16: 45.7s {'exact_matches': 0, 'transform_matches': 0, 'similarity': 10, 'ranked_explanations': 0}
+START FRO06_full: index 1, 30 terms
+DONE FRO04_tail: 47.4s {'exact_matches': 0, 'transform_matches': 0, 'similarity': 10, 'ranked_explanations': 0}
+START FRO06_tail: index 7, 24 terms
+DONE FRO06_full: 44.3s {'exact_matches': 0, 'transform_matches': 0, 'similarity': 10, 'ranked_explanations': 0}
+START FRO06_window16: index 7, 16 terms
+DONE FRO06_tail: 45.7s {'exact_matches': 0, 'transform_matches': 0, 'similarity': 10, 'ranked_explanations': 0}
+START FRO25_full: index 1, 26 terms
+DONE FRO06_window16: 39.9s {'exact_matches': 0, 'transform_matches': 0, 'similarity': 10, 'ranked_explanations': 0}
+START FRO25_window16: index 1, 16 terms
+DONE FRO25_full: 48.3s {'exact_matches': 0, 'transform_matches': 0, 'similarity': 10, 'ranked_explanations': 0}
+START LAN13_full: index 1, 30 terms
+DONE FRO25_window16: 47.1s {'exact_matches': 0, 'transform_matches': 0, 'similarity': 10, 'ranked_explanations': 0}
+START LAN13_tail: index 7, 24 terms
+DONE LAN13_full: 46.5s {'exact_matches': 0, 'transform_matches': 0, 'similarity': 10, 'ranked_explanations': 0}
+START LAN13_window16: index 7, 16 terms
+DONE LAN13_tail: 47.3s {'exact_matches': 0, 'transform_matches': 0, 'similarity': 10, 'ranked_explanations': 3}
+START LAN16_full: index 1, 30 terms
+DONE LAN13_window16: 40.7s {'exact_matches': 0, 'transform_matches': 0, 'similarity': 10, 'ranked_explanations': 2}
+START LAN16_tail: index 8, 23 terms
+DONE LAN16_full: 45.8s {'exact_matches': 0, 'transform_matches': 0, 'similarity': 10, 'ranked_explanations': 0}
+START LAN16_window16: index 8, 16 terms
+DONE LAN16_tail: 48.5s {'exact_matches': 0, 'transform_matches': 0, 'similarity': 10, 'ranked_explanations': 0}
+START LAN17_full: index 1, 30 terms
+DONE LAN16_window16: 40.1s {'exact_matches': 0, 'transform_matches': 0, 'similarity': 10, 'ranked_explanations': 0}
+START LAN17_tail: index 8, 23 terms
+DONE LAN17_full: 45.8s {'exact_matches': 0, 'transform_matches': 0, 'similarity': 10, 'ranked_explanations': 0}
+START LAN17_window16: index 8, 16 terms
+DONE LAN17_tail: 47.8s {'exact_matches': 0, 'transform_matches': 0, 'similarity': 10, 'ranked_explanations': 0}
+DONE LAN17_window16: 46.5s {'exact_matches': 0, 'transform_matches': 0, 'similarity': 10, 'ranked_explanations': 0}
+COMPLETE: 20 Deep queries; LAN13 also covers LAN15.

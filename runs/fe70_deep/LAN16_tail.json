@@ -1,0 +1,208 @@
+{
+  "schema_version": 1,
+  "query": [
+    8,
+    4,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    64,
+    96,
+    56,
+    12,
+    0,
+    0,
+    0,
+    0,
+    512,
+    1280,
+    1280,
+    640,
+    168,
+    20,
+    0
+  ],
+  "exact_matches": [],
+  "transform_matches": [],
+  "similarity": [
+    {
+      "id": "A173896",
+      "name": "Exponents in the prime factorization of 43252003274489856000, the number of possible moves for a 3 X 3 X 3 Rubik's Cube: 2^27 * 3^14 * 5^3 * 7^2 * 11^1.",
+      "corr": 0.9977977560745227,
+      "mse": 0.045052292839903474,
+      "scale": 0.32019308125502816,
+      "offset": -0.6098149637972646
+    },
+    {
+      "id": "A095390",
+      "name": "Least inverse of A095389.",
+      "corr": 0.9973145382858855,
+      "mse": 2.1062832407977785,
+      "scale": 0.06592661424643954,
+      "offset": 0.4160478651002503
+    },
+    {
+      "id": "A050585",
+      "name": "Numbers n such that 119*2^n-1 is prime.",
+      "corr": 0.9969775561015891,
+      "mse": 6.297462863726862,
+      "scale": 0.00023530825172515544,
+      "offset": 1.4543953974615675
+    },
+    {
+      "id": "A153718",
+      "name": "Numbers k such that the fractional part of (Pi-2)^k is less than 1/k.",
+      "corr": 0.996921125159392,
+      "mse": 6.414859207277901,
+      "scale": 0.000875373438526136,
+      "offset": 1.423582204162713
+    },
+    {
+      "id": "A066688",
+      "name": "Numbers n such that p(n) is congruent to n mod sigma(n), where p(n) denotes the n-th prime.",
+      "corr": 0.9965026641088123,
+      "mse": 1094.50933505175,
+      "scale": 5.430558995632756e-08,
+      "offset": 14.472440584001106
+    },
+    {
+      "id": "A084701",
+      "name": "Smallest k such that k*prime(i)-1 is prime for i = 1 to n.",
+      "corr": 0.996080232154231,
+      "mse": 733.6576495476338,
+      "scale": 5.382833446984869e-20,
+      "offset": 15.3087568588478
+    },
+    {
+      "id": "A199517",
+      "name": "Number of nX2 0..3 arrays with values 0..3 introduced in row major order, the number of instances of each value within one of each other, and every element equal to two or fewer horizontal or vertical neighbors.",
+      "corr": 0.9960309217127319,
+      "mse": 742.8686662214367,
+      "scale": 1.842063607716967e-15,
+      "offset": 14.471335283590243
+    },
+    {
+      "id": "A156276",
+      "name": "Denominator of Euler(n, 1/10).",
+      "corr": 0.9958940492919681,
+      "mse": 768.4335624828655,
+      "scale": 5.0529596612411247e-14,
+      "offset": 13.644451097957699
+    },
+    {
+      "id": "A398895",
+      "name": "Number of words of length n over the 12 Quarter Turn Metric (QTM) generators {U,D,L,R,F,B,U',D',L',R',F',B'} whose product in the Rubik's Cube group has the maximum order among all words of that length.",
+      "corr": 0.9954819436812936,
+      "mse": 9.406620548037703,
+      "scale": 1.3494467952780055e-06,
+      "offset": 1.6098330774724303
+    },
+    {
+      "id": "A265785",
+      "name": "Denominators of lower primes-only best approximates (POBAs) to sqrt(5); see Comments.",
+      "corr": 0.995425401615075,
+      "mse": 9.524071598839042,
+      "scale": 0.0014404850233514892,
+      "offset": 1.3386753593744174
+    }
+  ],
+  "combinations": [],
+  "triple_combinations": [],
+  "modclass_combinations": [],
+  "pointwise_combinations": [],
+  "convolution_combinations": [],
+  "combined_combinations": [],
+  "ranked_explanations": [],
+  "diagnostics": {
+    "query_length": 23,
+    "exact_limit": 15,
+    "transform_limit": 60,
+    "similarity_limit": 10,
+    "combination_limit": 10,
+    "combo_candidate_cap": 60,
+    "combo_max_checks": 400000,
+    "triple_limit": 4,
+    "triple_candidate_cap": 30,
+    "triple_max_checks": 350000,
+    "pointwise_limit": 0,
+    "convolution_limit": 0,
+    "variance_band": null,
+    "growth_band": null,
+    "excluded_ids": [],
+    "query_var": 141245.21739130435,
+    "query_diff_var": 68885.68595041322,
+    "query_growth": 0.5292956628027184,
+    "combined_combinations_count": 0,
+    "combined_explanations": [],
+    "ranking": {
+      "enabled": true,
+      "mode": "auto_preset_deepmax",
+      "configured_limit": 0,
+      "default_quota": 1,
+      "quota_overrides": {},
+      "input_counts": {},
+      "post_dedupe_counts": {},
+      "quotas": {},
+      "dedupe_dropped": 0,
+      "selected_count": 0,
+      "selected_counts": {},
+      "limit": 0
+    },
+    "scheduling": {
+      "mode": "latency_first",
+      "combo_stage_requested": true,
+      "transform_probe_used": true,
+      "transform_refined": true,
+      "transform_probe_cap_s": 5.0
+    },
+    "candidate_bucket": {
+      "size": 60,
+      "exact": 22,
+      "similar": 36,
+      "discovery": 0,
+      "provenance_counts": {
+        "index_join": 22,
+        "seed": 6,
+        "similarity": 36
+      },
+      "provider_diagnostics": {
+        "requested": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "enabled": [
+          "seed",
+          "index_join",
+          "similarity",
+          "expanded"
+        ],
+        "unknown": [],
+        "widen_prefilter": false
+      }
+    }
+  },
+  "fe70_input": {
+    "id": "LAN16",
+    "variant": "tail",
+    "start_index": 8,
+    "also_covers": [],
+    "command": [
+      "/home/rahidz/coding/oeis/.venv/bin/oeis",
+      "analyze",
+      "8,4,0,0,0,0,0,0,64,96,56,12,0,0,0,0,512,1280,1280,640,168,20,0",
+      "--deep",
+      "--time-cap",
+      "120",
+      "--subsequence",
+      "--json",
+      "--show-terms",
+      "60",
+      "--show-formula"
+    ]
+  }
+}
