@@ -224,6 +224,7 @@ v1.0 decision: same-process threads regressed the representative workload and a 
 - [x] Add shared CLI/API/UI catalog search for text, keywords, A-numbers, term patterns, and combined filters; separate explainable discovery/notability scores with balanced ranking and pagination.
 - [x] Import rich local OEIS metadata and precompute deterministic rankings; test holdout separation, query semantics, metadata invalidation, and UI integration.
 
+- [ ] Detect quasipolynomial explanations: try small periods `p` (including odd/even at `p = 2`) and fit a low-degree polynomial for each residue class of the index modulo `p`. Verify on held-out terms from every class and report the smallest supported period, index origin, and constituent formulas.
 - [ ] Plugin system for third-party transforms and candidate providers.
 - [ ] Symbolic simplification/canonicalization engine for expression equivalence classes.
 - [ ] Deeper arithmetic tooling integration (PARI/GP/Sage/GAP) behind optional adapters.
